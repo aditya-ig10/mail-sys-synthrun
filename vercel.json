@@ -1,0 +1,16 @@
+{
+  "rewrites": [
+    {
+      "source": "/send",
+      "destination": "https://mail-sys-synthrun.onrender.com/send"
+    },
+    {
+      "source": "/firebase-config.js",
+      "destination": "https://mail-sys-synthrun.onrender.com/firebase-config.js"
+    },
+    {
+      "source": "/health",
+      "destination": "https://mail-sys-synthrun.onrender.com/health"
+    }
+  ]
+}

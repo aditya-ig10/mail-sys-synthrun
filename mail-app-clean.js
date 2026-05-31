@@ -24,6 +24,7 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 const storage = getStorage(app);
+const loadingOverlay = document.getElementById('appLoadingOverlay');
 
 let currentUser = null;
 let allMessages = [];
@@ -41,7 +42,7 @@ if (DEBUG_USER) {
 onAuthStateChanged(auth, async (user) => {
   if (DEBUG_USER) return;
   if (!user || !user.email || !user.email.endsWith(`@${ALLOWED_DOMAIN}`)) {
-    window.location.href = LOGIN_URL;
+    window.location.replace(LOGIN_URL);
     return;
   }
 
@@ -61,6 +62,7 @@ onAuthStateChanged(auth, async (user) => {
   window._getIdToken = async () => (currentUser ? await currentUser.getIdToken() : null);
 
   await loadMessages();
+  setAppLoading(false);
 });
 
 function bootDebugUser(email) {
@@ -94,6 +96,7 @@ function bootDebugUser(email) {
   } else {
     initializeDebugUi();
   }
+  setAppLoading(false);
 }
 
 function bindUi() {
@@ -474,6 +477,12 @@ function setMessageOpenState(isOpen) {
 }
 
 window.SYNTHRUN_CLOSE_MESSAGE_VIEW = closeMessageView;
+
+function setAppLoading(isLoading) {
+  if (!loadingOverlay) return;
+  loadingOverlay.classList.toggle('hidden', !isLoading);
+  loadingOverlay.setAttribute('aria-busy', String(isLoading));
+}
 
 function openCompose({ to = '', cc = '', subject = '', prefill = '' } = {}) {
   document.getElementById('compTo').value = to;

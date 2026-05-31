@@ -23,6 +23,8 @@ firestore.rules     Firestore security rules
 
 The repository no longer keeps the old Cloudflare, Vercel, and duplicate client files. The checked-in Firebase config file is also gone; the backend now serves `/firebase-config.js` dynamically from environment variables.
 
+If you keep `mail.synthrun.site` on Vercel, the repo now includes [vercel.json](vercel.json) to proxy `/send`, `/firebase-config.js`, and `/health` to the Render backend at `https://mail-sys-synthrun.onrender.com`.
+
 ## Deploy on Render
 
 1. Push this repo to GitHub.
@@ -30,6 +32,16 @@ The repository no longer keeps the old Cloudflare, Vercel, and duplicate client 
 3. Set the build command to `npm install` and the start command to `npm start`.
 4. Add the environment variables below.
 5. Deploy.
+
+## Deploy on Vercel
+
+If you want `mail.synthrun.site` to stay on Vercel, deploy the static frontend there and keep the backend on Render.
+
+1. Set the project root to this repo.
+2. Leave the build settings as the default static deployment.
+3. Ensure [vercel.json](vercel.json) stays in the repo so API requests proxy to Render.
+4. Point the `mail.synthrun.site` DNS record to Vercel, not Render.
+5. In Render, keep the backend live at its own URL and set `ALLOWED_ORIGIN=https://mail.synthrun.site`.
 
 ### Security & production checklist
 
