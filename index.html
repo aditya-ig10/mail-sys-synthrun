@@ -1,0 +1,1381 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>Synthrun Mail</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;1,9..144,300;1,9..144,400&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+/* ─── Reset & Base ─────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; }
+html, body { margin: 0; width: 100%; height: 100%; }
+
+/* ─── Tokens ────────────────────────────────────────────────── */
+:root {
+  --bg: #fafaf8;
+  --panel: rgba(255,255,255,0.82);
+  --panel-strong: #ffffff;
+  --text: #111110;
+  --muted: #6d6d67;
+  --subtle: #9a9a92;
+  --line: #deddd7;
+  --accent: #111110;
+  --accent-contrast: #fafaf8;
+  --unread-dot: #4a9c6d;
+  --radius: 0px;
+  --header-h: 56px;
+  --status-h: 28px;
+  --mobile-nav-h: 0px;
+  --sidebar-w: 220px;
+  --thread-w: 320px;
+  --transition: 150ms ease;
+}
+body[data-theme="dark"] {
+  --bg: #101114;
+  --panel: rgba(24,26,31,0.86);
+  --panel-strong: #15171b;
+  --text: #eceae2;
+  --muted: #b0aba0;
+  --subtle: #7f7a70;
+  --line: #2a2d34;
+  --accent: #eceae2;
+  --accent-contrast: #111110;
+}
+
+/* ─── Body ───────────────────────────────────────────────────── */
+body {
+  background:
+    radial-gradient(circle at top left, rgba(180,170,150,0.14), transparent 30%),
+    radial-gradient(circle at bottom right, rgba(110,120,130,0.08), transparent 28%),
+    var(--bg);
+  color: var(--text);
+  font-family: 'DM Mono', monospace;
+  font-weight: 300;
+  font-size: 13px;
+  line-height: 1.5;
+  overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+button, input, textarea, select { font: inherit; color: inherit; }
+a { color: inherit; text-decoration: none; }
+
+/* ─── Utilities ──────────────────────────────────────────────── */
+.sr-only {
+  position: absolute; width: 1px; height: 1px;
+  padding: 0; margin: -1px; overflow: hidden;
+  clip: rect(0,0,0,0); white-space: nowrap; border: 0;
+}
+.truncate { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* ─── Header ─────────────────────────────────────────────────── */
+header {
+  height: var(--header-h);
+  display: grid;
+  grid-template-columns: var(--sidebar-w) 1fr auto;
+  align-items: center;
+  gap: 12px;
+  padding: 0 16px 0 0;
+  border-bottom: 1px solid var(--line);
+  background: var(--panel);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  position: relative;
+  z-index: 10;
+}
+.h-logo {
+  display: inline-flex;
+  gap: 9px;
+  align-items: center;
+  justify-content: center;
+  text-transform: uppercase;
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  height: 100%;
+  padding: 0 18px;
+  border-right: 1px solid var(--line);
+  color: var(--text);
+  transition: background var(--transition);
+}
+.h-logo:hover { background: rgba(0,0,0,0.03); }
+body[data-theme="dark"] .h-logo:hover { background: rgba(255,255,255,0.03); }
+.h-logo svg { width: 17px; height: 17px; stroke: currentColor; fill: none; stroke-width: 1.4; flex-shrink: 0; }
+
+.h-search {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid var(--line);
+  background: rgba(255,255,255,0.22);
+  padding: 0 12px;
+  height: 34px;
+  max-width: 480px;
+  transition: border-color var(--transition), background var(--transition);
+}
+body[data-theme="dark"] .h-search { background: rgba(0,0,0,0.16); }
+.h-search:focus-within { border-color: var(--muted); }
+.h-search svg { width: 13px; height: 13px; stroke: var(--subtle); fill: none; stroke-width: 1.6; flex-shrink: 0; }
+.h-search input {
+  width: 100%; border: 0; outline: 0;
+  background: transparent; color: var(--text);
+  font-size: 12px;
+}
+.h-search input::placeholder { color: var(--subtle); }
+
+.h-right { display: flex; align-items: center; gap: 8px; }
+
+/* ─── Icon Button ────────────────────────────────────────────── */
+.icon-btn {
+  width: 34px; height: 34px;
+  display: grid; place-items: center;
+  border: 1px solid var(--line);
+  background: transparent; cursor: pointer;
+  color: var(--text);
+  transition: background var(--transition), border-color var(--transition);
+  flex-shrink: 0;
+}
+.icon-btn:hover { background: rgba(0,0,0,0.05); }
+body[data-theme="dark"] .icon-btn:hover { background: rgba(255,255,255,0.05); }
+.icon-btn:focus-visible { outline: 2px solid var(--text); outline-offset: 2px; }
+.icon-btn svg { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 1.6; }
+
+/* ─── User Chip ──────────────────────────────────────────────── */
+.user-chip {
+  position: relative;
+  display: flex; align-items: center; gap: 9px;
+  border: 1px solid var(--line);
+  padding: 5px 10px;
+  min-width: 160px;
+  max-width: 200px;
+  background: var(--panel-strong);
+  cursor: pointer;
+  user-select: none;
+  transition: background var(--transition);
+}
+.user-chip:hover { background: rgba(0,0,0,0.03); }
+body[data-theme="dark"] .user-chip:hover { background: rgba(255,255,255,0.03); }
+.user-avatar {
+  width: 26px; height: 26px;
+  display: grid; place-items: center;
+  border-radius: 50%;
+  background: var(--accent); color: var(--accent-contrast);
+  font-size: 10px; letter-spacing: 0.06em;
+  flex-shrink: 0;
+  line-height: 1;
+}
+.user-chip-email { font-size: 11px; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.user-chip-caret {
+  width: 12px; height: 12px;
+  stroke: var(--subtle); fill: none; stroke-width: 1.6;
+  flex-shrink: 0; transition: transform var(--transition);
+}
+.user-chip[aria-expanded="true"] .user-chip-caret { transform: rotate(180deg); }
+
+/* ─── User Menu ──────────────────────────────────────────────── */
+.user-menu {
+  position: absolute; right: 0; top: calc(100% + 6px);
+  min-width: 180px;
+  background: var(--panel-strong);
+  border: 1px solid var(--line);
+  box-shadow: 0 16px 40px rgba(0,0,0,0.13);
+  padding: 6px;
+  display: none; z-index: 40;
+}
+.user-menu.show { display: block; }
+.user-menu-item {
+  width: 100%; display: flex; align-items: center; gap: 9px;
+  padding: 9px 10px; margin: 0;
+  text-align: left; font-size: 11px;
+  border: 1px solid transparent; background: transparent; cursor: pointer;
+  color: var(--text);
+  transition: background var(--transition);
+}
+.user-menu-item:hover { background: rgba(0,0,0,0.04); border-color: var(--line); }
+body[data-theme="dark"] .user-menu-item:hover { background: rgba(255,255,255,0.04); }
+.user-menu-item svg { width: 13px; height: 13px; stroke: currentColor; fill: none; stroke-width: 1.6; flex-shrink: 0; }
+.user-menu-divider { height: 1px; background: var(--line); margin: 6px 0; }
+
+/* ─── App Body ───────────────────────────────────────────────── */
+.app-body {
+  height: calc(100vh - var(--header-h) - var(--status-h) - var(--mobile-nav-h));
+  display: grid;
+  grid-template-columns: var(--sidebar-w) 1fr;
+  min-height: 0;
+}
+
+/* ─── Sidebar ────────────────────────────────────────────────── */
+aside {
+  border-right: 1px solid var(--line);
+  background: var(--panel);
+  padding: 14px 12px;
+  display: flex; flex-direction: column; gap: 14px;
+  overflow-y: auto; min-height: 0;
+  scrollbar-width: thin; scrollbar-color: var(--line) transparent;
+}
+aside hr { width: 100%; border: 0; border-top: 1px solid var(--line); margin: 0; }
+
+/* ─── Compose Button ─────────────────────────────────────────── */
+.compose-btn {
+  height: 44px; width: 100%;
+  display: inline-flex; align-items: center; justify-content: center; gap: 9px;
+  background: var(--accent); color: var(--accent-contrast);
+  border: 1px solid var(--accent);
+  text-transform: uppercase; font-size: 11px; letter-spacing: 0.1em;
+  cursor: pointer;
+  transition: opacity var(--transition);
+}
+.compose-btn:hover { opacity: 0.85; }
+.compose-btn:focus-visible { outline: 2px solid var(--text); outline-offset: 2px; }
+.compose-btn svg { width: 13px; height: 13px; stroke: currentColor; fill: none; stroke-width: 1.6; flex-shrink: 0; }
+
+/* ─── Sidebar Nav ────────────────────────────────────────────── */
+.side-section { display: flex; flex-direction: column; gap: 2px; }
+.side-label {
+  color: var(--subtle); font-size: 9px;
+  letter-spacing: 0.16em; text-transform: uppercase;
+  padding: 2px 4px 6px;
+}
+.side-link {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 8px; padding: 9px 10px;
+  font-size: 11px; text-align: left;
+  border: 1px solid transparent; background: transparent; cursor: pointer;
+  color: var(--text);
+  transition: background var(--transition), border-color var(--transition);
+  width: 100%;
+}
+.side-link:hover { background: rgba(0,0,0,0.04); border-color: var(--line); }
+body[data-theme="dark"] .side-link:hover { background: rgba(255,255,255,0.04); }
+.side-link.active { background: rgba(0,0,0,0.06); border-color: var(--line); }
+body[data-theme="dark"] .side-link.active { background: rgba(255,255,255,0.07); }
+.side-link-left { display: inline-flex; align-items: center; gap: 8px; flex-shrink: 0; }
+.side-link-left svg { width: 13px; height: 13px; stroke: currentColor; fill: none; stroke-width: 1.5; flex-shrink: 0; }
+.side-badge {
+  min-width: 24px; padding: 2px 5px;
+  border: 1px solid var(--line);
+  font-size: 9px; text-align: center;
+  line-height: 1.6; flex-shrink: 0;
+}
+.side-badge.zero { opacity: 0.5; }
+
+/* ─── Mail Panel ─────────────────────────────────────────────── */
+.mail-panel {
+  min-width: 0; display: grid;
+  grid-template-columns: var(--thread-w) 1fr;
+  min-height: 0;
+}
+
+/* ─── Thread List ────────────────────────────────────────────── */
+.thread-list {
+  border-right: 1px solid var(--line);
+  display: flex; flex-direction: column;
+  min-height: 0; background: var(--panel);
+}
+.thread-toolbar {
+  height: 48px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 14px;
+  border-bottom: 1px solid var(--line);
+}
+.toolbar-label {
+  text-transform: uppercase; font-size: 11px; letter-spacing: 0.1em;
+  color: var(--text);
+}
+.thread-items {
+  overflow-y: auto; min-height: 0; flex: 1;
+  scrollbar-width: thin; scrollbar-color: var(--line) transparent;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* ─── Thread Item ────────────────────────────────────────────── */
+.thread-item {
+  display: grid; grid-template-columns: 1fr auto;
+  gap: 10px; padding: 13px 14px;
+  border-bottom: 1px solid var(--line);
+  cursor: pointer;
+  transition: background var(--transition);
+  position: relative;
+}
+.thread-item:hover { background: rgba(0,0,0,0.03); }
+body[data-theme="dark"] .thread-item:hover { background: rgba(255,255,255,0.03); }
+.thread-item.active { background: rgba(0,0,0,0.055); }
+body[data-theme="dark"] .thread-item.active { background: rgba(255,255,255,0.06); }
+
+/* Unread indicator stripe */
+.thread-item.unread::before {
+  content: '';
+  position: absolute; left: 0; top: 0; bottom: 0;
+  width: 2px;
+  background: var(--unread-dot);
+}
+.thread-item.unread .thread-subject { font-weight: 500; }
+
+.thread-meta { min-width: 0; }
+.thread-from {
+  font-size: 11px; color: var(--muted);
+  margin-bottom: 3px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.thread-subject {
+  font-size: 12px; line-height: 1.4;
+  margin-bottom: 4px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.thread-preview {
+  font-size: 11px; color: var(--subtle);
+  line-height: 1.55;
+  overflow: hidden; text-overflow: ellipsis;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+}
+.thread-aside {
+  display: flex; flex-direction: column;
+  align-items: flex-end; gap: 6px;
+  padding-top: 2px;
+}
+.thread-time {
+  font-size: 10px; color: var(--subtle); white-space: nowrap;
+  line-height: 1.4;
+}
+.thread-dot {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: var(--unread-dot);
+  display: none; flex-shrink: 0;
+}
+.thread-item.unread .thread-dot { display: block; }
+.thread-tags { display: flex; gap: 5px; margin-top: 7px; flex-wrap: wrap; }
+.thread-tag {
+  font-size: 9px; letter-spacing: 0.08em; text-transform: uppercase;
+  padding: 2px 6px; border: 1px solid var(--line);
+  line-height: 1.6;
+}
+
+/* Empty state in thread list */
+.empty-state {
+  padding: 32px 20px; color: var(--subtle);
+  text-align: center; line-height: 1.8;
+}
+.empty-state svg {
+  width: 28px; height: 28px; stroke: currentColor; fill: none;
+  stroke-width: 1.2; margin-bottom: 10px; opacity: 0.5;
+  display: block; margin-inline: auto;
+}
+
+/* ─── Mail View ──────────────────────────────────────────────── */
+.mail-view {
+  position: relative;
+  display: flex; flex-direction: column;
+  min-height: 0; background: var(--panel-strong);
+  overflow: hidden;
+}
+.mail-view-empty {
+  position: absolute; inset: 0;
+  display: grid; place-items: center;
+  color: var(--subtle); text-align: center; padding: 24px;
+  pointer-events: none;
+}
+.mail-view-empty-inner {
+  display: flex; flex-direction: column; align-items: center; gap: 8px;
+  animation: floatIn 0.38s ease both;
+}
+.mail-view-empty svg {
+  width: 38px; height: 38px; stroke: currentColor; fill: none;
+  stroke-width: 1.2; opacity: 0.35;
+}
+.mail-view-empty h3 {
+  font-family: 'Fraunces', serif; font-weight: 300;
+  font-size: 26px; margin: 0; line-height: 1.15;
+  color: var(--muted);
+}
+.mail-view-empty p {
+  margin: 0; font-size: 11px; letter-spacing: 0.09em;
+  text-transform: uppercase; color: var(--subtle);
+}
+
+/* Message View */
+#messageView { display: none; flex-direction: column; height: 100%; overflow: hidden; }
+
+.mail-header-bar {
+  min-height: 60px; flex-shrink: 0;
+  display: flex; align-items: flex-start; gap: 10px;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--line);
+}
+.mail-subject-area { flex: 1; min-width: 0; padding-top: 2px; }
+.mail-subject-line {
+  font-family: 'Fraunces', serif; font-size: 22px;
+  line-height: 1.2; font-weight: 300;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.mail-meta-row {
+  display: flex; align-items: center; gap: 7px;
+  margin-top: 5px; color: var(--subtle); font-size: 10px;
+  flex-wrap: wrap;
+}
+.mail-header-actions { display: flex; gap: 6px; align-items: center; flex-shrink: 0; padding-top: 2px; }
+
+.mail-body-scroll {
+  flex: 1; overflow-y: auto; padding: 16px;
+  scrollbar-width: thin; scrollbar-color: var(--line) transparent;
+  -webkit-overflow-scrolling: touch;
+}
+
+.mail-bubble {
+  border: 1px solid var(--line); background: var(--panel);
+  margin-bottom: 12px;
+}
+.mail-bubble-header {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 12px; padding: 11px 13px;
+  border-bottom: 1px solid var(--line);
+}
+.mail-sender-block { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.mail-sender-avatar {
+  width: 28px; height: 28px; border-radius: 50%;
+  border: 1px solid var(--line);
+  display: grid; place-items: center;
+  font-size: 10px; flex-shrink: 0;
+  background: rgba(0,0,0,0.03); line-height: 1;
+}
+body[data-theme="dark"] .mail-sender-avatar { background: rgba(255,255,255,0.04); }
+.mail-sender-info { min-width: 0; }
+.mail-sender-name { font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mail-sender-addr { font-size: 10px; color: var(--subtle); margin-top: 1px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mail-bubble-time { font-size: 10px; color: var(--subtle); white-space: nowrap; flex-shrink: 0; }
+
+.mail-bubble-body {
+  padding: 14px 13px 10px;
+  white-space: pre-wrap; line-height: 1.85;
+  font-size: 13px; color: var(--muted);
+}
+
+/* Attachments */
+.mail-attachments { padding: 0 13px 13px; }
+.mail-attachments-title {
+  font-size: 9px; letter-spacing: 0.14em;
+  text-transform: uppercase; color: var(--subtle);
+  margin-bottom: 8px;
+}
+.mail-attachments-list { display: grid; gap: 6px; }
+.mail-attachment {
+  display: flex; justify-content: space-between;
+  align-items: center; gap: 10px;
+  border: 1px solid var(--line); padding: 9px 11px;
+  background: rgba(0,0,0,0.02);
+  transition: background var(--transition);
+  color: var(--text);
+}
+.mail-attachment:hover { background: rgba(0,0,0,0.04); }
+body[data-theme="dark"] .mail-attachment { background: rgba(255,255,255,0.02); }
+body[data-theme="dark"] .mail-attachment:hover { background: rgba(255,255,255,0.04); }
+.mail-attachment-name { font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mail-attachment-meta { font-size: 10px; color: var(--subtle); white-space: nowrap; flex-shrink: 0; }
+
+/* ─── Reply Bar ──────────────────────────────────────────────── */
+.reply-bar {
+  display: flex; gap: 8px; align-items: center;
+  padding: 11px 14px;
+  border-top: 1px solid var(--line);
+  background: rgba(0,0,0,0.02);
+  flex-shrink: 0;
+}
+body[data-theme="dark"] .reply-bar { background: rgba(255,255,255,0.01); }
+
+.reply-btn, .send-btn {
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 8px 12px; font-size: 11px;
+  text-transform: uppercase; letter-spacing: 0.08em;
+  border: 1px solid var(--line); background: transparent;
+  cursor: pointer; color: var(--text);
+  transition: background var(--transition), opacity var(--transition);
+  white-space: nowrap;
+}
+.reply-btn:hover { background: rgba(0,0,0,0.04); }
+body[data-theme="dark"] .reply-btn:hover { background: rgba(255,255,255,0.04); }
+.reply-btn svg { width: 12px; height: 12px; stroke: currentColor; fill: none; stroke-width: 1.6; flex-shrink: 0; }
+.reply-btn.primary {
+  background: var(--accent); color: var(--accent-contrast);
+  border-color: var(--accent);
+}
+.reply-btn.primary:hover { opacity: 0.85; background: var(--accent); }
+
+/* ─── Compose Overlay ────────────────────────────────────────── */
+.compose-overlay {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.42);
+  display: none; align-items: flex-end; justify-content: flex-end;
+  padding: 16px; z-index: 50;
+}
+.compose-overlay.show { display: flex; }
+
+.compose-modal {
+  width: min(600px, calc(100vw - 32px));
+  max-height: calc(100vh - 80px);
+  display: flex; flex-direction: column;
+  background: var(--panel-strong);
+  border: 1px solid var(--line);
+  box-shadow: 0 20px 56px rgba(0,0,0,0.18);
+}
+
+.compose-header {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 10px; padding: 11px 13px;
+  border-bottom: 1px solid var(--line);
+  background: rgba(0,0,0,0.02);
+  flex-shrink: 0;
+}
+body[data-theme="dark"] .compose-header { background: rgba(255,255,255,0.02); }
+.compose-title {
+  text-transform: uppercase; letter-spacing: 0.1em; font-size: 11px;
+  color: var(--text);
+}
+.compose-close {
+  width: 24px; height: 24px; display: grid; place-items: center;
+  border: 1px solid var(--line); background: transparent; cursor: pointer;
+  color: var(--text);
+  transition: background var(--transition);
+}
+.compose-close:hover { background: rgba(0,0,0,0.05); }
+body[data-theme="dark"] .compose-close:hover { background: rgba(255,255,255,0.05); }
+.compose-close svg { width: 11px; height: 11px; stroke: currentColor; fill: none; stroke-width: 1.8; }
+
+.compose-field {
+  display: grid; grid-template-columns: 66px 1fr;
+  align-items: center; gap: 8px;
+  padding: 0 13px;
+  border-bottom: 1px solid var(--line);
+  flex-shrink: 0;
+}
+.compose-field label {
+  font-size: 10px; text-transform: uppercase;
+  letter-spacing: 0.12em; color: var(--subtle);
+  line-height: 1;
+}
+.compose-field input {
+  width: 100%; border: 0; outline: 0;
+  background: transparent; color: var(--text);
+  padding: 11px 0; font-size: 12px;
+}
+.compose-field input::placeholder { color: var(--subtle); }
+
+.compose-body { flex: 1; overflow: auto; padding: 13px; min-height: 160px; }
+.compose-body textarea {
+  width: 100%; min-height: 200px; height: 100%;
+  border: 0; outline: 0; resize: none;
+  background: transparent; color: var(--text);
+  line-height: 1.8; font-size: 12px;
+}
+.compose-body textarea::placeholder { color: var(--subtle); }
+
+.compose-attachments {
+  padding: 10px 13px;
+  border-top: 1px solid var(--line);
+  background: rgba(0,0,0,0.02);
+  flex-shrink: 0;
+}
+body[data-theme="dark"] .compose-attachments { background: rgba(255,255,255,0.01); }
+.compose-attachments-bar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.compose-attachment-note {
+  font-size: 10px; color: var(--subtle);
+  text-transform: uppercase; letter-spacing: 0.08em;
+}
+.compose-upload-status {
+  font-size: 10px; color: var(--subtle);
+  text-transform: uppercase; letter-spacing: 0.08em; margin-left: auto;
+}
+.attachment-list { display: grid; gap: 6px; margin-top: 10px; max-height: 140px; overflow-y: auto; }
+.attachment-chip {
+  display: flex; justify-content: space-between;
+  gap: 8px; align-items: center;
+  border: 1px solid var(--line); padding: 8px 10px;
+  background: rgba(0,0,0,0.02);
+}
+.attachment-chip-info { min-width: 0; }
+.attachment-chip-name { font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.attachment-chip-meta { font-size: 10px; color: var(--subtle); margin-top: 1px; }
+.attachment-chip-remove {
+  width: 24px; height: 24px; display: grid; place-items: center;
+  border: 1px solid var(--line); background: transparent; cursor: pointer;
+  color: var(--muted); flex-shrink: 0;
+  transition: background var(--transition);
+}
+.attachment-chip-remove:hover { background: rgba(0,0,0,0.06); }
+.attachment-chip-remove svg { width: 10px; height: 10px; stroke: currentColor; fill: none; stroke-width: 1.8; }
+
+.compose-footer {
+  display: flex; align-items: center; gap: 8px;
+  padding: 11px 13px;
+  border-top: 1px solid var(--line);
+  background: rgba(0,0,0,0.02);
+  flex-shrink: 0;
+}
+body[data-theme="dark"] .compose-footer { background: rgba(255,255,255,0.01); }
+.send-btn {
+  background: var(--accent); color: var(--accent-contrast);
+  border-color: var(--accent);
+}
+.send-btn:hover:not(:disabled) { opacity: 0.85; }
+.send-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.send-spinner {
+  width: 11px; height: 11px;
+  border: 1.5px solid rgba(255,255,255,0.25);
+  border-top-color: rgba(255,255,255,0.9);
+  border-radius: 50%; display: none;
+  animation: spin 0.8s linear infinite;
+}
+.send-btn.loading .send-spinner { display: block; }
+.send-btn.loading .send-icon { display: none; }
+.compose-from-label {
+  margin-left: auto; color: var(--subtle);
+  font-size: 10px; text-transform: uppercase;
+  letter-spacing: 0.08em; white-space: nowrap;
+  overflow: hidden; text-overflow: ellipsis;
+}
+.send-btn svg { width: 12px; height: 12px; stroke: currentColor; fill: none; stroke-width: 1.6; flex-shrink: 0; }
+
+/* ─── Status Bar ─────────────────────────────────────────────── */
+.status-bar {
+  height: var(--status-h);
+  display: flex; align-items: center; gap: 12px;
+  padding: 0 13px;
+  border-top: 1px solid var(--line);
+  background: var(--panel);
+  flex-shrink: 0;
+}
+.status-item {
+  font-size: 10px; text-transform: uppercase;
+  letter-spacing: 0.1em; color: var(--subtle);
+  display: inline-flex; align-items: center; gap: 5px;
+  white-space: nowrap;
+}
+.status-item.ml { margin-left: auto; }
+.status-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--unread-dot); }
+
+/* ─── Toast ──────────────────────────────────────────────────── */
+.toast {
+  position: fixed; left: 50%; bottom: 20px;
+  transform: translateX(-50%) translateY(8px);
+  padding: 9px 14px;
+  background: var(--accent); color: var(--accent-contrast);
+  opacity: 0; pointer-events: none;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+  z-index: 100; font-size: 11px; letter-spacing: 0.08em;
+  max-width: calc(100vw - 32px);
+}
+.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+.toast.err { background: #a33a3a; color: #fff; }
+
+/* ─── Animations ─────────────────────────────────────────────── */
+@keyframes spin { to { transform: rotate(360deg); } }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes pageRise {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes floatIn {
+  from { opacity: 0; transform: translateY(8px) scale(0.99); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+.mail-bubble { animation: fadeIn 0.2s ease; }
+
+header,
+.app-body,
+.compose-modal {
+  animation: pageRise 0.32s ease both;
+}
+
+.thread-item {
+  animation: fadeIn 0.2s ease both;
+}
+
+.thread-item:nth-child(2) { animation-delay: 0.01s; }
+.thread-item:nth-child(3) { animation-delay: 0.02s; }
+.thread-item:nth-child(4) { animation-delay: 0.03s; }
+.thread-item:nth-child(5) { animation-delay: 0.04s; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ─── Mobile Navigation ──────────────────────────────────────── */
+.mobile-nav {
+  display: none;
+  position: fixed; bottom: 0; left: 0; right: 0;
+  height: 52px; z-index: 20;
+  background: var(--panel);
+  border-top: 1px solid var(--line);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+.mobile-nav-inner {
+  display: grid; grid-template-columns: repeat(5, 1fr);
+  height: 100%;
+}
+.mobile-nav-btn {
+  display: flex; flex-direction: column; align-items: center;
+  justify-content: center; gap: 3px;
+  border: 0; background: transparent; cursor: pointer;
+  color: var(--subtle); font-size: 9px;
+  letter-spacing: 0.08em; text-transform: uppercase;
+  padding: 0; transition: color var(--transition);
+  -webkit-tap-highlight-color: transparent;
+}
+.mobile-nav-btn.active { color: var(--text); }
+.mobile-nav-btn svg { width: 18px; height: 18px; stroke: currentColor; fill: none; stroke-width: 1.4; }
+.mobile-nav-badge {
+  position: absolute; top: 6px; right: calc(50% - 16px);
+  min-width: 16px; height: 16px; padding: 0 4px;
+  background: var(--unread-dot); color: #fff;
+  font-size: 8px; border-radius: 8px;
+  display: grid; place-items: center; line-height: 1;
+}
+.mobile-nav-btn { position: relative; }
+
+/* ─── Responsive ─────────────────────────────────────────────── */
+@media (max-width: 1100px) {
+  :root { --thread-w: 280px; }
+}
+
+@media (max-width: 900px) {
+  :root { --sidebar-w: 0px; }
+  header { grid-template-columns: auto 1fr auto; }
+  .h-logo { border-right: 1px solid var(--line); padding: 0 14px; }
+  aside { display: none !important; }
+  .app-body { grid-template-columns: 1fr; }
+  .status-bar .status-item:nth-child(3) { display: none; }
+}
+
+@media (max-width: 720px) {
+  header {
+    height: 50px;
+    grid-template-columns: auto 1fr auto;
+    padding: 0 12px 0 0; gap: 8px;
+  }
+  .h-logo { font-size: 10px; padding: 0 12px; }
+  .user-chip { min-width: unset; }
+  .user-chip-email { display: none; }
+  .user-chip-caret { display: none; }
+  .user-chip { padding: 5px 8px; }
+}
+
+/* ─── Full Mobile Layout ─────────────────────────────────────── */
+@media (max-width: 640px) {
+  :root {
+    --status-h: 0px;
+    --mobile-nav-h: 52px;
+    --header-h: 48px;
+  }
+
+  body { overflow: hidden; }
+
+  header {
+    padding-right: 10px;
+    height: var(--header-h);
+  }
+  .h-search {
+    display: flex;
+    flex: 1;
+    min-width: 0;
+    max-width: none;
+    height: 32px;
+    margin-right: 8px;
+    padding: 0 10px;
+  }
+  .h-search input { font-size: 11px; }
+
+  /* Status bar hidden on mobile */
+  .status-bar { display: none; }
+
+  /* Show mobile nav */
+  .mobile-nav { display: block; }
+
+  /* App body fills exactly the space between header and mobile nav */
+  .app-body {
+    height: calc(100vh - var(--header-h) - var(--mobile-nav-h));
+    grid-template-columns: 1fr;
+    overflow: hidden;
+  }
+
+  /* Mail panel: full height, relative positioning context for abs children */
+  .mail-panel {
+    grid-template-columns: 1fr;
+    position: relative;
+    height: 100%;
+    overflow: hidden;
+  }
+
+  /* Thread list: full panel, slides out when message opens */
+  .thread-list {
+    display: flex !important;
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    z-index: 1;
+    background: var(--panel-strong);
+    transform: translateX(0);
+    transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+    will-change: transform;
+  }
+
+  /* Thread items scrollable */
+  .thread-items {
+    flex: 1;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+  }
+
+  /* Mail view: full panel, starts off-screen right */
+  .mail-view {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    z-index: 2;
+    background: var(--panel-strong);
+    transform: translateX(100%);
+    transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+    will-change: transform;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  /* When message is open: slide views */
+  .mail-panel.message-open .mail-view {
+    transform: translateX(0);
+  }
+  .mail-panel.message-open .thread-list {
+    transform: translateX(-30%);
+  }
+
+  /* Message view fills mail-view correctly */
+  #messageView {
+    display: none;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+  }
+  #messageView[style*="flex"] {
+    display: flex !important;
+  }
+
+  /* Mail body scroll fills remaining space */
+  .mail-body-scroll {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+    padding: 12px;
+  }
+
+  /* Mail header bar compact */
+  .mail-header-bar {
+    padding: 11px 12px;
+    gap: 8px;
+    flex-shrink: 0;
+    min-height: unset;
+  }
+  .mail-subject-line { font-size: 17px; }
+  .mail-header-actions { gap: 4px; }
+  .mail-header-actions .icon-btn { width: 30px; height: 30px; }
+
+  /* Reply bar fixed height */
+  .reply-bar {
+    padding: 8px 12px;
+    flex-shrink: 0;
+  }
+  .reply-btn { padding: 8px 10px; font-size: 10px; }
+
+  /* Show mobile back button */
+  .mobile-back-btn {
+    display: grid !important;
+    place-items: center;
+    width: 30px; height: 30px;
+    border: 1px solid var(--line); background: transparent; cursor: pointer;
+    color: var(--muted);
+    padding: 0; flex-shrink: 0;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .mobile-back-btn svg { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 1.6; }
+
+  /* Thread list toolbar */
+  .thread-toolbar { padding: 0 12px; }
+
+  /* Thread items: touch-friendly tap targets */
+  .thread-item {
+    padding: 14px 12px;
+    min-height: 72px;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .thread-subject { font-size: 13px; }
+  .thread-preview {
+    -webkit-line-clamp: 2;
+    font-size: 12px;
+    color: var(--subtle);
+    margin-top: 2px;
+  }
+  .thread-from { font-size: 12px; margin-bottom: 4px; }
+  .thread-time { font-size: 11px; }
+
+  /* Mail bubbles on mobile */
+  .mail-bubble { margin-bottom: 10px; }
+  .mail-bubble-body {
+    padding: 12px 12px 10px;
+    font-size: 13px;
+    line-height: 1.75;
+    word-break: break-word;
+    overflow-wrap: break-word;
+  }
+  .mail-bubble-header { padding: 10px 12px; }
+
+  /* Empty state in mail view */
+  .mail-view-empty h3 { font-size: 20px; }
+
+  /* Compose modal: full-width bottom sheet */
+  .compose-overlay {
+    padding: 0;
+    align-items: flex-end;
+  }
+  .compose-modal {
+    width: 100%;
+    max-height: calc(100vh - var(--header-h) - var(--mobile-nav-h));
+    position: relative;
+    border-left: 0;
+    border-right: 0;
+    border-bottom: 0;
+  }
+  .compose-body { min-height: 120px; }
+  .compose-body textarea { min-height: 120px; }
+
+  /* Toast above mobile nav */
+  .toast { bottom: calc(var(--mobile-nav-h) + 12px); }
+}
+
+/* ─── Scrollbar Styling ──────────────────────────────────────── */
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--line); }
+::-webkit-scrollbar-thumb:hover { background: var(--subtle); }
+
+/* ─── Focus styles ───────────────────────────────────────────── */
+:focus-visible {
+  outline: 2px solid var(--text);
+  outline-offset: 2px;
+}
+button:focus:not(:focus-visible),
+input:focus:not(:focus-visible) { outline: none; }
+
+/* Hide mobile-back-btn on desktop */
+.mobile-back-btn { display: none; }
+</style>
+</head>
+<body id="top">
+
+<!-- ── Header ────────────────────────────────────────────────── -->
+<header>
+  <a href="/" class="h-logo" aria-label="Synthrun Mail home">
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <circle cx="12" cy="12" r="8.5"></circle>
+      <path d="M7 14c1.4-2.6 3.1-4 5.1-4s3.8 1.4 5.2 4"></path>
+    </svg>
+    Mail
+  </a>
+
+  <div class="h-search" role="search">
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <circle cx="11" cy="11" r="7"></circle>
+      <path d="m16.5 16.5 4 4"></path>
+    </svg>
+    <input type="search" id="searchInput" placeholder="Search mail…" aria-label="Search mail">
+  </div>
+
+  <div class="h-right">
+    <button class="icon-btn" id="themeBtn" title="Toggle theme" aria-label="Toggle theme">
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <circle cx="12" cy="12" r="4"></circle>
+        <path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"></path>
+      </svg>
+    </button>
+    <button class="icon-btn" id="refreshBtn" title="Refresh" aria-label="Refresh mail">
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M4 12a8 8 0 0 1 14.9-3.9M20 12a8 8 0 0 1-14.9 3.9"></path>
+        <path d="M20 4v4h-4M4 20v-4h4"></path>
+      </svg>
+    </button>
+
+    <div class="user-chip" id="userChip" role="button" tabindex="0" aria-haspopup="true" aria-expanded="false">
+      <div class="user-avatar" id="userAvatar">??</div>
+      <span class="user-chip-email" id="userEmail">Loading…</span>
+      <svg class="user-chip-caret" viewBox="0 0 24 24" aria-hidden="true">
+        <path d="m6 9 6 6 6-6"></path>
+      </svg>
+      <div class="user-menu" id="userMenu" role="menu">
+        <button class="user-menu-item" id="accountBtn" type="button" role="menuitem">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <circle cx="12" cy="8" r="4"></circle>
+            <path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"></path>
+          </svg>
+          My account
+        </button>
+        <div class="user-menu-divider" role="separator"></div>
+        <button class="user-menu-item" id="signOutBtn" type="button" role="menuitem">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M17 16l4-4-4-4M21 12H9M13 3H5a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1h8"></path>
+          </svg>
+          Sign out
+        </button>
+      </div>
+    </div>
+  </div>
+</header>
+
+<!-- ── App Body ───────────────────────────────────────────────── -->
+<div class="app-body">
+
+  <!-- Sidebar -->
+  <aside>
+    <button class="compose-btn" id="composeBtn" type="button" aria-label="Compose new message">
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M12 5H5a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-7"></path>
+        <path d="m18 2 4 4-9 9H9v-4l9-9z"></path>
+      </svg>
+      Compose
+    </button>
+
+    <div class="side-section">
+      <span class="side-label">Inbox</span>
+      <button class="side-link active" data-folder="inbox" id="nav-inbox" type="button">
+        <span class="side-link-left">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M3 8l7.9 5.3a2 2 0 0 0 2.2 0L21 8M5 19h14a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2z"></path>
+          </svg>
+          All Mail
+        </span>
+        <span class="side-badge" id="badge-inbox">0</span>
+      </button>
+      <button class="side-link" data-folder="unread" id="nav-unread" type="button">
+        <span class="side-link-left">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <circle cx="12" cy="12" r="3"></circle>
+            <path d="M2 12C4.7 6.5 8 4 12 4s7.3 2.5 10 8c-2.7 5.5-6 8-10 8S4.7 17.5 2 12"></path>
+          </svg>
+          Unread
+        </span>
+        <span class="side-badge" id="badge-unread">0</span>
+      </button>
+      <button class="side-link" data-folder="sent" id="nav-sent" type="button">
+        <span class="side-link-left">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"></path>
+          </svg>
+          Sent
+        </span>
+        <span class="side-badge zero" id="badge-sent">—</span>
+      </button>
+    </div>
+
+    <hr>
+
+    <div class="side-section">
+      <span class="side-label">Labels</span>
+      <button class="side-link" data-folder="flagged" type="button">
+        <span class="side-link-left">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"></path>
+            <path d="M4 22V15"></path>
+          </svg>
+          Flagged
+        </span>
+      </button>
+      <button class="side-link" data-folder="clients" type="button">
+        <span class="side-link-left">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <circle cx="9" cy="9" r="3"></circle>
+            <circle cx="16" cy="10" r="2"></circle>
+            <path d="M3 20c1-3 3-5 6-5s5 2 6 5M17 20c.3-1 1.3-3 3-3"></path>
+          </svg>
+          Clients
+        </span>
+      </button>
+    </div>
+  </aside>
+
+  <!-- Mail Panel -->
+  <div class="mail-panel" id="mailPanel">
+
+    <!-- Thread List -->
+    <div class="thread-list" id="threadList">
+      <div class="thread-toolbar">
+        <span class="toolbar-label" id="folderLabel">Inbox</span>
+        <button class="icon-btn" id="selectAllBtn" title="Select all" aria-label="Select all" type="button">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M20 6L9 17l-5-5"></path>
+          </svg>
+        </button>
+      </div>
+      <div class="thread-items" id="threadItems" role="list" aria-label="Messages"></div>
+    </div>
+
+    <!-- Mail View -->
+    <div class="mail-view" id="mailView">
+      <div class="mail-view-empty" id="emptyView" aria-live="polite">
+        <div class="mail-view-empty-inner">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M3 8l7.9 5.3a2 2 0 0 0 2.2 0L21 8M5 19h14a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2z"></path>
+          </svg>
+          <h3>Select a message</h3>
+          <p>Pick a thread to read it here</p>
+        </div>
+      </div>
+
+      <div id="messageView" style="display:none; flex-direction:column; height:100%; overflow:hidden;">
+        <div class="mail-header-bar">
+          <!-- Mobile back button -->
+          <button class="mobile-back-btn" id="mobileBackBtn" aria-label="Back to inbox" type="button">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 12H5M12 5l-7 7 7 7"></path></svg>
+          </button>
+
+          <div class="mail-subject-area">
+            <div class="mail-subject-line" id="viewSubject"></div>
+            <div class="mail-meta-row">
+              <span id="viewCount"></span>
+              <span aria-hidden="true">·</span>
+              <span id="viewDate"></span>
+            </div>
+          </div>
+
+          <div class="mail-header-actions">
+            <button class="icon-btn" id="flagBtn" title="Flag" aria-label="Flag message" type="button">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"></path>
+                <path d="M4 22V15"></path>
+              </svg>
+            </button>
+            <button class="icon-btn" id="archiveBtn" title="Archive" aria-label="Archive message" type="button">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M21 8v13H3V8M1 3h22v5H1zM10 12h4"></path>
+              </svg>
+            </button>
+            <button class="icon-btn" id="markUnreadBtn" title="Mark unread" aria-label="Mark as unread" type="button">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M3 8l9 6 9-6M5 19h14a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2z"></path>
+              </svg>
+            </button>
+            <button class="icon-btn" id="deleteBtn" title="Delete" aria-label="Delete message" type="button">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"></path>
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <div class="mail-body-scroll" id="mailBodyScroll"></div>
+
+        <div class="reply-bar">
+          <button class="reply-btn primary" id="replyBtn" type="button">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M9 17l-5-5 5-5M4 12h11a6 6 0 0 1 6 6v1"></path>
+            </svg>
+            Reply
+          </button>
+          <button class="reply-btn" id="forwardBtn" type="button">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M15 17l5-5-5-5M20 12H9a6 6 0 0 0-6 6v1"></path>
+            </svg>
+            Forward
+          </button>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /mail-panel -->
+</div><!-- /app-body -->
+
+<!-- ── Status Bar ─────────────────────────────────────────────── -->
+<div class="status-bar" role="status" aria-live="polite">
+  <div class="status-item"><div class="status-dot" aria-hidden="true"></div>Connected</div>
+  <div class="status-item" id="statusCount">0 messages</div>
+  <div class="status-item" id="statusUser"></div>
+  <div class="status-item ml" id="statusTime"></div>
+</div>
+
+<!-- ── Mobile Bottom Nav ──────────────────────────────────────── -->
+<nav class="mobile-nav" aria-label="Main navigation">
+  <div class="mobile-nav-inner">
+    <button class="mobile-nav-btn active" data-folder="inbox" id="mob-inbox" type="button" aria-label="Inbox">
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M3 8l7.9 5.3a2 2 0 0 0 2.2 0L21 8M5 19h14a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2z"></path>
+      </svg>
+      Inbox
+      <span class="mobile-nav-badge" id="mob-badge-inbox" style="display:none"></span>
+    </button>
+    <button class="mobile-nav-btn" data-folder="unread" id="mob-unread" type="button" aria-label="Unread">
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <circle cx="12" cy="12" r="3"></circle>
+        <path d="M2 12C4.7 6.5 8 4 12 4s7.3 2.5 10 8c-2.7 5.5-6 8-10 8S4.7 17.5 2 12"></path>
+      </svg>
+      Unread
+    </button>
+    <button class="mobile-nav-btn compose-mobile" id="mob-compose" type="button" aria-label="Compose">
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M12 5H5a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-7"></path>
+        <path d="m18 2 4 4-9 9H9v-4l9-9z"></path>
+      </svg>
+      Compose
+    </button>
+    <button class="mobile-nav-btn" data-folder="sent" id="mob-sent" type="button" aria-label="Sent">
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"></path>
+      </svg>
+      Sent
+    </button>
+    <button class="mobile-nav-btn" data-folder="flagged" id="mob-flagged" type="button" aria-label="Flagged">
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"></path>
+        <path d="M4 22V15"></path>
+      </svg>
+      Flagged
+    </button>
+  </div>
+</nav>
+
+<!-- ── Compose Overlay ────────────────────────────────────────── -->
+<div class="compose-overlay" id="composeOverlay" role="dialog" aria-modal="true" aria-label="New message" aria-labelledby="compose-title-label">
+  <div class="compose-modal" id="composeModal">
+    <div class="compose-header">
+      <span class="compose-title" id="compose-title-label">New message</span>
+      <button class="compose-close" id="closeCompose" aria-label="Close compose" type="button">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"></path></svg>
+      </button>
+    </div>
+    <div class="compose-field">
+      <label for="compTo">To</label>
+      <input type="email" id="compTo" placeholder="recipient@example.com" autocomplete="email">
+    </div>
+    <div class="compose-field">
+      <label for="compCc">Cc</label>
+      <input type="email" id="compCc" placeholder="optional" autocomplete="off">
+    </div>
+    <div class="compose-field">
+      <label for="compSubject">Subject</label>
+      <input type="text" id="compSubject" placeholder="Subject line…" autocomplete="off">
+    </div>
+    <div class="compose-body">
+      <textarea id="compBody" placeholder="Write your message here…&#10;&#10;—&#10;Synthrun Team&#10;hello@synthrun.site" aria-label="Message body"></textarea>
+    </div>
+    <div class="compose-attachments">
+      <div class="compose-attachments-bar">
+        <button type="button" class="reply-btn" id="attachBtn" aria-label="Attach files">Attach files</button>
+        <span class="compose-attachment-note" id="attachmentCount" aria-live="polite">0 files</span>
+        <span class="compose-upload-status" id="composeUploadStatus" aria-live="polite"></span>
+        <input type="file" id="attachmentInput" multiple hidden aria-hidden="true">
+      </div>
+      <div class="attachment-list" id="attachmentList" aria-label="Attached files"></div>
+    </div>
+    <div class="compose-footer">
+      <button class="send-btn" id="sendBtn" type="button">
+        <div class="send-spinner" aria-hidden="true"></div>
+        <svg class="send-icon" viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"></path>
+        </svg>
+        Send
+      </button>
+      <button class="reply-btn" id="discardBtn" type="button">Discard</button>
+      <span class="compose-from-label" id="compFromLabel">from: —</span>
+    </div>
+  </div>
+</div>
+
+<!-- ── Toast ──────────────────────────────────────────────────── -->
+<div class="toast" id="toast" role="alert" aria-live="polite" aria-atomic="true"></div>
+
+<!-- ── Scripts ────────────────────────────────────────────────── -->
+<script type="module" src="./mail-app-clean.js"></script>
+<script>
+  /* ── Theme ── */
+  function setTheme(theme) {
+    if (theme === 'auto') document.body.removeAttribute('data-theme');
+    else document.body.setAttribute('data-theme', theme);
+    localStorage.setItem('synthrun-theme', theme);
+  }
+  setTheme(localStorage.getItem('synthrun-theme') || 'auto');
+  document.getElementById('themeBtn').addEventListener('click', () => {
+    const c = localStorage.getItem('synthrun-theme') || 'auto';
+    setTheme(c === 'auto' ? 'dark' : c === 'dark' ? 'light' : 'auto');
+  });
+
+  /* ── Mobile back button ── */
+  const mobileBackBtn = document.getElementById('mobileBackBtn');
+  if (mobileBackBtn) {
+    mobileBackBtn.addEventListener('click', () => {
+      window.SYNTHRUN_CLOSE_MESSAGE_VIEW?.();
+    });
+  }
+
+  /* ── Mobile compose trigger ── */
+  const mobCompose = document.getElementById('mob-compose');
+  if (mobCompose) {
+    mobCompose.addEventListener('click', () => {
+      document.getElementById('composeBtn')?.click();
+    });
+  }
+
+  /* ── Mobile nav folder switching ── */
+  document.querySelectorAll('.mobile-nav-btn[data-folder]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      window.SYNTHRUN_CLOSE_MESSAGE_VIEW?.();
+      const folder = btn.dataset.folder;
+      const desktopBtn = document.querySelector(`[data-folder="${folder}"]`);
+      if (desktopBtn && desktopBtn !== btn) desktopBtn.click();
+      document.querySelectorAll('.mobile-nav-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+    });
+  });
+
+  /* ── Keyboard: close user menu on Escape ── */
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') {
+      document.getElementById('userMenu')?.classList.remove('show');
+      document.getElementById('userChip')?.setAttribute('aria-expanded', 'false');
+    }
+  });
+
+  /* ── User chip keyboard support ── */
+  const userChip = document.getElementById('userChip');
+  if (userChip) {
+    userChip.addEventListener('keydown', e => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        userChip.click();
+      }
+    });
+  }
+
+  /* ── Close menus on outside click ── */
+  document.addEventListener('click', e => {
+    const chip = document.getElementById('userChip');
+    const menu = document.getElementById('userMenu');
+    if (chip && menu && !chip.contains(e.target)) {
+      menu.classList.remove('show');
+      chip.setAttribute('aria-expanded', 'false');
+    }
+  });
+
+  /* ── Clock in status bar ── */
+  function updateClock() {
+    const el = document.getElementById('statusTime');
+    if (!el) return;
+    el.textContent = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  }
+  updateClock();
+  setInterval(updateClock, 30000);
+</script>
+</body>
+</html>

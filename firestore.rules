@@ -1,0 +1,30 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isSynthrunUser() {
+      return request.auth != null
+        && request.auth.token.email.matches('.*@synthrun\\.site');
+    }
+
+    function ownsMessage(data) {
+      return isSynthrunUser() && (
+        data.recipientEmail == request.auth.token.email ||
+        data.senderUid == request.auth.uid ||
+        data.senderEmail == request.auth.token.email ||
+        data.from == request.auth.token.email
+      );
+    }
+
+    match /mail/{docId} {
+      allow create: if isSynthrunUser()
+        && (
+          request.resource.data.recipientEmail == request.auth.token.email ||
+          request.resource.data.senderEmail == request.auth.token.email ||
+          request.resource.data.from == request.auth.token.email ||
+          request.resource.data.senderUid == request.auth.uid
+        );
+
+      allow read, update, delete: if resource != null && ownsMessage(resource.data);
+    }
+  }
+}
