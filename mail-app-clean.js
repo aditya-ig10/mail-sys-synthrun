@@ -397,6 +397,7 @@ async function openMessage(id) {
   document.getElementById('archiveBtn').onclick = () => archiveMessage(id);
   document.getElementById('flagBtn').onclick = () => toggleFlag(id);
   document.getElementById('markUnreadBtn').onclick = () => markUnread(id);
+  syncFlagButtonState(message.flagged);
 }
 
 async function deleteMessage(id) {
@@ -443,6 +444,7 @@ async function toggleFlag(id) {
     console.warn('toggleFlag update failed:', error);
   }
 
+  syncFlagButtonState(nextValue);
   renderList();
   showToast(nextValue ? 'Flagged.' : 'Unflagged.');
 }
@@ -476,6 +478,12 @@ function setMessageOpenState(isOpen) {
   document.getElementById('mailPanel')?.classList.toggle('message-open', Boolean(isOpen));
 }
 
+function syncFlagButtonState(isFlagged) {
+  const flagButton = document.getElementById('flagBtn');
+  if (!flagButton) return;
+  flagButton.setAttribute('aria-pressed', String(Boolean(isFlagged)));
+}
+
 window.SYNTHRUN_CLOSE_MESSAGE_VIEW = closeMessageView;
 
 function setAppLoading(isLoading) {
@@ -485,6 +493,12 @@ function setAppLoading(isLoading) {
 }
 
 function openCompose({ to = '', cc = '', subject = '', prefill = '' } = {}) {
+  if (typeof window.SYNTHRUN_RESET_COMPOSE_MODAL === 'function') {
+    window.SYNTHRUN_RESET_COMPOSE_MODAL();
+  }
+  if (typeof window.SYNTHRUN_CENTER_COMPOSE_MODAL === 'function') {
+    window.SYNTHRUN_CENTER_COMPOSE_MODAL();
+  }
   document.getElementById('compTo').value = to;
   document.getElementById('compCc').value = cc;
   document.getElementById('compSubject').value = subject;
@@ -504,6 +518,9 @@ function closeCompose() {
   draftAttachments = [];
   setComposeStatus('');
   renderDraftAttachments();
+  if (typeof window.SYNTHRUN_RESET_COMPOSE_MODAL === 'function') {
+    window.SYNTHRUN_RESET_COMPOSE_MODAL();
+  }
 }
 
 function renderDraftAttachments() {
@@ -589,7 +606,9 @@ async function sendMessage() {
   const to = document.getElementById('compTo').value.trim();
   const cc = document.getElementById('compCc').value.trim();
   const subject = document.getElementById('compSubject').value.trim();
-  const body = document.getElementById('compBody').value.trim();
+  const isHtmlCompose = typeof window.SYNTHRUN_GET_COMPOSE_IS_HTML === 'function' && window.SYNTHRUN_GET_COMPOSE_IS_HTML();
+  const composeBodyGetter = typeof window.SYNTHRUN_GET_COMPOSE_BODY === 'function' ? window.SYNTHRUN_GET_COMPOSE_BODY : null;
+  const body = String(composeBodyGetter ? composeBodyGetter() : document.getElementById('compBody').value || '').trim();
 
   if (!to || !subject || (!body && !draftAttachments.length)) {
     showToast('Fill in To, Subject, and add body text or an attachment.', true);
@@ -608,8 +627,9 @@ async function sendMessage() {
   try {
     setComposeStatus(draftAttachments.length ? 'Preparing attachments...' : 'Sending...');
     const attachments = await uploadDraftAttachments();
-    const bodyWithLinks = `${body}${buildAttachmentText(attachments)}`;
-    const htmlBody = `<div style="font-family:monospace;font-size:14px;color:#111;white-space:pre-wrap;max-width:640px;margin:0 auto;padding:24px;">${escapeHtml(body)}${buildAttachmentHtml(attachments)}</div>`;
+    const plainBody = isHtmlCompose ? htmlToPlainText(body) : body;
+    const bodyWithLinks = `${plainBody}${buildAttachmentText(attachments)}`;
+    const htmlBody = isHtmlCompose ? `${body}${buildAttachmentHtml(attachments)}` : `<div style="font-family:monospace;font-size:14px;color:#111;white-space:pre-wrap;max-width:640px;margin:0 auto;padding:24px;">${escapeHtml(plainBody)}${buildAttachmentHtml(attachments)}</div>`;
     const debugUser = globalThis.SYNTHRUN_DEBUG_USER || localStorage.getItem('synthrun-debug-user');
     const idToken = debugUser ? null : await currentUser.getIdToken();
 
@@ -652,6 +672,12 @@ async function sendMessage() {
 function buildAttachmentText(attachments) {
   if (!attachments.length) return '';
   return ['','Attachments:','', ...attachments.map((attachment) => `- ${attachment.name}: ${attachment.url}`)].join('\n');
+}
+
+function htmlToPlainText(html) {
+  const parser = new DOMParser();
+  const parsed = parser.parseFromString(String(html || ''), 'text/html');
+  return (parsed.body.textContent || '').replace(/\n{3,}/g, '\n\n').trim();
 }
 
 function buildAttachmentHtml(attachments) {
