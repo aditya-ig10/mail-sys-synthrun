@@ -914,13 +914,13 @@ header, .app-body, .compose-modal { animation: pageRise 0.32s ease both; }
 }
 
 @media (min-width: 641px) {
-  .compose-overlay { align-items: flex-end; justify-content: flex-start; }
+  .compose-overlay { align-items: flex-end; justify-content: flex-end; }
   .compose-modal {
     position: fixed;
-    left: 16px;
+    right: 16px;
     bottom: 16px;
     top: auto;
-    right: auto;
+    left: auto;
     transform: none;
     width: min(920px, calc(100vw - 48px));
     height: min(82vh, 880px);
@@ -1496,10 +1496,10 @@ setInterval(updateClock, 30000);
 
   function setComposeDefaultPlacement() {
     if (!composeModal || !isDesktopCompose()) return;
-    composeModal.style.left = '16px';
+    composeModal.style.right = '16px';
     composeModal.style.bottom = '16px';
     composeModal.style.top = 'auto';
-    composeModal.style.right = 'auto';
+    composeModal.style.left = 'auto';
     composeModal.style.transform = 'none';
   }
 
