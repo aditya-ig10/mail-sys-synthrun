@@ -23,9 +23,11 @@ function initFirebase() {
     'synthrun-site-firebase-adminsdk-fbsvc-75da2cfca3.json'
   );
 
-  let raw = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
-  if (!raw && process.env.FIREBASE_SERVICE_ACCOUNT_JSON_B64) {
+  let raw = '';
+  if (process.env.FIREBASE_SERVICE_ACCOUNT_JSON_B64) {
     raw = Buffer.from(String(process.env.FIREBASE_SERVICE_ACCOUNT_JSON_B64).trim(), 'base64').toString('utf8');
+  } else if (process.env.FIREBASE_SERVICE_ACCOUNT_JSON) {
+    raw = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
   }
   if (!raw && process.env.FIREBASE_SERVICE_ACCOUNT_PATH && fs.existsSync(process.env.FIREBASE_SERVICE_ACCOUNT_PATH)) {
     raw = fs.readFileSync(process.env.FIREBASE_SERVICE_ACCOUNT_PATH, 'utf8');
