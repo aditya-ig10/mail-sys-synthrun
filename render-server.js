@@ -24,6 +24,9 @@ function initFirebase() {
   );
 
   let raw = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
+  if (!raw && process.env.FIREBASE_SERVICE_ACCOUNT_JSON_B64) {
+    raw = Buffer.from(String(process.env.FIREBASE_SERVICE_ACCOUNT_JSON_B64).trim(), 'base64').toString('utf8');
+  }
   if (!raw && process.env.FIREBASE_SERVICE_ACCOUNT_PATH && fs.existsSync(process.env.FIREBASE_SERVICE_ACCOUNT_PATH)) {
     raw = fs.readFileSync(process.env.FIREBASE_SERVICE_ACCOUNT_PATH, 'utf8');
   }
@@ -42,7 +45,14 @@ function initFirebase() {
     throw new Error('Missing FIREBASE_SERVICE_ACCOUNT_JSON or FIREBASE_SERVICE_ACCOUNT_PATH');
   }
 
-  const serviceAccount = typeof raw === 'string' ? JSON.parse(raw) : raw;
+  let serviceAccount;
+  try {
+    serviceAccount = typeof raw === 'string' ? JSON.parse(raw) : raw;
+  } catch (error) {
+    throw new Error(
+      'FIREBASE_SERVICE_ACCOUNT_JSON is not valid JSON. Use a single-line minified JSON string, or set FIREBASE_SERVICE_ACCOUNT_JSON_B64 with base64-encoded JSON, or set FIREBASE_SERVICE_ACCOUNT_PATH.'
+    );
+  }
   admin.initializeApp({
     credential: admin.credential.cert(serviceAccount),
     projectId: process.env.FIREBASE_PROJECT_ID || serviceAccount.project_id,

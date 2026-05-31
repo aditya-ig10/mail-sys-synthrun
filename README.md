@@ -47,6 +47,7 @@ If you want `mail.synthrun.site` to stay on Vercel, deploy the static frontend t
 
 - Do NOT commit `.env` or service account JSON files to the repository. Add `.env` to `.gitignore` and store secrets in the Render dashboard.
 - In Render set `FIREBASE_SERVICE_ACCOUNT_JSON` (the entire JSON string), or set `FIREBASE_SERVICE_ACCOUNT_PATH` to a mounted secret file. Do not rely on checked-in files in production.
+- If Render keeps rejecting the JSON, use `FIREBASE_SERVICE_ACCOUNT_JSON_B64` with a base64-encoded copy of the same service-account file.
 - Add `BREVO_API_KEY` as a secret (preferred) to use the Brevo HTTP API for reliable delivery.
 - Ensure `ALLOWED_BYPASS` is set to `0` (the server will refuse to start with `ALLOWED_BYPASS=1` in `NODE_ENV=production`).
 - Rotate any API keys you exposed during testing and re-create them in the provider dashboard.
