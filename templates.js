@@ -1,191 +1,207 @@
 window.SYNTHRUN_EMAIL_TEMPLATES = {
-  blank: `<!DOCTYPE html>
-<html>
-<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><style>
-  body { font-family: Arial, sans-serif; background: #f4f4f4; margin: 0; padding: 0; }
-  .container { max-width: 600px; margin: 24px auto; background: #fff; padding: 32px; }
-</style></head>
-<body>
-<div class="container">
-  <p>Your content here...</p>
-</div>
-</body>
-</html>`,
-
-  announce: `<!DOCTYPE html>
-<html>
-<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><style>
-  body { font-family: Arial, sans-serif; background: #f4f4f4; margin: 0; padding: 0; }
-  .wrap { max-width: 600px; margin: 24px auto; background: #fff; }
-  .hero { background: #111; color: #fff; padding: 40px 32px; text-align: center; }
-  .hero h1 { margin: 0 0 8px; font-size: 26px; letter-spacing: -0.02em; }
-  .hero p { margin: 0; color: #aaa; font-size: 14px; }
-  .body { padding: 32px; color: #333; font-size: 15px; line-height: 1.7; }
-  .cta { display: inline-block; margin-top: 20px; background: #111; color: #fff; padding: 12px 24px; text-decoration: none; font-size: 13px; letter-spacing: 0.06em; text-transform: uppercase; }
-  .footer { padding: 20px 32px; border-top: 1px solid #eee; color: #999; font-size: 11px; }
-</style></head>
-<body>
-<div class="wrap">
-  <div class="hero">
-    <h1>Announcing [Feature Name]</h1>
-    <p>Something exciting is live today</p>
-  </div>
-  <div class="body">
-    <p>Hi there,</p>
-    <p>We are thrilled to announce [your announcement here]. This has been in the works for a while and we are excited to share it with you.</p>
-    <p>[Add more detail about what changed, why it matters, and what users should do next.]</p>
-    <a href="#" class="cta">Learn more &rarr;</a>
-  </div>
-  <div class="footer">&copy; 2026 Synthrun &middot; <a href="#">Unsubscribe</a></div>
-</div>
-</body>
-</html>`,
-
-  newsletter: `<!DOCTYPE html>
-<html>
-<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><style>
-  body { font-family: Georgia, serif; background: #fafaf8; margin: 0; padding: 0; }
-  .wrap { max-width: 600px; margin: 24px auto; background: #fff; border: 1px solid #e0e0d8; }
-  .header { padding: 28px 32px; border-bottom: 1px solid #e0e0d8; display: flex; justify-content: space-between; align-items: center; }
-  .logo { font-family: Arial, sans-serif; font-size: 13px; letter-spacing: 0.12em; text-transform: uppercase; }
-  .issue { font-family: Arial, sans-serif; font-size: 11px; color: #999; }
-  .headline { padding: 32px 32px 20px; border-bottom: 1px solid #e0e0d8; }
-  .headline h2 { margin: 0 0 10px; font-size: 22px; line-height: 1.25; }
-  .headline p { margin: 0; color: #666; font-size: 15px; line-height: 1.65; }
-  .section { padding: 24px 32px; border-bottom: 1px solid #e0e0d8; }
-  .section h3 { font-family: Arial, sans-serif; font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: #999; margin: 0 0 12px; }
-  .section p { margin: 0; font-size: 15px; line-height: 1.7; color: #333; }
-  .footer { padding: 20px 32px; font-family: Arial, sans-serif; font-size: 11px; color: #aaa; }
-</style></head>
-<body>
-<div class="wrap">
-  <div class="header">
-    <span class="logo">Synthrun Weekly</span>
-    <span class="issue">Issue #42 &middot; May 2026</span>
-  </div>
-  <div class="headline">
-    <h2>Your newsletter headline goes here</h2>
-    <p>A short intro paragraph setting the tone for this edition.</p>
-  </div>
-  <div class="section">
-    <h3>Section One</h3>
-    <p>First story or topic body text. Keep it short and punchy - readers skim newsletters.</p>
-  </div>
-  <div class="section">
-    <h3>Section Two</h3>
-    <p>Second story or topic body text.</p>
-  </div>
-  <div class="footer">&copy; 2026 Synthrun &middot; <a href="#">Unsubscribe</a> &middot; <a href="#">View in browser</a></div>
-</div>
-</body>
-</html>`,
-
-  promo: `<!DOCTYPE html>
-<html>
-<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><style>
-  body { font-family: Arial, sans-serif; background: #f0f0ea; margin: 0; padding: 0; }
-  .wrap { max-width: 600px; margin: 24px auto; background: #fff; }
-  .banner { background: #111; padding: 48px 32px; text-align: center; color: #fff; }
-  .banner .eyebrow { font-size: 10px; letter-spacing: 0.22em; text-transform: uppercase; color: #777; margin-bottom: 12px; }
-  .banner h1 { font-size: 38px; margin: 0 0 8px; letter-spacing: -0.03em; }
-  .banner .sub { font-size: 16px; color: #bbb; }
-  .offer { padding: 36px 32px; text-align: center; }
-  .badge { display: inline-block; background: #f0f0ea; border: 1px solid #ddd; padding: 8px 18px; font-size: 13px; letter-spacing: 0.06em; text-transform: uppercase; margin-bottom: 24px; }
-  .offer p { color: #555; font-size: 15px; line-height: 1.7; margin: 0 0 24px; }
-  .cta { display: inline-block; background: #111; color: #fff; padding: 14px 32px; text-decoration: none; font-size: 13px; letter-spacing: 0.1em; text-transform: uppercase; }
-  .fine { padding: 16px 32px 28px; text-align: center; font-size: 11px; color: #aaa; }
-</style></head>
-<body>
-<div class="wrap">
-  <div class="banner">
-    <div class="eyebrow">Limited time</div>
-    <h1>30% Off</h1>
-    <div class="sub">Everything in our store</div>
-  </div>
-  <div class="offer">
-    <div class="badge">Use code: SAVE30</div>
-    <p>For a limited time, take 30% off your entire order. No minimums, no exceptions. Offer ends Sunday at midnight.</p>
-    <a href="#" class="cta">Shop now &rarr;</a>
-  </div>
-  <div class="fine">Valid until May 31, 2026. Cannot be combined with other offers. &middot; <a href="#">Unsubscribe</a></div>
-</div>
-</body>
-</html>`,
-
-  transact: `<!DOCTYPE html>
-<html>
-<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><style>
-  body { font-family: Arial, sans-serif; background: #f4f4f4; margin: 0; padding: 0; }
-  .wrap { max-width: 560px; margin: 24px auto; background: #fff; border: 1px solid #e0e0d8; }
-  .header { padding: 24px 28px; border-bottom: 1px solid #eee; }
-  .header .logo { font-size: 13px; letter-spacing: 0.12em; text-transform: uppercase; }
-  .body { padding: 28px; }
-  .body h2 { font-size: 20px; margin: 0 0 16px; }
-  .body p { font-size: 14px; color: #555; line-height: 1.7; margin: 0 0 16px; }
-  .order-table { width: 100%; border-collapse: collapse; font-size: 13px; }
-  .order-table th { text-align: left; border-bottom: 1px solid #eee; padding: 8px 0; color: #999; font-weight: normal; font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; }
-  .order-table td { padding: 10px 0; border-bottom: 1px solid #f4f4f4; color: #333; }
-  .total { border-top: 1px solid #eee; margin-top: 12px; padding-top: 12px; display: flex; justify-content: space-between; font-weight: bold; font-size: 15px; }
-  .cta { display: inline-block; margin-top: 24px; background: #111; color: #fff; padding: 11px 22px; text-decoration: none; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; }
-  .footer { padding: 16px 28px; border-top: 1px solid #eee; font-size: 11px; color: #aaa; }
-</style></head>
-<body>
-<div class="wrap">
-  <div class="header"><div class="logo">Synthrun</div></div>
-  <div class="body">
-    <h2>Order confirmed</h2>
-    <p>Thanks for your order! Here's a summary of what you purchased.</p>
-    <table class="order-table">
-      <thead><tr><th>Item</th><th>Qty</th><th>Price</th></tr></thead>
-      <tbody>
-        <tr><td>Product Name</td><td>1</td><td>$49.00</td></tr>
-        <tr><td>Another Item</td><td>2</td><td>$18.00</td></tr>
-      </tbody>
+  'auto-reply': `
+<div style="background:#f2f1ee;padding:32px 12px;font-family:'Courier New',Courier,monospace;">
+  <div style="max-width:560px;margin:0 auto;background:#fafaf8;border:1px solid #e0dfd9;">
+    <table width="100%" cellpadding="0" cellspacing="0" border="0">
+      <tr>
+        <td style="background:#111110;padding:0 28px;height:48px;">
+          <table width="100%" cellpadding="0" cellspacing="0">
+            <tr>
+              <td style="vertical-align:middle;">
+                <span style="font-family:'Courier New',monospace;font-size:10px;letter-spacing:0.18em;text-transform:uppercase;color:#fafaf8;font-weight:400;">Synthrun</span>
+              </td>
+              <td style="vertical-align:middle;text-align:right;"></td>
+            </tr>
+          </table>
+        </td>
+      </tr>
     </table>
-    <div class="total"><span>Total</span><span>$67.00</span></div>
-    <a href="#" class="cta">View order &rarr;</a>
+    <table width="100%" cellpadding="0" cellspacing="0" border="0">
+      <tr>
+        <td style="padding:10px 28px;border-bottom:1px solid #e0dfd9;">
+          <table width="100%" cellpadding="0" cellspacing="0">
+            <tr>
+              <td><span style="font-family:'Courier New',monospace;font-size:8px;letter-spacing:0.12em;text-transform:uppercase;color:#888884;">&#9679; Message received</span></td>
+              <td style="text-align:right;"><span style="font-family:'Courier New',monospace;font-size:8px;letter-spacing:0.1em;text-transform:uppercase;color:#888884;">Response within 24 hrs</span></td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+    <table width="100%" cellpadding="0" cellspacing="0" border="0">
+      <tr>
+        <td style="padding:36px 28px 28px;">
+          <div style="font-family:Georgia,'Times New Roman',serif;font-size:26px;font-weight:400;font-style:italic;color:#111110;line-height:1.15;letter-spacing:-0.02em;margin-bottom:20px;">
+            <span style="font-style:normal;">Got it.</span><br><em>We'll be in touch.</em>
+          </div>
+          <p style="font-family:'Courier New',monospace;font-size:11px;line-height:1.85;color:#3a3a38;margin-bottom:14px;">Thanks for reaching out to Synthrun. Your message landed with us and we'll get back to you within 24 hours - usually sooner.</p>
+          <p style="font-family:'Courier New',monospace;font-size:11px;line-height:1.85;color:#3a3a38;margin-bottom:0;">In the meantime, feel free to look around at what we've shipped at <a href="https://synthrun.site" style="color:#111110;">synthrun.site</a> - services, process, and the stack we work with.</p>
+          <div style="border-top:1px solid #e0dfd9;margin-top:24px;padding-top:20px;">
+            <span style="font-family:'Courier New',monospace;font-size:8px;letter-spacing:0.14em;text-transform:uppercase;color:#888884;display:block;margin-bottom:12px;">What happens next</span>
+            <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:8px;">
+              <tr><td style="font-family:'Courier New',monospace;font-size:8px;color:#c4c4be;vertical-align:top;padding-top:2px;width:26px;">01</td><td style="font-family:'Courier New',monospace;font-size:10px;color:#3a3a38;line-height:1.7;">We read your message carefully - not a template response.</td></tr>
+            </table>
+            <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:8px;">
+              <tr><td style="font-family:'Courier New',monospace;font-size:8px;color:#c4c4be;vertical-align:top;padding-top:2px;width:26px;">02</td><td style="font-family:'Courier New',monospace;font-size:10px;color:#3a3a38;line-height:1.7;">We'll reply with relevant questions or a proposed next step.</td></tr>
+            </table>
+            <table width="100%" cellpadding="0" cellspacing="0">
+              <tr><td style="font-family:'Courier New',monospace;font-size:8px;color:#c4c4be;vertical-align:top;padding-top:2px;width:26px;">03</td><td style="font-family:'Courier New',monospace;font-size:10px;color:#3a3a38;line-height:1.7;">If it's a fit, we scope the project - no retainers before we've earned them.</td></tr>
+            </table>
+          </div>
+        </td>
+      </tr>
+    </table>
+    <table width="100%" cellpadding="0" cellspacing="0" border="0">
+      <tr>
+        <td style="padding:0 28px 24px;">
+          <a href="https://synthrun.site" style="display:inline-block;background:#111110;color:#fafaf8;text-decoration:none;font-family:'Courier New',monospace;font-size:9px;letter-spacing:0.12em;text-transform:uppercase;padding:11px 20px;">Visit Synthrun &rarr;</a>
+          <div style="margin-top:10px;font-family:'Courier New',monospace;font-size:9px;color:#888884;">Or reply to <a href="mailto:hello@synthrun.site" style="color:#888884;">hello@synthrun.site</a></div>
+        </td>
+      </tr>
+    </table>
+    <table width="100%" cellpadding="0" cellspacing="0" border="0">
+      <tr>
+        <td style="padding:12px 28px;">
+          <table width="100%" cellpadding="0" cellspacing="0">
+            <tr>
+              <td><span style="font-family:'Courier New',monospace;font-size:8px;letter-spacing:0.14em;text-transform:uppercase;color:#888884;">Synthrun</span></td>
+              <td style="text-align:right;"><span style="font-family:'Courier New',monospace;font-size:7px;letter-spacing:0.07em;text-transform:uppercase;color:#c4c4be;">&copy; 2026 Synthrun &middot; India &middot; US &amp; UK</span></td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
   </div>
-  <div class="footer">Order #SR-10042 &middot; Questions? <a href="mailto:hello@synthrun.site">hello@synthrun.site</a></div>
-</div>
-</body>
-</html>`,
+</div>`,
 
-  onboard: `<!DOCTYPE html>
-<html>
-<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><style>
-  body { font-family: Arial, sans-serif; background: #fafaf8; margin: 0; padding: 0; }
-  .wrap { max-width: 580px; margin: 24px auto; background: #fff; border: 1px solid #e4e4dc; }
-  .top { background: #111; padding: 36px 32px; text-align: center; }
-  .top svg { stroke: #fff; fill: none; stroke-width: 1.4; }
-  .top h1 { color: #fff; font-size: 24px; margin: 14px 0 6px; }
-  .top p { color: #888; font-size: 13px; margin: 0; }
-  .body { padding: 32px; }
-  .body h2 { font-size: 18px; margin: 0 0 12px; }
-  .body p { font-size: 14px; color: #555; line-height: 1.75; margin: 0 0 20px; }
-  .steps { margin: 0 0 24px; padding: 0; list-style: none; }
-  .steps li { display: flex; gap: 14px; align-items: flex-start; padding: 12px 0; border-bottom: 1px solid #f4f4f0; font-size: 14px; color: #333; }
-  .steps li .num { width: 26px; height: 26px; background: #111; color: #fff; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; flex-shrink: 0; }
-  .cta { display: inline-block; background: #111; color: #fff; padding: 13px 28px; text-decoration: none; font-size: 13px; letter-spacing: 0.08em; text-transform: uppercase; }
-  .footer { padding: 18px 32px; border-top: 1px solid #eee; font-size: 11px; color: #aaa; }
-</style></head>
-<body>
-<div class="wrap">
-  <div class="top">
-    <svg viewBox="0 0 48 48" width="48" height="48"><circle cx="24" cy="24" r="18"></circle><path d="M16 28c2.5-4.5 5.5-7 8-7s5.5 2.5 8 7"></path></svg>
-    <h1>Welcome aboard!</h1>
-    <p>You're all set. Here's how to get started.</p>
+  followup: `
+<div style="background:#f2f1ee;padding:32px 12px;font-family:'Courier New',Courier,monospace;">
+  <div style="max-width:560px;margin:0 auto;background:#fafaf8;border:1px solid #e0dfd9;">
+    <table width="100%" cellpadding="0" cellspacing="0" border="0">
+      <tr><td style="background:#111110;padding:0 28px;height:48px;">
+        <span style="font-family:'Courier New',monospace;font-size:10px;letter-spacing:0.18em;text-transform:uppercase;color:#fafaf8;">Synthrun</span>
+      </td></tr>
+    </table>
+    <table width="100%" cellpadding="0" cellspacing="0" border="0">
+      <tr><td style="padding:10px 28px;border-bottom:1px solid #e0dfd9;">
+        <span style="font-family:'Courier New',monospace;font-size:8px;letter-spacing:0.12em;text-transform:uppercase;color:#888884;">Following up</span>
+      </td></tr>
+    </table>
+    <table width="100%" cellpadding="0" cellspacing="0" border="0">
+      <tr><td style="padding:36px 28px 32px;">
+        <div style="font-family:Georgia,'Times New Roman',serif;font-size:24px;font-weight:400;font-style:italic;color:#111110;line-height:1.15;margin-bottom:20px;">
+          Good talking<br><em>with you.</em>
+        </div>
+        <p style="font-family:'Courier New',monospace;font-size:11px;line-height:1.85;color:#3a3a38;margin-bottom:14px;">Thanks for taking the time - it was a useful conversation. Below are the agreed next steps so we're both working from the same page.</p>
+        <div style="border-top:1px solid #e0dfd9;margin-top:20px;padding-top:18px;">
+          <span style="font-family:'Courier New',monospace;font-size:8px;letter-spacing:0.14em;text-transform:uppercase;color:#888884;display:block;margin-bottom:12px;">Next steps</span>
+          <table cellpadding="0" cellspacing="0" style="margin-bottom:8px;"><tr><td style="font-family:'Courier New',monospace;font-size:8px;color:#c4c4be;vertical-align:top;padding-top:2px;width:26px;">01</td><td style="font-family:'Courier New',monospace;font-size:10px;color:#3a3a38;line-height:1.7;">We'll send over the architecture document by end of week.</td></tr></table>
+          <table cellpadding="0" cellspacing="0" style="margin-bottom:8px;"><tr><td style="font-family:'Courier New',monospace;font-size:8px;color:#c4c4be;vertical-align:top;padding-top:2px;width:26px;">02</td><td style="font-family:'Courier New',monospace;font-size:10px;color:#3a3a38;line-height:1.7;">Review and flag anything that needs adjusting before we move to build.</td></tr></table>
+          <table cellpadding="0" cellspacing="0"><tr><td style="font-family:'Courier New',monospace;font-size:8px;color:#c4c4be;vertical-align:top;padding-top:2px;width:26px;">03</td><td style="font-family:'Courier New',monospace;font-size:10px;color:#3a3a38;line-height:1.7;">Kick-off call scheduled once the doc is signed off.</td></tr></table>
+        </div>
+        <div style="margin-top:24px;">
+          <a href="mailto:hello@synthrun.site" style="display:inline-block;background:#111110;color:#fafaf8;text-decoration:none;font-family:'Courier New',monospace;font-size:9px;letter-spacing:0.12em;text-transform:uppercase;padding:10px 18px;">Reply to this email &rarr;</a>
+        </div>
+      </td></tr>
+    </table>
+    <table width="100%" cellpadding="0" cellspacing="0" border="0" style="border-top:1px solid #e0dfd9;">
+      <tr><td style="padding:12px 28px;">
+        <table width="100%" cellpadding="0" cellspacing="0">
+          <tr>
+            <td><span style="font-family:'Courier New',monospace;font-size:8px;letter-spacing:0.14em;text-transform:uppercase;color:#888884;">Synthrun</span></td>
+            <td style="text-align:right;"><span style="font-family:'Courier New',monospace;font-size:7px;letter-spacing:0.07em;text-transform:uppercase;color:#c4c4be;">&copy; 2026 Synthrun</span></td>
+          </tr>
+        </table>
+      </td></tr>
+    </table>
   </div>
-  <div class="body">
-    <h2>Three steps to hit the ground running</h2>
-    <ol class="steps">
-      <li><div class="num">1</div><div><strong>Set up your profile</strong> - Add your name, photo and preferences so teammates recognize you.</div></li>
-      <li><div class="num">2</div><div><strong>Explore the dashboard</strong> - Familiarise yourself with the main features and navigation.</div></li>
-      <li><div class="num">3</div><div><strong>Invite your team</strong> - Things are more fun (and more productive) together.</div></li>
-    </ol>
-    <a href="#" class="cta">Open your dashboard &rarr;</a>
+</div>`,
+
+  proposal: `
+<div style="background:#f2f1ee;padding:32px 12px;font-family:'Courier New',Courier,monospace;">
+  <div style="max-width:560px;margin:0 auto;background:#fafaf8;border:1px solid #e0dfd9;">
+    <table width="100%" cellpadding="0" cellspacing="0" border="0">
+      <tr><td style="background:#111110;padding:0 28px;height:48px;">
+        <table width="100%" cellpadding="0" cellspacing="0">
+          <tr>
+            <td style="vertical-align:middle;"><span style="font-family:'Courier New',monospace;font-size:10px;letter-spacing:0.18em;text-transform:uppercase;color:#fafaf8;">Synthrun</span></td>
+            <td style="vertical-align:middle;text-align:right;"><span style="font-family:'Courier New',monospace;font-size:8px;letter-spacing:0.1em;color:#444442;">Proposal</span></td>
+          </tr>
+        </table>
+      </td></tr>
+    </table>
+    <table width="100%" cellpadding="0" cellspacing="0" border="0">
+      <tr><td style="padding:10px 28px;border-bottom:1px solid #e0dfd9;">
+        <span style="font-family:'Courier New',monospace;font-size:8px;letter-spacing:0.12em;text-transform:uppercase;color:#888884;">&#9679; Proposal attached</span>
+      </td></tr>
+    </table>
+    <table width="100%" cellpadding="0" cellspacing="0" border="0">
+      <tr><td style="padding:36px 28px 32px;">
+        <div style="font-family:Georgia,'Times New Roman',serif;font-size:24px;font-weight:400;font-style:italic;color:#111110;line-height:1.15;margin-bottom:20px;">
+          Here's what<br><em>we're proposing.</em>
+        </div>
+        <p style="font-family:'Courier New',monospace;font-size:11px;line-height:1.85;color:#3a3a38;margin-bottom:14px;">Attached is the project proposal we discussed. It covers scope, deliverables, timeline, and pricing. Read it through and come back with questions - nothing is final until you're comfortable.</p>
+        <div style="border-top:1px solid #e0dfd9;margin-top:20px;padding-top:18px;">
+          <span style="font-family:'Courier New',monospace;font-size:8px;letter-spacing:0.14em;text-transform:uppercase;color:#888884;display:block;margin-bottom:12px;">What's inside</span>
+          <table cellpadding="0" cellspacing="0" style="margin-bottom:8px;"><tr><td style="font-family:'Courier New',monospace;font-size:8px;color:#c4c4be;vertical-align:top;padding-top:2px;width:26px;">01</td><td style="font-family:'Courier New',monospace;font-size:10px;color:#3a3a38;line-height:1.7;">Problem definition and proposed architecture.</td></tr></table>
+          <table cellpadding="0" cellspacing="0" style="margin-bottom:8px;"><tr><td style="font-family:'Courier New',monospace;font-size:8px;color:#c4c4be;vertical-align:top;padding-top:2px;width:26px;">02</td><td style="font-family:'Courier New',monospace;font-size:10px;color:#3a3a38;line-height:1.7;">Deliverables, milestones, and handoff plan.</td></tr></table>
+          <table cellpadding="0" cellspacing="0"><tr><td style="font-family:'Courier New',monospace;font-size:8px;color:#c4c4be;vertical-align:top;padding-top:2px;width:26px;">03</td><td style="font-family:'Courier New',monospace;font-size:10px;color:#3a3a38;line-height:1.7;">Pricing and payment structure.</td></tr></table>
+        </div>
+        <div style="background:#f2f1ee;border:1px solid #e0dfd9;padding:14px 16px;margin-top:20px;">
+          <span style="font-family:'Courier New',monospace;font-size:8px;letter-spacing:0.12em;text-transform:uppercase;color:#888884;display:block;margin-bottom:4px;">Questions?</span>
+          <span style="font-family:'Courier New',monospace;font-size:10px;color:#3a3a38;">Reply here or write to <a href="mailto:hello@synthrun.site" style="color:#111110;">hello@synthrun.site</a> - we'll turn around answers same day.</span>
+        </div>
+        <div style="margin-top:20px;">
+          <a href="https://synthrun.site" style="display:inline-block;background:#111110;color:#fafaf8;text-decoration:none;font-family:'Courier New',monospace;font-size:9px;letter-spacing:0.12em;text-transform:uppercase;padding:10px 18px;">Visit synthrun.site &rarr;</a>
+        </div>
+      </td></tr>
+    </table>
+    <table width="100%" cellpadding="0" cellspacing="0" border="0" style="border-top:1px solid #e0dfd9;">
+      <tr><td style="padding:12px 28px;">
+        <table width="100%" cellpadding="0" cellspacing="0">
+          <tr>
+            <td><span style="font-family:'Courier New',monospace;font-size:8px;letter-spacing:0.14em;text-transform:uppercase;color:#888884;">Synthrun</span></td>
+            <td style="text-align:right;"><span style="font-family:'Courier New',monospace;font-size:7px;letter-spacing:0.07em;text-transform:uppercase;color:#c4c4be;">&copy; 2026 Synthrun &middot; India &middot; US &amp; UK</span></td>
+          </tr>
+        </table>
+      </td></tr>
+    </table>
   </div>
-  <div class="footer">&copy; 2026 Synthrun &middot; <a href="#">Unsubscribe</a> &middot; <a href="#">Privacy policy</a></div>
-</div>
-</body>
-</html>`
+</div>`
+};
+
+window.SYNTHRUN_BUILD_CUSTOM_TEMPLATE = function buildCustomTemplate(name, message, cta) {
+  const displayName = name ? `Hi ${name},` : 'Hi there,';
+  const ctaLabel = cta || 'Visit Synthrun &rarr;';
+  const safeMsg = String(message || '').replace(/\n/g, '<br>');
+
+  return `
+<div style="background:#f2f1ee;padding:32px 12px;font-family:'Courier New',Courier,monospace;">
+  <div style="max-width:560px;margin:0 auto;background:#fafaf8;border:1px solid #e0dfd9;">
+    <table width="100%" cellpadding="0" cellspacing="0" border="0">
+      <tr><td style="background:#111110;padding:0 28px;height:48px;">
+        <span style="font-family:'Courier New',monospace;font-size:10px;letter-spacing:0.18em;text-transform:uppercase;color:#fafaf8;">Synthrun</span>
+      </td></tr>
+    </table>
+    <table width="100%" cellpadding="0" cellspacing="0" border="0">
+      <tr><td style="padding:36px 28px 32px;">
+        <div style="font-family:Georgia,serif;font-size:13px;font-weight:400;color:#888884;letter-spacing:0.04em;margin-bottom:12px;">${displayName}</div>
+        <p style="font-family:'Courier New',monospace;font-size:11px;line-height:1.9;color:#3a3a38;">${safeMsg}</p>
+        <div style="margin-top:24px;">
+          <a href="https://synthrun.site" style="display:inline-block;background:#111110;color:#fafaf8;text-decoration:none;font-family:'Courier New',monospace;font-size:9px;letter-spacing:0.12em;text-transform:uppercase;padding:10px 18px;">${ctaLabel}</a>
+        </div>
+      </td></tr>
+    </table>
+    <table width="100%" cellpadding="0" cellspacing="0" border="0" style="border-top:1px solid #e0dfd9;">
+      <tr><td style="padding:12px 28px;">
+        <table width="100%" cellpadding="0" cellspacing="0">
+          <tr>
+            <td><span style="font-family:'Courier New',monospace;font-size:8px;letter-spacing:0.14em;text-transform:uppercase;color:#888884;">Synthrun</span></td>
+            <td style="text-align:right;"><span style="font-family:'Courier New',monospace;font-size:7px;text-transform:uppercase;color:#c4c4be;">&copy; 2026 Synthrun</span></td>
+          </tr>
+        </table>
+      </td></tr>
+    </table>
+  </div>
+</div>`;
 };

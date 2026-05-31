@@ -1175,47 +1175,26 @@ button:focus:not(:focus-visible), input:focus:not(:focus-visible) { outline: non
         <span class="template-picker-label">Choose template</span>
       </div>
       <div class="template-grid" role="radiogroup" aria-label="Email templates">
-        <button class="template-card" data-template="blank" role="radio" aria-checked="false" type="button">
+        <button class="template-card" data-template="auto-reply" role="radio" aria-checked="false" type="button">
           <div class="template-card-icon">
-            <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="1"></rect></svg>
+            <svg viewBox="0 0 24 24"><path d="M4 6h16v12H4z"></path><path d="M4 8l8 5 8-5"></path></svg>
           </div>
-          <span class="template-card-name">Blank</span>
-          <span class="template-card-desc">Clean slate, your HTML</span>
+          <span class="template-card-name">Auto-Reply</span>
+          <span class="template-card-desc">Branded confirmation for inbound enquiries</span>
         </button>
-        <button class="template-card" data-template="announce" role="radio" aria-checked="false" type="button">
+        <button class="template-card" data-template="followup" role="radio" aria-checked="false" type="button">
           <div class="template-card-icon">
-            <svg viewBox="0 0 24 24"><path d="M3 11l19-9-9 19-2-8-8-2z"></path></svg>
+            <svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h10M4 17h7"></path></svg>
           </div>
-          <span class="template-card-name">Announcement</span>
-          <span class="template-card-desc">News, launches, updates</span>
+          <span class="template-card-name">Follow-up</span>
+          <span class="template-card-desc">Post-meeting follow-up with next steps</span>
         </button>
-        <button class="template-card" data-template="newsletter" role="radio" aria-checked="false" type="button">
+        <button class="template-card" data-template="proposal" role="radio" aria-checked="false" type="button">
           <div class="template-card-icon">
-            <svg viewBox="0 0 24 24"><path d="M4 6h16M4 10h16M4 14h10"></path></svg>
+            <svg viewBox="0 0 24 24"><path d="M6 4h12v16H6z"></path><path d="M8 8h8M8 12h8M8 16h5"></path></svg>
           </div>
-          <span class="template-card-name">Newsletter</span>
-          <span class="template-card-desc">Multi-section digest</span>
-        </button>
-        <button class="template-card" data-template="promo" role="radio" aria-checked="false" type="button">
-          <div class="template-card-icon">
-            <svg viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"></path></svg>
-          </div>
-          <span class="template-card-name">Promo</span>
-          <span class="template-card-desc">Offer, sale, CTA-focused</span>
-        </button>
-        <button class="template-card" data-template="transact" role="radio" aria-checked="false" type="button">
-          <div class="template-card-icon">
-            <svg viewBox="0 0 24 24"><path d="M9 14l2 2 4-4"></path><rect x="3" y="3" width="18" height="18" rx="2"></rect></svg>
-          </div>
-          <span class="template-card-name">Transactional</span>
-          <span class="template-card-desc">Receipts, confirmations</span>
-        </button>
-        <button class="template-card" data-template="onboard" role="radio" aria-checked="false" type="button">
-          <div class="template-card-icon">
-            <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"></circle><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"></path></svg>
-          </div>
-          <span class="template-card-name">Welcome</span>
-          <span class="template-card-desc">Onboarding, first steps</span>
+          <span class="template-card-name">Proposal</span>
+          <span class="template-card-desc">Project summary, scope, pricing</span>
         </button>
       </div>
     </div>
@@ -1576,8 +1555,8 @@ setInterval(updateClock, 30000);
       plainBody.classList.add('hide');
       htmlBody.classList.add('show');
       composeTitle.textContent = 'New HTML message';
-      // Auto-select blank if none selected
-      if (!selectedTemplate) await selectTemplate('blank');
+      // Auto-select the extension default if none selected
+      if (!selectedTemplate) await selectTemplate('auto-reply');
     }
   }
 
