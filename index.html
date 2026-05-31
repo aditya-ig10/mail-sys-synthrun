@@ -597,9 +597,20 @@ body[data-theme="dark"] .compose-close:hover { background: rgba(255,255,255,0.05
 .compose-field label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.12em; color: var(--subtle); line-height: 1; }
 .compose-field input { width: 100%; border: 0; outline: 0; background: transparent; color: var(--text); padding: 11px 0; font-size: 12px; }
 .compose-field input::placeholder { color: var(--subtle); }
+.compose-field.invalid label { color: #b14b4b; }
+.compose-field.invalid input { color: #b14b4b; }
+.compose-field.invalid { box-shadow: inset 0 -1px 0 #b14b4b; }
 .compose-body { flex: 1; overflow: auto; padding: 13px; min-height: 160px; }
 .compose-body textarea { width: 100%; min-height: 200px; height: 100%; border: 0; outline: 0; resize: none; background: transparent; color: var(--text); line-height: 1.8; font-size: 12px; }
 .compose-body textarea::placeholder { color: var(--subtle); }
+.compose-body.invalid,
+.compose-body-html.invalid {
+  box-shadow: inset 0 0 0 1px #b14b4b;
+}
+.compose-body.invalid textarea,
+.compose-body-html.invalid textarea {
+  color: #b14b4b;
+}
 .compose-attachments { padding: 10px 13px; border-top: 1px solid var(--line); background: rgba(0,0,0,0.02); flex-shrink: 0; }
 body[data-theme="dark"] .compose-attachments { background: rgba(255,255,255,0.01); }
 .compose-attachments-bar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
@@ -903,12 +914,14 @@ header, .app-body, .compose-modal { animation: pageRise 0.32s ease both; }
 }
 
 @media (min-width: 641px) {
-  .compose-overlay { align-items: center; justify-content: center; }
+  .compose-overlay { align-items: flex-end; justify-content: flex-start; }
   .compose-modal {
     position: fixed;
-    left: 50%;
-    top: 50%;
-    transform: translate(-50%, -50%);
+    left: 16px;
+    bottom: 16px;
+    top: auto;
+    right: auto;
+    transform: none;
     width: min(920px, calc(100vw - 48px));
     height: min(82vh, 880px);
     max-height: none;
@@ -1481,14 +1494,19 @@ setInterval(updateClock, 30000);
     return window.matchMedia('(min-width: 641px)').matches;
   }
 
+  function setComposeDefaultPlacement() {
+    if (!composeModal || !isDesktopCompose()) return;
+    composeModal.style.left = '16px';
+    composeModal.style.bottom = '16px';
+    composeModal.style.top = 'auto';
+    composeModal.style.right = 'auto';
+    composeModal.style.transform = 'none';
+  }
+
   function centerComposeModal() {
     if (!composeModal || !isDesktopCompose()) return;
     composeModal.classList.remove('dragging');
-    composeModal.style.left = '50%';
-    composeModal.style.top = '50%';
-    composeModal.style.right = 'auto';
-    composeModal.style.bottom = 'auto';
-    composeModal.style.transform = 'translate(-50%, -50%)';
+    setComposeDefaultPlacement();
   }
 
   function setComposeMaximized(isMaximized) {
@@ -1511,18 +1529,13 @@ setInterval(updateClock, 30000);
     composeDragState = null;
     composeModal.classList.remove('dragging');
     composeModal.classList.remove('is-maximized');
-    composeModal.style.left = '';
-    composeModal.style.top = '';
-    composeModal.style.right = '';
-    composeModal.style.bottom = '';
-    composeModal.style.transform = '';
+    setComposeDefaultPlacement();
     composeModal.style.width = '';
     composeModal.style.height = '';
     composeModal.style.maxHeight = '';
     composeModal.style.maxWidth = '';
     composeModal.style.resize = '';
     composeMaxBtn?.setAttribute('aria-pressed', 'false');
-    centerComposeModal();
   }
 
   async function ensureTemplateValue(key) {

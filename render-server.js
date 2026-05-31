@@ -276,6 +276,20 @@ function htmlEscape(value) {
     .replace(/"/g, '&quot;');
 }
 
+function htmlToText(value) {
+  return String(value || '')
+    .replace(/<\/(p|div|h[1-6]|li|tr|table|section|article|header|footer)>/gi, '\n')
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+    .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/\r/g, '')
+    .replace(/[ \t]+\n/g, '\n')
+    .replace(/\n[ \t]+/g, '\n')
+    .replace(/[ \t]{2,}/g, ' ')
+    .trim();
+}
+
 function attachmentsToMailOptions(attachments = []) {
   return attachments.map((attachment) => ({
     filename: attachment.name || 'attachment',
@@ -313,7 +327,8 @@ app.post('/send', async (req, res) => {
     }
 
     const { to, cc, subject, body: text, htmlBody, attachments = [] } = req.body || {};
-    if (!to || !subject || !text) {
+    const fallbackText = String(text || '').trim() || htmlToText(htmlBody);
+    if (!to || !subject || (!fallbackText && !htmlBody)) {
       return sendJson(res, 400, { error: 'Missing required fields: to, subject, body' });
     }
 
@@ -322,7 +337,7 @@ app.post('/send', async (req, res) => {
 
     const recipients = [sanitizeEmail(to)];
     if (cc) recipients.push(sanitizeEmail(cc));
-    const htmlContent = htmlBody || `<div style="font-family:monospace;font-size:14px;color:#111;white-space:pre-wrap;max-width:640px;margin:0 auto;padding:24px;">${htmlEscape(text)}</div>`;
+    const htmlContent = htmlBody || `<div style="font-family:monospace;font-size:14px;color:#111;white-space:pre-wrap;max-width:640px;margin:0 auto;padding:24px;">${htmlEscape(fallbackText)}</div>`;
 
     const brevoApiKey = getBrevoApiKey();
     let info;
@@ -334,7 +349,7 @@ app.post('/send', async (req, res) => {
         to,
         cc,
         subject,
-        text,
+        text: fallbackText,
         htmlContent,
         attachments: Array.isArray(attachments) ? attachments : [],
       });
@@ -346,7 +361,7 @@ app.post('/send', async (req, res) => {
         to: sanitizeEmail(to),
         ...(cc ? { cc: sanitizeEmail(cc) } : {}),
         subject: String(subject),
-        text: String(text),
+        text: fallbackText,
         html: htmlContent,
         attachments: attachmentsToMailOptions(Array.isArray(attachments) ? attachments : []),
         envelope: {
@@ -363,7 +378,7 @@ app.post('/send', async (req, res) => {
         to,
         cc,
         subject,
-        text,
+        text: fallbackText,
         htmlContent,
         attachments: Array.isArray(attachments) ? attachments : [],
       });

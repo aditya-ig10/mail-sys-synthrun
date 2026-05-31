@@ -492,6 +492,41 @@ function setAppLoading(isLoading) {
   loadingOverlay.setAttribute('aria-busy', String(isLoading));
 }
 
+function clearComposeValidation() {
+  ['compTo', 'compSubject', 'compBody', 'composePlainBody', 'composeHtmlBody'].forEach((id) => {
+    const element = document.getElementById(id);
+    if (element) element.classList.remove('invalid');
+  });
+}
+
+function markComposeValidation({ to = false, subject = false, body = false, htmlBody = false } = {}) {
+  const fieldMap = {
+    compTo: to,
+    compSubject: subject,
+    compBody: body,
+    composePlainBody: body && !htmlBody,
+    composeHtmlBody: htmlBody,
+  };
+
+  Object.entries(fieldMap).forEach(([id, invalid]) => {
+    const element = document.getElementById(id);
+    if (element) element.classList.toggle('invalid', Boolean(invalid));
+  });
+}
+
+function stripHtmlToText(html) {
+  const markup = String(html || '');
+  const withoutBlocks = markup
+    .replace(/<\/(p|div|h[1-6]|li|tr|table|section|article|header|footer)>/gi, '\n')
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+    .replace(/<script[\s\S]*?<\/script>/gi, ' ');
+
+  const container = document.createElement('div');
+  container.innerHTML = withoutBlocks;
+  return container.textContent.replace(/\s+\n/g, '\n').replace(/\n\s+/g, '\n').replace(/[ \t]+/g, ' ').trim();
+}
+
 function openCompose({ to = '', cc = '', subject = '', prefill = '' } = {}) {
   document.getElementById('compTo').value = to;
   document.getElementById('compCc').value = cc;
@@ -502,6 +537,7 @@ function openCompose({ to = '', cc = '', subject = '', prefill = '' } = {}) {
   setComposeStatus('');
   renderDraftAttachments();
   window.SYNTHRUN_RESET_COMPOSE_MODAL?.();
+  clearComposeValidation();
   document.getElementById('composeOverlay').classList.add('show');
   document.getElementById('compTo').focus();
 }
@@ -514,6 +550,7 @@ function closeCompose() {
   setComposeStatus('');
   renderDraftAttachments();
   window.SYNTHRUN_RESET_COMPOSE_MODAL?.();
+  clearComposeValidation();
 }
 
 function renderDraftAttachments() {
@@ -599,9 +636,23 @@ async function sendMessage() {
   const to = document.getElementById('compTo').value.trim();
   const cc = document.getElementById('compCc').value.trim();
   const subject = document.getElementById('compSubject').value.trim();
-  const body = document.getElementById('compBody').value.trim();
+  const isHtmlMode = Boolean(window.SYNTHRUN_GET_COMPOSE_IS_HTML?.());
+  const rawBody = String(window.SYNTHRUN_GET_COMPOSE_BODY?.() || '').trim();
+  const body = isHtmlMode ? stripHtmlToText(rawBody) : rawBody;
+  const htmlBody = isHtmlMode ? rawBody : `<div style="font-family:monospace;font-size:14px;color:#111;white-space:pre-wrap;max-width:640px;margin:0 auto;padding:24px;">${escapeHtml(body)}</div>`;
 
-  if (!to || !subject || (!body && !draftAttachments.length)) {
+  clearComposeValidation();
+
+  const invalid = {
+    to: !to,
+    subject: !subject,
+    body: !body && !draftAttachments.length && !(isHtmlMode && rawBody),
+    htmlBody: isHtmlMode && !rawBody && !draftAttachments.length,
+  };
+
+  if (invalid.to || invalid.subject || invalid.body) {
+    markComposeValidation(invalid);
+    document.getElementById(invalid.to ? 'compTo' : invalid.subject ? 'compSubject' : isHtmlMode ? 'compHtmlBody' : 'compBody')?.focus();
     showToast('Fill in To, Subject, and add body text or an attachment.', true);
     return;
   }
@@ -619,7 +670,7 @@ async function sendMessage() {
     setComposeStatus(draftAttachments.length ? 'Preparing attachments...' : 'Sending...');
     const attachments = await uploadDraftAttachments();
     const bodyWithLinks = `${body}${buildAttachmentText(attachments)}`;
-    const htmlBody = `<div style="font-family:monospace;font-size:14px;color:#111;white-space:pre-wrap;max-width:640px;margin:0 auto;padding:24px;">${escapeHtml(body)}${buildAttachmentHtml(attachments)}</div>`;
+    const finalHtmlBody = `${htmlBody}${buildAttachmentHtml(attachments)}`;
     const debugUser = globalThis.SYNTHRUN_DEBUG_USER || localStorage.getItem('synthrun-debug-user');
     const idToken = debugUser ? null : await currentUser.getIdToken();
 
@@ -630,7 +681,7 @@ async function sendMessage() {
         ...(idToken ? { Authorization: `Bearer ${idToken}` } : {}),
         ...(debugUser ? { 'X-Debug-User': debugUser } : {}),
       },
-      body: JSON.stringify({ to, cc, subject, body: bodyWithLinks, htmlBody, attachments, from: currentUser.email }),
+      body: JSON.stringify({ to, cc, subject, body: bodyWithLinks, htmlBody: finalHtmlBody, attachments, from: currentUser.email }),
     });
 
     if (!response.ok) {
@@ -646,6 +697,7 @@ async function sendMessage() {
   } catch (error) {
     console.error('sendMessage:', error);
     setComposeStatus('');
+    markComposeValidation(invalid);
     showToast(`Send failed: ${error.message}`, true);
   } finally {
     button.disabled = false;
