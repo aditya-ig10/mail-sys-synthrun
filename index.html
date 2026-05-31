@@ -1276,6 +1276,7 @@ button:focus:not(:focus-visible), input:focus:not(:focus-visible) { outline: non
 
 <!-- ── Scripts ────────────────────────────────────────────────── -->
 <script type="module" src="./mail-app-clean.js"></script>
+<script src="./templates.js"></script>
 <script>
 /* ── Theme ── */
 function setTheme(theme) {
@@ -1494,15 +1495,7 @@ setInterval(updateClock, 30000);
 
   let currentMode = 'plain';
   let selectedTemplate = null;
-  const templateFiles = {
-    blank: './extension/templates/blank.html',
-    announce: './extension/templates/announce.html',
-    newsletter: './extension/templates/newsletter.html',
-    promo: './extension/templates/promo.html',
-    transact: './extension/templates/transact.html',
-    onboard: './extension/templates/onboard.html',
-  };
-  const templateCache = {};
+  const templateLibrary = window.SYNTHRUN_EMAIL_TEMPLATES || {};
   let composeDragState = null;
 
   function isDesktopCompose() {
@@ -1553,17 +1546,9 @@ setInterval(updateClock, 30000);
     centerComposeModal();
   }
 
-  async function loadTemplate(key) {
-    if (templateCache[key]) return templateCache[key];
-    const response = await fetch(templateFiles[key], { cache: 'no-store' });
-    if (!response.ok) throw new Error(`Failed to load template: ${key}`);
-    const html = await response.text();
-    templateCache[key] = html;
-    return html;
-  }
-
   async function ensureTemplateValue(key) {
-    const html = await loadTemplate(key);
+    const html = templateLibrary[key];
+    if (!html) throw new Error(`Missing template: ${key}`);
     if (htmlBodyTA) {
       htmlBodyTA.value = html;
     }
