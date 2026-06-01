@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>Synthrun Profile</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;1,9..144,300;1,9..144,400&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; }
+  html, body { margin: 0; width: 100%; min-height: 100%; }
+  :root {
+    --bg: #fafaf8;
+    --panel: rgba(255,255,255,0.82);
+    --panel-strong: #ffffff;
+    --text: #111110;
+    --muted: #6d6d67;
+    --subtle: #9a9a92;
+    --line: #deddd7;
+    --accent: #111110;
+    --accent-contrast: #fafaf8;
+  }
+  body[data-theme="dark"] {
+    --bg: #101114;
+    --panel: rgba(24,26,31,0.86);
+    --panel-strong: #15171b;
+    --text: #eceae2;
+    --muted: #b0aba0;
+    --subtle: #7f7a70;
+    --line: #2a2d34;
+    --accent: #eceae2;
+    --accent-contrast: #111110;
+  }
+  body {
+    min-height: 100vh;
+    background:
+      radial-gradient(circle at top left, rgba(180,170,150,0.14), transparent 30%),
+      radial-gradient(circle at bottom right, rgba(110,120,130,0.08), transparent 28%),
+      var(--bg);
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+    font-weight: 300;
+    -webkit-font-smoothing: antialiased;
+    padding: 24px 16px;
+  }
+  a { color: inherit; text-decoration: none; }
+  .shell {
+    max-width: 920px;
+    margin: 0 auto;
+    border: 1px solid var(--line);
+    background: var(--panel-strong);
+    box-shadow: 0 20px 56px rgba(0,0,0,0.12);
+    overflow: hidden;
+  }
+  .hero {
+    padding: 28px;
+    border-bottom: 1px solid var(--line);
+    background: linear-gradient(135deg, rgba(0,0,0,0.03), transparent 60%);
+  }
+  body[data-theme="dark"] .hero { background: linear-gradient(135deg, rgba(255,255,255,0.04), transparent 60%); }
+  .top-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+  .brand {
+    display: inline-flex; align-items: center; gap: 10px;
+    font-size: 10px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--subtle);
+  }
+  .avatar {
+    width: 36px; height: 36px; border-radius: 50%; display: grid; place-items: center;
+    background: var(--accent); color: var(--accent-contrast); font-size: 11px; letter-spacing: 0.08em;
+  }
+  .name {
+    margin: 18px 0 6px;
+    font-family: 'Fraunces', serif;
+    font-size: clamp(2rem, 4vw, 3.4rem);
+    font-weight: 300;
+    line-height: 1.05;
+  }
+  .email { color: var(--muted); font-size: 13px; word-break: break-word; }
+  .grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .card { padding: 22px 24px; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+  .card:nth-child(3n) { border-right: 0; }
+  .label { display: block; margin-bottom: 8px; font-size: 9px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--subtle); }
+  .value { font-size: 14px; line-height: 1.65; }
+  .actions { display: flex; gap: 10px; flex-wrap: wrap; padding: 22px 24px 28px; }
+  .action {
+    display: inline-flex; align-items: center; gap: 8px; padding: 10px 14px;
+    border: 1px solid var(--line); background: transparent; color: var(--text);
+    text-transform: uppercase; letter-spacing: 0.1em; font-size: 10px; cursor: pointer;
+  }
+  .action svg { width: 12px; height: 12px; stroke: currentColor; fill: none; stroke-width: 1.7; }
+  .empty { padding: 28px 24px; color: var(--subtle); font-size: 13px; }
+  @media (max-width: 720px) {
+    .hero { padding: 24px; }
+    .grid { grid-template-columns: 1fr; }
+    .card, .card:nth-child(3n) { border-right: 0; }
+  }
+</style>
+</head>
+<body>
+  <main class="shell">
+    <section class="hero">
+      <div class="top-row">
+        <div class="brand"><span class="avatar" id="profileAvatar">??</span><span>Profile</span></div>
+        <button class="action" id="themeBtn" type="button" aria-label="Toggle theme"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"></path></svg>Theme</button>
+      </div>
+      <h1 class="name" id="profileName">Loading profile...</h1>
+      <div class="email" id="profileEmail">Waiting for sign-in...</div>
+    </section>
+    <section class="grid">
+      <div class="card">
+        <span class="label">Account</span>
+        <div class="value" id="profileAccount">Fetching account details...</div>
+      </div>
+      <div class="card">
+        <span class="label">Page</span>
+        <div class="value" id="profilePage">Profile</div>
+      </div>
+      <div class="card">
+        <span class="label">Mailbox</span>
+        <div class="value">This page shows your current Synthrun identity and gives you a quick way back to mail.</div>
+      </div>
+    </section>
+    <div class="actions">
+      <button class="action" id="backBtn" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 12H5M12 5l-7 7 7 7"></path></svg>Back to mail</button>
+      <button class="action" id="signOutBtn" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M17 16l4-4-4-4M21 12H9M13 3H5a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1h8"></path></svg>Sign out</button>
+    </div>
+  </main>
+
+  <script type="module">
+    import { firebaseConfig } from './firebase-config.js';
+    import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
+    import { getAuth, onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
+
+    const LOGIN_URL = './login/';
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const pathName = window.location.pathname.replace(/\/$/, '');
+    const slug = decodeURIComponent(pathName.split('/').pop().replace(/\.html$/, ''));
+
+    function setTheme(theme) {
+      if (theme === 'auto') document.body.removeAttribute('data-theme');
+      else document.body.setAttribute('data-theme', theme);
+      localStorage.setItem('synthrun-theme', theme);
+    }
+
+    setTheme(localStorage.getItem('synthrun-theme') || 'auto');
+    document.getElementById('themeBtn').addEventListener('click', () => {
+      const current = localStorage.getItem('synthrun-theme') || 'auto';
+      setTheme(current === 'auto' ? 'dark' : current === 'dark' ? 'light' : 'auto');
+    });
+
+    function formatName(email) {
+      const localPart = String(email || '').split('@')[0].replace(/[._-]+/g, ' ').trim();
+      if (!localPart) return 'Synthrun';
+      return localPart.split(/\s+/).filter(Boolean).map((part) => part.charAt(0).toUpperCase() + part.slice(1)).join(' ');
+    }
+
+    onAuthStateChanged(auth, async (user) => {
+      if (!user || !user.email) {
+        window.location.replace(LOGIN_URL);
+        return;
+      }
+
+      const initials = user.email.split('@')[0].slice(0, 2).toUpperCase();
+      const name = formatName(user.email);
+      document.title = `${name} - Synthrun Profile`;
+      document.getElementById('profileAvatar').textContent = initials;
+      document.getElementById('profileName').textContent = name;
+      document.getElementById('profileEmail').textContent = user.email;
+      document.getElementById('profileAccount').textContent = `${name} <${user.email}>`;
+      document.getElementById('profilePage').textContent = `${slug || 'profile'}.html`;
+    });
+
+    document.getElementById('backBtn').addEventListener('click', () => {
+      window.location.href = '/';
+    });
+
+    document.getElementById('signOutBtn').addEventListener('click', async () => {
+      await signOut(auth);
+      window.location.href = LOGIN_URL;
+    });
+  </script>
+</body>
+</html>

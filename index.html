@@ -142,6 +142,9 @@ body[data-theme="dark"] .icon-btn:hover { background: rgba(255,255,255,0.05); }
 #flagBtn[aria-pressed="true"] svg {
   fill: currentColor;
 }
+#archiveBtn[aria-pressed="true"] svg {
+  fill: currentColor;
+}
 
 /* ─── User Chip ──────────────────────────────────────────────── */
 .user-chip {
@@ -850,6 +853,9 @@ header, .app-body, .compose-modal { animation: pageRise 0.32s ease both; }
 .mobile-nav-btn svg { width: 18px; height: 18px; stroke: currentColor; fill: none; stroke-width: 1.4; }
 .mobile-nav-badge { position: absolute; top: 6px; right: calc(50% - 16px); min-width: 16px; height: 16px; padding: 0 4px; background: var(--unread-dot); color: #fff; font-size: 8px; border-radius: 8px; display: grid; place-items: center; line-height: 1; }
 .mobile-nav-btn { position: relative; }
+.mobile-compose-fab {
+  display: none;
+}
 
 /* ─── Responsive ─────────────────────────────────────────────── */
 @media (max-width: 1100px) { :root { --thread-w: 280px; } }
@@ -911,6 +917,27 @@ header, .app-body, .compose-modal { animation: pageRise 0.32s ease both; }
   .compose-body textarea { min-height: 120px; }
   .toast { bottom: calc(var(--mobile-nav-h) + 12px); }
   .template-grid { padding-bottom: 10px; }
+  .mobile-compose-fab {
+    display: grid;
+    position: fixed;
+    right: 14px;
+    bottom: calc(var(--mobile-nav-h) + 14px);
+    width: 58px;
+    height: 58px;
+    border-radius: 18px;
+    align-items: center;
+    justify-items: center;
+    border: 1px solid var(--accent);
+    background: var(--accent);
+    color: var(--accent-contrast);
+    box-shadow: 0 14px 34px rgba(0,0,0,0.22);
+    z-index: 24;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .mobile-compose-fab:hover { opacity: 0.92; }
+  .mobile-compose-fab:focus-visible { outline: 2px solid var(--text); outline-offset: 3px; }
+  .mobile-compose-fab svg { width: 20px; height: 20px; stroke: currentColor; fill: none; stroke-width: 1.6; }
 }
 
 @media (min-width: 641px) {
@@ -936,7 +963,6 @@ header, .app-body, .compose-modal { animation: pageRise 0.32s ease both; }
     width: auto;
     height: auto;
   }
-}
 
 /* ─── Scrollbar Styling ──────────────────────────────────────── */
 ::-webkit-scrollbar { width: 4px; height: 4px; }
@@ -985,7 +1011,7 @@ button:focus:not(:focus-visible), input:focus:not(:focus-visible) { outline: non
 
 <!-- ── Header ────────────────────────────────────────────────── -->
 <header>
-  <a href="/" class="h-logo" aria-label="Synthrun Mail home">
+  <a href="/" class="h-logo" id="mailHomeBtn" aria-label="Synthrun Mail home">
     <svg viewBox="0 0 24 24" aria-hidden="true">
       <circle cx="12" cy="12" r="8.5"></circle>
       <path d="M7 14c1.4-2.6 3.1-4 5.1-4s3.8 1.4 5.2 4"></path>
@@ -1047,6 +1073,10 @@ button:focus:not(:focus-visible), input:focus:not(:focus-visible) { outline: non
     <hr>
     <div class="side-section">
       <span class="side-label">Labels</span>
+      <button class="side-link" data-folder="archived" type="button">
+        <span class="side-link-left"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7h18v4H3z"></path><path d="M5 11v8h14v-8"></path><path d="M9 15h6"></path></svg>Archived</span>
+        <span class="side-badge" id="badge-archived">0</span>
+      </button>
       <button class="side-link" data-folder="flagged" type="button">
         <span class="side-link-left"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"></path><path d="M4 22V15"></path></svg>Flagged</span>
       </button>
@@ -1138,13 +1168,13 @@ button:focus:not(:focus-visible), input:focus:not(:focus-visible) { outline: non
       <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"></circle><path d="M2 12C4.7 6.5 8 4 12 4s7.3 2.5 10 8c-2.7 5.5-6 8-10 8S4.7 17.5 2 12"></path></svg>
       Unread
     </button>
-    <button class="mobile-nav-btn compose-mobile" id="mob-compose" type="button" aria-label="Compose">
-      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5H5a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-7"></path><path d="m18 2 4 4-9 9H9v-4l9-9z"></path></svg>
-      Compose
-    </button>
     <button class="mobile-nav-btn" data-folder="sent" id="mob-sent" type="button" aria-label="Sent">
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"></path></svg>
       Sent
+    </button>
+    <button class="mobile-nav-btn" data-folder="archived" id="mob-archived" type="button" aria-label="Archived">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7h18v4H3z"></path><path d="M5 11v8h14v-8"></path><path d="M9 15h6"></path></svg>
+      Archived
     </button>
     <button class="mobile-nav-btn" data-folder="flagged" id="mob-flagged" type="button" aria-label="Flagged">
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"></path><path d="M4 22V15"></path></svg>
@@ -1152,6 +1182,9 @@ button:focus:not(:focus-visible), input:focus:not(:focus-visible) { outline: non
     </button>
   </div>
 </nav>
+<button class="mobile-compose-fab" id="mob-compose" type="button" aria-label="Compose">
+  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5H5a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-7"></path><path d="m18 2 4 4-9 9H9v-4l9-9z"></path></svg>
+</button>
 
 <!-- ══════════════════════════════════════════════════════════════
      NEW: Enhanced Compose Overlay with Template Picker
@@ -1208,6 +1241,13 @@ button:focus:not(:focus-visible), input:focus:not(:focus-visible) { outline: non
           </div>
           <span class="template-card-name">Proposal</span>
           <span class="template-card-desc">Project summary, scope, pricing</span>
+        </button>
+        <button class="template-card" data-template="custom" role="radio" aria-checked="false" type="button">
+          <div class="template-card-icon">
+            <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"></path></svg>
+          </div>
+          <span class="template-card-name">Custom</span>
+          <span class="template-card-desc">Build a one-off template from a prompt</span>
         </button>
       </div>
     </div>
@@ -1271,15 +1311,43 @@ button:focus:not(:focus-visible), input:focus:not(:focus-visible) { outline: non
 <script src="./templates.js"></script>
 <script>
 /* ── Theme ── */
+const themeBtn = document.getElementById('themeBtn');
+
+function getEffectiveTheme(theme = localStorage.getItem('synthrun-theme') || 'auto') {
+  if (theme === 'auto') {
+    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  }
+  return theme;
+}
+
+function renderThemeIcon(theme = localStorage.getItem('synthrun-theme') || 'auto') {
+  if (!themeBtn) return;
+  const dark = getEffectiveTheme(theme) === 'dark';
+  themeBtn.innerHTML = dark
+    ? '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"></path></svg>'
+    : '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z"></path></svg>';
+  themeBtn.title = dark ? 'Switch to light mode' : 'Switch to dark mode';
+  themeBtn.setAttribute('aria-label', dark ? 'Switch to light mode' : 'Switch to dark mode');
+}
+
 function setTheme(theme) {
   if (theme === 'auto') document.body.removeAttribute('data-theme');
   else document.body.setAttribute('data-theme', theme);
   localStorage.setItem('synthrun-theme', theme);
+  renderThemeIcon(theme);
 }
 setTheme(localStorage.getItem('synthrun-theme') || 'auto');
-document.getElementById('themeBtn').addEventListener('click', () => {
+themeBtn?.addEventListener('click', () => {
   const c = localStorage.getItem('synthrun-theme') || 'auto';
   setTheme(c === 'auto' ? 'dark' : c === 'dark' ? 'light' : 'auto');
+});
+renderThemeIcon();
+
+document.getElementById('mailHomeBtn')?.addEventListener('click', async (event) => {
+  event.preventDefault();
+  if (typeof window.SYNTHRUN_REFRESH_INBOX === 'function') {
+    await window.SYNTHRUN_REFRESH_INBOX();
+  }
 });
 
 /* ══════════════════════════════════════════════════════════════
@@ -1539,6 +1607,22 @@ setInterval(updateClock, 30000);
   }
 
   async function ensureTemplateValue(key) {
+    if (key === 'custom') {
+      const name = window.prompt('Custom template name', 'there');
+      if (name === null) throw new Error('Custom template cancelled');
+      const message = window.prompt('Custom template message', 'Thanks for reaching out.');
+      if (message === null) throw new Error('Custom template cancelled');
+      const cta = window.prompt('Custom CTA label', 'Visit Synthrun &rarr;');
+      if (cta === null) throw new Error('Custom template cancelled');
+      const buildCustomTemplate = window.SYNTHRUN_BUILD_CUSTOM_TEMPLATE;
+      if (typeof buildCustomTemplate !== 'function') throw new Error('Custom template builder unavailable');
+      const html = buildCustomTemplate(name.trim(), message, cta.trim());
+      if (htmlBodyTA) {
+        htmlBodyTA.value = html;
+      }
+      return html;
+    }
+
     const html = templateLibrary[key];
     if (!html) throw new Error(`Missing template: ${key}`);
     if (htmlBodyTA) {
@@ -1580,8 +1664,19 @@ setInterval(updateClock, 30000);
       card.classList.toggle('selected', isThis);
       card.setAttribute('aria-checked', isThis ? 'true' : 'false');
     });
-    await ensureTemplateValue(key);
-    updatePreview();
+    try {
+      await ensureTemplateValue(key);
+      updatePreview();
+    } catch (error) {
+      selectedTemplate = null;
+      templateCards.forEach(card => {
+        card.classList.remove('selected');
+        card.setAttribute('aria-checked', 'false');
+      });
+      if (error?.message !== 'Custom template cancelled') {
+        console.error('selectTemplate:', error);
+      }
+    }
   }
 
   function updatePreview() {

@@ -397,6 +397,11 @@ app.get('/health', (_req, res) => {
   res.json({ ok: true });
 });
 
+app.get(/^\/[^/]+\.html$/, (_req, res) => {
+  res.setHeader('Cache-Control', 'no-store');
+  res.sendFile(path.join(__dirname, 'profile.html'));
+});
+
 app.use(
   express.static(__dirname, {
     dotfiles: 'ignore',

@@ -47,6 +47,12 @@ onAuthStateChanged(auth, async (user) => {
   }
 
   currentUser = user;
+  window.SYNTHRUN_PROFILE_DATA = {
+    email: user.email,
+    name: formatSenderName(user.email),
+    slug: sanitizeEmail(user.email).split('@')[0],
+    initials: user.email.split('@')[0].slice(0, 2).toUpperCase(),
+  };
   document.getElementById('userAvatar').textContent = user.email.split('@')[0].slice(0, 2).toUpperCase();
   document.getElementById('userEmail').textContent = user.email;
   document.getElementById('statusUser').textContent = user.email;
@@ -72,6 +78,13 @@ function bootDebugUser(email) {
     async getIdToken() {
       return null;
     },
+  };
+
+  window.SYNTHRUN_PROFILE_DATA = {
+    email,
+    name: formatSenderName(email),
+    slug: sanitizeEmail(email).split('@')[0],
+    initials: email.split('@')[0].slice(0, 2).toUpperCase(),
   };
 
   const initials = email.split('@')[0].slice(0, 2).toUpperCase();
@@ -117,6 +130,19 @@ function bindUi() {
     showToast('Up to date.');
   });
 
+  window.SYNTHRUN_REFRESH_INBOX = async () => {
+    currentFolder = 'inbox';
+    activeMessageId = null;
+    document.getElementById('folderLabel').textContent = 'Inbox';
+    document.querySelectorAll('.side-link').forEach((item) => item.classList.remove('active'));
+    document.querySelectorAll('.mobile-nav-btn').forEach((item) => item.classList.remove('active'));
+    document.querySelectorAll('[data-folder="inbox"]').forEach((item) => item.classList.add('active'));
+    document.getElementById('emptyView').style.display = 'flex';
+    document.getElementById('messageView').style.display = 'none';
+    setMessageOpenState(false);
+    await loadMessages();
+  };
+
   document.getElementById('userChip').addEventListener('click', () => {
     const menu = document.getElementById('userMenu');
     const open = menu.classList.toggle('show');
@@ -135,7 +161,13 @@ function bindUi() {
     window.location.href = LOGIN_URL;
   });
 
-  const folderLabels = { inbox: 'Inbox', unread: 'Unread', sent: 'Sent', flagged: 'Flagged', clients: 'Clients' };
+  document.getElementById('accountBtn').addEventListener('click', () => {
+    const profile = window.SYNTHRUN_PROFILE_DATA || {};
+    const slug = profile.slug || 'profile';
+    window.location.href = `/${encodeURIComponent(slug)}.html`;
+  });
+
+  const folderLabels = { inbox: 'Inbox', unread: 'Unread', sent: 'Sent', archived: 'Archived', flagged: 'Flagged', clients: 'Clients' };
   document.querySelectorAll('.side-link[data-folder]').forEach((link) => {
     link.addEventListener('click', () => {
       document.querySelectorAll('.side-link').forEach((item) => item.classList.remove('active'));
@@ -272,6 +304,7 @@ function renderList() {
 
   if (currentFolder === 'unread') messages = messages.filter((message) => message.unread && message.folder !== 'sent');
   else if (currentFolder === 'sent') messages = messages.filter((message) => message.folder === 'sent');
+  else if (currentFolder === 'archived') messages = messages.filter((message) => message.folder === 'archived');
   else if (currentFolder === 'flagged') messages = messages.filter((message) => message.flagged);
   else if (currentFolder === 'clients') messages = messages.filter((message) => Array.isArray(message.labels) && message.labels.includes('clients'));
   else messages = messages.filter((message) => message.folder !== 'sent');
@@ -288,6 +321,7 @@ function renderList() {
   const inboxUnread = allMessages.filter((message) => message.unread && message.folder !== 'sent').length;
   document.getElementById('badge-inbox').textContent = String(inboxUnread || 0);
   document.getElementById('badge-unread').textContent = String(inboxUnread || 0);
+  document.getElementById('badge-archived').textContent = String(allMessages.filter((message) => message.folder === 'archived').length || 0);
   document.getElementById('badge-sent').textContent = String(allMessages.filter((message) => message.folder === 'sent').length || '—');
   document.getElementById('statusCount').textContent = `${messages.length} message${messages.length === 1 ? '' : 's'}`;
 
@@ -394,11 +428,14 @@ async function openMessage(id) {
   document.getElementById('replyBtn').onclick = () => openCompose({ to: replyTarget, subject: `Re: ${message.subject || ''}`, prefill: `\n\n---\nFrom: ${getSenderLabel(message) || ''}\n${message.body || ''}` });
   document.getElementById('forwardBtn').onclick = () => openCompose({ subject: `Fwd: ${message.subject || ''}`, prefill: `\n\n---\nFrom: ${getSenderLabel(message) || ''}\n${message.body || ''}` });
   document.getElementById('deleteBtn').onclick = () => deleteMessage(id);
-  document.getElementById('archiveBtn').onclick = () => archiveMessage(id);
+  document.getElementById('archiveBtn').onclick = () => toggleArchive(id);
   document.getElementById('flagBtn').onclick = () => toggleFlag(id);
   document.getElementById('markUnreadBtn').onclick = () => markUnread(id);
+  syncArchiveButtonState(message.folder === 'archived');
   syncFlagButtonState(message.flagged);
 }
+
+window.SYNTHRUN_OPEN_MESSAGE = openMessage;
 
 async function deleteMessage(id) {
   try {
@@ -416,19 +453,47 @@ async function deleteMessage(id) {
   }
 }
 
+async function toggleArchive(id) {
+  const message = allMessages.find((entry) => entry.id === id);
+  if (!message) return;
+  if (message.folder === 'archived') {
+    await unarchiveMessage(id);
+    return;
+  }
+  await archiveMessage(id);
+}
+
 async function archiveMessage(id) {
+  await moveMessageFolder(id, 'archived', 'Archived.', 'Could not archive.');
+}
+
+async function unarchiveMessage(id) {
+  await moveMessageFolder(id, 'inbox', 'Moved to inbox.', 'Could not unarchive.');
+}
+
+async function moveMessageFolder(id, folder, successToast, failureToast) {
   try {
-    await updateDoc(doc(db, 'mail', id), { folder: 'archived' });
-    allMessages = allMessages.filter((message) => message.id !== id);
+    await updateDoc(doc(db, 'mail', id), { folder });
+    const movedMessage = allMessages.find((message) => message.id === id);
+    if (movedMessage) {
+      movedMessage.folder = folder;
+    }
     activeMessageId = null;
     setMessageOpenState(false);
     document.getElementById('emptyView').style.display = 'flex';
     document.getElementById('messageView').style.display = 'none';
+    currentFolder = folder;
+    document.querySelectorAll('.side-link').forEach((item) => item.classList.remove('active'));
+    document.querySelectorAll('.mobile-nav-btn').forEach((item) => item.classList.remove('active'));
+    document.querySelectorAll(`[data-folder="${folder}"]`).forEach((item) => item.classList.add('active'));
+    const folderLabels = { inbox: 'Inbox', unread: 'Unread', sent: 'Sent', archived: 'Archived', flagged: 'Flagged', clients: 'Clients' };
+    document.getElementById('folderLabel').textContent = folderLabels[folder] || folder;
+    syncArchiveButtonState(folder === 'archived');
     renderList();
-    showToast('Archived.');
+    showToast(successToast);
   } catch (error) {
-    console.error('archiveMessage:', error);
-    showToast('Could not archive.', true);
+    console.error('moveMessageFolder:', error);
+    showToast(failureToast, true);
   }
 }
 
@@ -482,6 +547,15 @@ function syncFlagButtonState(isFlagged) {
   const flagButton = document.getElementById('flagBtn');
   if (!flagButton) return;
   flagButton.setAttribute('aria-pressed', String(Boolean(isFlagged)));
+}
+
+function syncArchiveButtonState(isArchived) {
+  const archiveButton = document.getElementById('archiveBtn');
+  if (!archiveButton) return;
+  const archived = Boolean(isArchived);
+  archiveButton.setAttribute('aria-pressed', String(archived));
+  archiveButton.title = archived ? 'Unarchive' : 'Archive';
+  archiveButton.setAttribute('aria-label', archived ? 'Unarchive message' : 'Archive message');
 }
 
 window.SYNTHRUN_CLOSE_MESSAGE_VIEW = closeMessageView;
