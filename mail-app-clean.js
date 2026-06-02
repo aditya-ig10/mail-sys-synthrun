@@ -16,24 +16,108 @@ import {
 import { getDownloadURL, getStorage, ref as storageRef, uploadBytes } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js';
 
 const SEND_ENDPOINT = getSendEndpoint();
-const LOGIN_URL = './login/';
+const LOGIN_URL = '/login/';
 const ALLOWED_DOMAIN = 'synthrun.site';
 const BOUNCE_ADDRESS_PATTERN = /^bounces-[^@]+@gw\.d\.sender-sib\.com$/i;
+const FOLDER_LABELS = { inbox: 'Inbox', unread: 'Unread', sent: 'Sent', archived: 'Archived', flagged: 'Flagged', clients: 'Clients' };
+const ROUTE_FOLDER_ALIASES = { all: 'inbox', inbox: 'inbox', unread: 'unread', sent: 'sent', archive: 'archived', archived: 'archived', flagged: 'flagged', clients: 'clients' };
+const ROUTE_FOLDER_SEGMENTS = { inbox: 'all', unread: 'unread', sent: 'sent', archived: 'archive', flagged: 'flagged', clients: 'clients' };
 
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 const storage = getStorage(app);
 const loadingOverlay = document.getElementById('appLoadingOverlay');
+const initialRouteState = getRouteStateFromLocation();
 
 let currentUser = null;
 let allMessages = [];
-let currentFolder = 'inbox';
+let currentFolder = initialRouteState.folder;
 let activeMessageId = null;
 let draftAttachments = [];
 let uiBound = false;
 let composeBusy = false;
 const DEBUG_USER = globalThis.SYNTHRUN_DEBUG_USER || localStorage.getItem('synthrun-debug-user') || '';
+
+function getRouteStateFromLocation() {
+  const segments = window.location.pathname
+    .split('/')
+    .filter(Boolean)
+    .map((segment) => decodeURIComponent(segment));
+
+  const firstSegment = String(segments[0] || '').toLowerCase();
+
+  if (!segments.length || firstSegment === 'index.html' || firstSegment === 'index') {
+    return { folder: 'inbox', messageId: null };
+  }
+
+  const routeFolder = ROUTE_FOLDER_ALIASES[firstSegment];
+  if (routeFolder) {
+    return { folder: routeFolder, messageId: segments[1] || null };
+  }
+
+  return { folder: 'inbox', messageId: segments[0] || null };
+}
+
+function buildRoutePath(folder = currentFolder, messageId = activeMessageId) {
+  const baseSegment = ROUTE_FOLDER_SEGMENTS[folder] || 'all';
+  return messageId ? `/${baseSegment}/${encodeURIComponent(messageId)}` : `/${baseSegment}`;
+}
+
+function syncRouteToLocation({ folder = currentFolder, messageId = activeMessageId, replace = false } = {}) {
+  const nextPath = buildRoutePath(folder, messageId);
+  if (window.location.pathname === nextPath) return;
+  const method = replace ? 'replaceState' : 'pushState';
+  window.history[method]({ folder, messageId: messageId || null }, '', nextPath);
+}
+
+function updateFolderSelection(folder) {
+  currentFolder = folder;
+  document.getElementById('folderLabel').textContent = FOLDER_LABELS[folder] || folder;
+  document.querySelectorAll('.side-link').forEach((item) => item.classList.remove('active'));
+  document.querySelectorAll('.mobile-nav-btn').forEach((item) => item.classList.remove('active'));
+  document.querySelectorAll(`[data-folder="${folder}"]`).forEach((item) => item.classList.add('active'));
+}
+
+function showFolderView({ folder = currentFolder, replaceRoute = false } = {}) {
+  updateFolderSelection(folder);
+  activeMessageId = null;
+  document.getElementById('emptyView').style.display = 'flex';
+  document.getElementById('messageView').style.display = 'none';
+  setMessageOpenState(false);
+  syncRouteToLocation({ folder, messageId: null, replace: replaceRoute });
+}
+
+async function restoreRouteState() {
+  const { folder, messageId } = getRouteStateFromLocation();
+  updateFolderSelection(folder);
+  activeMessageId = null;
+  document.getElementById('emptyView').style.display = 'flex';
+  document.getElementById('messageView').style.display = 'none';
+  setMessageOpenState(false);
+
+  if (!messageId) {
+    syncRouteToLocation({ folder, messageId: null, replace: true });
+    renderList();
+    return;
+  }
+
+  const messageExists = allMessages.some((message) => message.id === messageId);
+  if (!messageExists) {
+    syncRouteToLocation({ folder, messageId: null, replace: true });
+    renderList();
+    return;
+  }
+
+  syncRouteToLocation({ folder, messageId, replace: true });
+  renderList();
+  await openMessage(messageId, { updateRoute: false, replaceRoute: true });
+}
+
+window.addEventListener('popstate', () => {
+  if (!uiBound) return;
+  restoreRouteState();
+});
 
 if (DEBUG_USER) {
   bootDebugUser(DEBUG_USER);
@@ -68,6 +152,7 @@ onAuthStateChanged(auth, async (user) => {
   window._getIdToken = async () => (currentUser ? await currentUser.getIdToken() : null);
 
   await loadMessages();
+  await restoreRouteState();
   setAppLoading(false);
 });
 
@@ -101,6 +186,7 @@ function bootDebugUser(email) {
 
     window._getIdToken = async () => null;
     allMessages = [];
+    updateFolderSelection(currentFolder);
     renderList();
   };
 
@@ -131,15 +217,7 @@ function bindUi() {
   });
 
   window.SYNTHRUN_REFRESH_INBOX = async () => {
-    currentFolder = 'inbox';
-    activeMessageId = null;
-    document.getElementById('folderLabel').textContent = 'Inbox';
-    document.querySelectorAll('.side-link').forEach((item) => item.classList.remove('active'));
-    document.querySelectorAll('.mobile-nav-btn').forEach((item) => item.classList.remove('active'));
-    document.querySelectorAll('[data-folder="inbox"]').forEach((item) => item.classList.add('active'));
-    document.getElementById('emptyView').style.display = 'flex';
-    document.getElementById('messageView').style.display = 'none';
-    setMessageOpenState(false);
+    showFolderView({ folder: 'inbox', replaceRoute: true });
     await loadMessages();
   };
 
@@ -167,16 +245,9 @@ function bindUi() {
     window.location.href = `/${encodeURIComponent(slug)}.html`;
   });
 
-  const folderLabels = { inbox: 'Inbox', unread: 'Unread', sent: 'Sent', archived: 'Archived', flagged: 'Flagged', clients: 'Clients' };
   document.querySelectorAll('.side-link[data-folder]').forEach((link) => {
     link.addEventListener('click', () => {
-      document.querySelectorAll('.side-link').forEach((item) => item.classList.remove('active'));
-      link.classList.add('active');
-      currentFolder = link.dataset.folder;
-      document.getElementById('folderLabel').textContent = folderLabels[currentFolder] || currentFolder;
-      activeMessageId = null;
-      document.getElementById('emptyView').style.display = 'flex';
-      document.getElementById('messageView').style.display = 'none';
+      showFolderView({ folder: link.dataset.folder });
       renderList();
     });
   });
@@ -367,7 +438,7 @@ function renderList() {
   });
 }
 
-async function openMessage(id) {
+async function openMessage(id, { updateRoute = true, replaceRoute = false } = {}) {
   const message = allMessages.find((entry) => entry.id === id);
   if (!message) return;
   activeMessageId = id;
@@ -433,6 +504,10 @@ async function openMessage(id) {
   document.getElementById('markUnreadBtn').onclick = () => markUnread(id);
   syncArchiveButtonState(message.folder === 'archived');
   syncFlagButtonState(message.flagged);
+
+  if (updateRoute) {
+    syncRouteToLocation({ folder: currentFolder, messageId: id, replace: replaceRoute });
+  }
 }
 
 window.SYNTHRUN_OPEN_MESSAGE = openMessage;
@@ -441,10 +516,7 @@ async function deleteMessage(id) {
   try {
     await deleteDoc(doc(db, 'mail', id));
     allMessages = allMessages.filter((message) => message.id !== id);
-    activeMessageId = null;
-    setMessageOpenState(false);
-    document.getElementById('emptyView').style.display = 'flex';
-    document.getElementById('messageView').style.display = 'none';
+    closeMessageView({ replaceRoute: true });
     renderList();
     showToast('Message deleted.');
   } catch (error) {
@@ -478,16 +550,7 @@ async function moveMessageFolder(id, folder, successToast, failureToast) {
     if (movedMessage) {
       movedMessage.folder = folder;
     }
-    activeMessageId = null;
-    setMessageOpenState(false);
-    document.getElementById('emptyView').style.display = 'flex';
-    document.getElementById('messageView').style.display = 'none';
-    currentFolder = folder;
-    document.querySelectorAll('.side-link').forEach((item) => item.classList.remove('active'));
-    document.querySelectorAll('.mobile-nav-btn').forEach((item) => item.classList.remove('active'));
-    document.querySelectorAll(`[data-folder="${folder}"]`).forEach((item) => item.classList.add('active'));
-    const folderLabels = { inbox: 'Inbox', unread: 'Unread', sent: 'Sent', archived: 'Archived', flagged: 'Flagged', clients: 'Clients' };
-    document.getElementById('folderLabel').textContent = folderLabels[folder] || folder;
+    showFolderView({ folder, replaceRoute: true });
     syncArchiveButtonState(folder === 'archived');
     renderList();
     showToast(successToast);
@@ -529,7 +592,7 @@ async function markUnread(id) {
   showToast('Marked unread.');
 }
 
-function closeMessageView() {
+function closeMessageView({ replaceRoute = false } = {}) {
   activeMessageId = null;
   setMessageOpenState(false);
 
@@ -537,6 +600,8 @@ function closeMessageView() {
   const messageView = document.getElementById('messageView');
   if (emptyView) emptyView.style.display = 'flex';
   if (messageView) messageView.style.display = 'none';
+
+  syncRouteToLocation({ folder: currentFolder, messageId: null, replace: replaceRoute });
 }
 
 function setMessageOpenState(isOpen) {
