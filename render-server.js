@@ -14,6 +14,82 @@ const nodemailer = require('nodemailer');
 
 const app = express();
 app.use(express.json({ limit: '15mb' }));
+const SESSION_COOKIE_NAME = 'synthrun-session';
+const SESSION_COOKIE_MAX_AGE_MS = 5 * 24 * 60 * 60 * 1000;
+
+function parseCookies(cookieHeader = '') {
+  return String(cookieHeader)
+    .split(';')
+    .map((part) => part.trim())
+    .filter(Boolean)
+    .reduce((cookies, part) => {
+      const separatorIndex = part.indexOf('=');
+      const key = decodeURIComponent(separatorIndex >= 0 ? part.slice(0, separatorIndex) : part);
+      const value = decodeURIComponent(separatorIndex >= 0 ? part.slice(separatorIndex + 1) : '');
+      cookies[key] = value;
+      return cookies;
+    }, {});
+}
+
+function setSessionCookie(res, value) {
+  const secure = process.env.NODE_ENV === 'production';
+  const parts = [
+    `${SESSION_COOKIE_NAME}=${value}`,
+    'Path=/',
+    'HttpOnly',
+    'SameSite=Lax',
+    `Max-Age=${Math.floor(SESSION_COOKIE_MAX_AGE_MS / 1000)}`,
+  ];
+
+  if (secure) {
+    parts.push('Secure');
+  }
+
+  res.setHeader('Set-Cookie', parts.join('; '));
+}
+
+function clearSessionCookie(res) {
+  const secure = process.env.NODE_ENV === 'production';
+  const parts = [
+    `${SESSION_COOKIE_NAME}=`,
+    'Path=/',
+    'HttpOnly',
+    'SameSite=Lax',
+    'Max-Age=0',
+  ];
+
+  if (secure) {
+    parts.push('Secure');
+  }
+
+  res.setHeader('Set-Cookie', parts.join('; '));
+}
+
+async function authenticateSession(req) {
+  const cookies = parseCookies(req.headers.cookie || '');
+  const sessionCookie = cookies[SESSION_COOKIE_NAME];
+  if (!sessionCookie) {
+    throw new Error('Missing session cookie');
+  }
+
+  initFirebase();
+  const decoded = await admin.auth().verifySessionCookie(sessionCookie, true);
+  if (!decoded.email) {
+    throw new Error('Session missing email');
+  }
+
+  return decoded.email.toLowerCase();
+}
+
+function wantsHtml(req) {
+  const accept = String(req.headers.accept || '');
+  return accept.includes('text/html') || accept.includes('*/*') || !accept;
+}
+
+function redirectToLogin(req, res) {
+  const returnTo = `${req.originalUrl || req.url || '/'}`;
+  res.redirect(302, `/login/?returnTo=${encodeURIComponent(returnTo)}`);
+}
 
 function initFirebase() {
   if (admin.apps && admin.apps.length) return;
@@ -299,6 +375,30 @@ function attachmentsToMailOptions(attachments = []) {
   }));
 }
 
+app.use('/login', express.static(path.join(__dirname, 'login'), { extensions: ['html'] }));
+
+app.post('/sessionLogin', async (req, res) => {
+  try {
+    const idToken = String(req.body?.idToken || '').trim();
+    if (!idToken) {
+      return sendJson(res, 400, { error: 'Missing idToken' });
+    }
+
+    initFirebase();
+    const expiresIn = SESSION_COOKIE_MAX_AGE_MS;
+    const sessionCookie = await admin.auth().createSessionCookie(idToken, { expiresIn });
+    setSessionCookie(res, sessionCookie);
+    return sendJson(res, 200, { ok: true });
+  } catch (error) {
+    return sendJson(res, 401, { error: error.message || 'Could not create session' });
+  }
+});
+
+app.post('/sessionLogout', (_req, res) => {
+  clearSessionCookie(res);
+  return sendJson(res, 200, { ok: true });
+});
+
 app.options('/send', (req, res) => {
   cors(req, res);
   res.status(204).end();
@@ -397,17 +497,40 @@ app.get('/health', (_req, res) => {
   res.json({ ok: true });
 });
 
+app.use(async (req, res, next) => {
+  if (req.method !== 'GET') {
+    return next();
+  }
+
+  const pathname = req.path || '/';
+  if (
+    pathname === '/login' ||
+    pathname.startsWith('/login/') ||
+    pathname === '/firebase-config.js' ||
+    pathname === '/health' ||
+    pathname === '/sessionLogin' ||
+    pathname === '/sessionLogout'
+  ) {
+    return next();
+  }
+
+  try {
+    const userEmail = await authenticateSession(req);
+    req.userEmail = userEmail;
+    return next();
+  } catch (error) {
+    if (!wantsHtml(req)) {
+      return sendJson(res, 401, { error: 'Authentication required' });
+    }
+
+    return redirectToLogin(req, res);
+  }
+});
+
 app.get(/^\/[^/]+\.html$/, (_req, res) => {
   res.setHeader('Cache-Control', 'no-store');
   res.sendFile(path.join(__dirname, 'profile.html'));
 });
-
-app.use(
-  express.static(__dirname, {
-    dotfiles: 'ignore',
-    extensions: ['html'],
-  })
-);
 
 app.get('*', (_req, res) => {
   res.sendFile(path.join(__dirname, 'index.html'));

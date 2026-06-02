@@ -16,7 +16,6 @@ import {
 import { getDownloadURL, getStorage, ref as storageRef, uploadBytes } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js';
 
 const SEND_ENDPOINT = getSendEndpoint();
-const LOGIN_URL = '/login/';
 const ALLOWED_DOMAIN = 'synthrun.site';
 const BOUNCE_ADDRESS_PATTERN = /^bounces-[^@]+@gw\.d\.sender-sib\.com$/i;
 const FOLDER_LABELS = { inbox: 'Inbox', unread: 'Unread', sent: 'Sent', archived: 'Archived', flagged: 'Flagged', clients: 'Clients' };
@@ -69,6 +68,11 @@ function syncRouteToLocation({ folder = currentFolder, messageId = activeMessage
   if (window.location.pathname === nextPath) return;
   const method = replace ? 'replaceState' : 'pushState';
   window.history[method]({ folder, messageId: messageId || null }, '', nextPath);
+}
+
+function buildLoginUrl() {
+  const returnTo = `${window.location.pathname}${window.location.search}` || '/all/';
+  return `/login/?returnTo=${encodeURIComponent(returnTo)}`;
 }
 
 function updateFolderSelection(folder) {
@@ -126,7 +130,7 @@ if (DEBUG_USER) {
 onAuthStateChanged(auth, async (user) => {
   if (DEBUG_USER) return;
   if (!user || !user.email || !user.email.endsWith(`@${ALLOWED_DOMAIN}`)) {
-    window.location.replace(LOGIN_URL);
+    window.location.replace(buildLoginUrl());
     return;
   }
 
@@ -235,8 +239,13 @@ function bindUi() {
   });
 
   document.getElementById('signOutBtn').addEventListener('click', async () => {
+    try {
+      await fetch('/sessionLogout', { method: 'POST', credentials: 'include' });
+    } catch (error) {
+      console.warn('Could not clear session cookie:', error);
+    }
     await signOut(auth);
-    window.location.href = LOGIN_URL;
+    window.location.replace('/login/');
   });
 
   document.getElementById('accountBtn').addEventListener('click', () => {

@@ -326,16 +326,53 @@ main {
   } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
 
   const ALLOWED_DOMAIN = 'synthrun.site';
-  const MAIL_APP_URL   = '../'; // path to index.html
+  const DEFAULT_MAIL_URL = '/all/';
+
+  function sanitizeReturnTo(value) {
+    const candidate = String(value || '').trim();
+    if (!candidate || candidate === '/login/' || candidate === '/login') {
+      return DEFAULT_MAIL_URL;
+    }
+
+    if (!candidate.startsWith('/') || candidate.startsWith('//') || candidate.startsWith('/login')) {
+      return DEFAULT_MAIL_URL;
+    }
+
+    return candidate;
+  }
+
+  const returnTo = sanitizeReturnTo(new URLSearchParams(window.location.search).get('returnTo'));
 
   const app      = initializeApp(firebaseConfig);
   const auth     = getAuth(app);
   const provider = new GoogleAuthProvider();
   provider.setCustomParameters({ hd: ALLOWED_DOMAIN });
 
+  async function establishSession(user) {
+    const idToken = await user.getIdToken(true);
+    const response = await fetch('/sessionLogin', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ idToken }),
+    });
+
+    if (!response.ok) {
+      throw new Error('Could not establish session');
+    }
+  }
+
   // Redirect if already signed in
-  onAuthStateChanged(auth, (user) => {
-    if (user) window.location.href = MAIL_APP_URL;
+  onAuthStateChanged(auth, async (user) => {
+    if (!user) return;
+
+    try {
+      await establishSession(user);
+      window.location.replace(returnTo);
+    } catch (error) {
+      console.error(error);
+      showToast('Could not start a secure session. Try again.', true);
+    }
   });
 
   // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -387,7 +424,8 @@ main {
         setLoading(false);
         return;
       }
-      window.location.href = MAIL_APP_URL;
+      await establishSession(cred.user);
+      window.location.replace(returnTo);
     } catch (err) {
       setLoading(false);
       const code = err.code;
@@ -412,7 +450,8 @@ main {
         showToast('Only @' + ALLOWED_DOMAIN + ' Google accounts are allowed.', true);
         return;
       }
-      window.location.href = MAIL_APP_URL;
+      await establishSession(cred.user);
+      window.location.replace(returnTo);
     } catch (err) {
       if (err.code !== 'auth/popup-closed-by-user') {
         showToast('Google sign-in failed. Try again.', true);
@@ -436,6 +475,7 @@ main {
       showToast('Could not send reset email. Check the address.', true);
     }
   });
+
 </script>
 
 <script>
