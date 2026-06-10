@@ -44,6 +44,8 @@ html, body { margin: 0; width: 100%; height: 100%; }
   --header-h: 56px;
   --status-h: 28px;
   --mobile-nav-h: 0px;
+  --sidebar-w: 220px;
+  --thread-w: 320px;
   --transition: 150ms ease;
 }
 body[data-theme="dark"] {
@@ -87,7 +89,7 @@ a { color: inherit; text-decoration: none; }
 header {
   height: var(--header-h);
   display: grid;
-  grid-template-columns: 220px 1fr auto;
+  grid-template-columns: var(--sidebar-w) 1fr auto;
   align-items: center;
   gap: 12px;
   padding: 0 16px 0 0;
@@ -220,7 +222,7 @@ body[data-theme="dark"] .user-menu-item:hover { background: rgba(255,255,255,0.0
 .app-body {
   height: calc(100vh - var(--header-h) - var(--status-h) - var(--mobile-nav-h));
   display: grid;
-  grid-template-columns: 220px 1fr;
+  grid-template-columns: var(--sidebar-w) 1fr;
   min-height: 0;
 }
 
@@ -282,7 +284,7 @@ body[data-theme="dark"] .side-link.active { background: rgba(255,255,255,0.07); 
 /* ─── Mail Panel ─────────────────────────────────────────────── */
 .mail-panel {
   min-width: 0; display: grid;
-  grid-template-columns: 320px 1fr;
+  grid-template-columns: var(--thread-w) 1fr;
   min-height: 0;
 }
 
@@ -681,6 +683,15 @@ body[data-theme="dark"] .compose-close:hover { background: rgba(255,255,255,0.05
 .chip-input::placeholder { color: var(--subtle); }
 
 .compose-body { flex: 1; overflow: auto; padding: 13px; min-height: 160px; }
+
+/* ─── Resizable Splits ─────────────────────────────────── */
+.resize-handle { position: relative; flex-shrink: 0; cursor: col-resize; z-index: 5; display: none; }
+.resize-handle::after { content: ''; position: absolute; inset: 0; transition: background 0.15s; }
+.resize-handle:hover::after, .resize-handle.resizing::after { background: var(--accent); }
+#sidebarResize { width: 3px; }
+#sidebarResize::after { left: -4px; right: -4px; top: 0; bottom: 0; }
+#splitResize { width: 3px; }
+#splitResize::after { left: -4px; right: -4px; top: 0; bottom: 0; }
 .compose-body textarea { width: 100%; min-height: 200px; height: 100%; border: 0; outline: 0; resize: none; background: transparent; color: var(--text); line-height: 1.8; font-size: 12px; }
 .compose-body textarea::placeholder { color: var(--subtle); }
 .compose-body.invalid,
@@ -939,7 +950,10 @@ header, .app-body, .compose-modal { animation: pageRise 0.32s ease both; }
 
 /* ─── Responsive ─────────────────────────────────────────────── */
 @media (max-width: 1100px) {
-  .mail-panel { grid-template-columns: 280px 1fr; }
+  :root { --thread-w: 280px; }
+}
+@media (min-width: 901px) {
+  .resize-handle { display: block; }
 }
 @media (max-width: 900px) {
   header { grid-template-columns: auto 1fr auto; }
@@ -1193,6 +1207,7 @@ button:focus:not(:focus-visible), input:focus:not(:focus-visible) { outline: non
       </button>
     </div>
   </aside>
+  <div class="resize-handle" id="sidebarResize" aria-hidden="true"></div>
   <div class="mail-panel" id="mailPanel">
     <div class="thread-list" id="threadList">
       <div class="thread-toolbar">
@@ -1221,6 +1236,7 @@ button:focus:not(:focus-visible), input:focus:not(:focus-visible) { outline: non
       </div>
       <div class="thread-items" id="threadItems" role="list" aria-label="Messages"></div>
     </div>
+    <div class="resize-handle" id="splitResize" aria-hidden="true"></div>
     <div class="mail-view" id="mailView">
       <div class="mail-view-empty" id="emptyView" aria-live="polite">
         <div class="mail-view-empty-inner">
@@ -1643,7 +1659,53 @@ function flushChipInputs() {
 }
 window.SYNTHRUN_FLUSH_CHIPS = flushChipInputs;
 
+/* ── Resizable Splits (desktop only) ── */
+function initResize(handleId, cssVar, minPx, maxPx) {
+  const handle = document.getElementById(handleId);
+  if (!handle) return;
+  let startX, startVal;
 
+  function onMouseDown(e) {
+    e.preventDefault();
+    startX = e.clientX;
+    startVal = parseInt(getComputedStyle(document.documentElement).getPropertyValue(cssVar).trim()) || 220;
+    handle.classList.add('resizing');
+    document.documentElement.style.userSelect = 'none';
+    document.body.style.cursor = 'col-resize';
+    document.addEventListener('mousemove', onMouseMove);
+    document.addEventListener('mouseup', onMouseUp);
+  }
+
+  function onMouseMove(e) {
+    const dx = e.clientX - startX;
+    const dir = handleId === 'splitResize' ? -1 : 1;
+    let val = Math.round(startVal + dx * dir);
+    if (val < minPx) val = minPx;
+    if (val > maxPx) val = maxPx;
+    document.documentElement.style.setProperty(cssVar, val + 'px');
+  }
+
+  function onMouseUp() {
+    handle.classList.remove('resizing');
+    document.documentElement.style.userSelect = '';
+    document.body.style.cursor = '';
+    document.removeEventListener('mousemove', onMouseMove);
+    document.removeEventListener('mouseup', onMouseUp);
+    const val = parseInt(getComputedStyle(document.documentElement).getPropertyValue(cssVar).trim());
+    if (val) localStorage.setItem('synthrun-' + cssVar.replace('--', ''), val);
+  }
+
+  handle.addEventListener('mousedown', onMouseDown);
+  const saved = localStorage.getItem('synthrun-' + cssVar.replace('--', ''));
+  if (saved && window.innerWidth > 900) {
+    document.documentElement.style.setProperty(cssVar, saved + 'px');
+  }
+}
+
+if (window.innerWidth > 900) {
+  initResize('sidebarResize', '--sidebar-w', 160, 400);
+  initResize('splitResize', '--thread-w', 200, 600);
+}
 
 document.getElementById('selectAllBtn')?.addEventListener('click', () => {
   if (typeof window.SYNTHRUN_TOGGLE_SELECT_ALL === 'function') {

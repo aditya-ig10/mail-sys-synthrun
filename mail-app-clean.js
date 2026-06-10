@@ -258,9 +258,6 @@ function bindUi() {
     await loadMessages();
   };
 
-  document.getElementById('importantBtn').addEventListener('click', () => {
-    if (activeMessageId) toggleImportant(activeMessageId);
-  });
   document.getElementById('restoreBtn').addEventListener('click', () => {
     if (activeMessageId) restoreMessage(activeMessageId);
   });
