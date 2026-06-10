@@ -305,6 +305,9 @@ body[data-theme="dark"] .side-link.active { background: rgba(255,255,255,0.07); 
 .toolbar-selected-count {
   font-size: 11px; color: var(--subtle);
 }
+.bulk-actions {
+  display: flex; align-items: center; gap: 4px;
+}
 .thread-items {
   overflow-y: auto; min-height: 0; flex: 1;
   scrollbar-width: thin; scrollbar-color: var(--line) transparent;
@@ -348,13 +351,12 @@ body[data-theme="dark"] .thread-item.selected { background: rgba(255,255,255,0.0
   display: grid; place-items: center;
   flex-shrink: 0; cursor: pointer;
   position: relative; z-index: 1;
-  opacity: 0; pointer-events: none;
-  transition: opacity 0.15s, background 0.15s;
   background: var(--bg); border: 1px solid var(--line);
 }
 .thread-avatar-icon {
   width: 16px; height: 16px;
   stroke: var(--text); fill: none; stroke-width: 1.5;
+  transition: opacity 0.15s;
 }
 .thread-avatar-checkbox {
   position: absolute; inset: -2px; border-radius: 50%;
@@ -366,14 +368,10 @@ body[data-theme="dark"] .thread-item.selected { background: rgba(255,255,255,0.0
   width: 14px; height: 14px;
   stroke: var(--text); fill: none; stroke-width: 2.5;
 }
-.thread-item:hover .thread-avatar {
-  opacity: 1; pointer-events: auto;
-}
+.thread-item:hover .thread-avatar-icon { opacity: 0.2; }
 .thread-item:hover .thread-avatar-checkbox { display: grid; }
-.thread-item.selected .thread-avatar {
-  opacity: 1; pointer-events: auto;
-  border-color: var(--accent);
-}
+.thread-item.selected .thread-avatar { border-color: var(--accent); }
+.thread-item.selected .thread-avatar-icon { opacity: 0; }
 .thread-item.selected .thread-avatar-checkbox { display: grid; }
 .thread-avatar-checkbox.checked {
   background: var(--accent); border-color: var(--accent);
@@ -1200,6 +1198,23 @@ button:focus:not(:focus-visible), input:focus:not(:focus-visible) { outline: non
       <div class="thread-toolbar">
         <span class="toolbar-label" id="folderLabel">Inbox</span>
         <span class="toolbar-selected-count" id="selectedCount" style="display:none"></span>
+        <div class="bulk-actions" id="bulkActions" style="display:none">
+          <button class="icon-btn" id="bulkArchiveBtn" title="Archive" aria-label="Archive selected" type="button">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 8v13H3V8M1 3h22v5H1zM10 12h4"></path></svg>
+          </button>
+          <button class="icon-btn" id="bulkFlagBtn" title="Flag" aria-label="Flag selected" type="button">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"></path><path d="M4 22V15"></path></svg>
+          </button>
+          <button class="icon-btn" id="bulkReadBtn" title="Mark read" aria-label="Mark selected as read" type="button">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 8l9 6 9-6M5 19h14a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2z"></path></svg>
+          </button>
+          <button class="icon-btn" id="bulkUnreadBtn" title="Mark unread" aria-label="Mark selected as unread" type="button">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"></circle><path d="M2 12C4.7 6.5 8 4 12 4s7.3 2.5 10 8c-2.7 5.5-6 8-10 8S4.7 17.5 2 12"></path></svg>
+          </button>
+          <button class="icon-btn" id="bulkTrashBtn" title="Trash" aria-label="Move selected to trash" type="button">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"></path></svg>
+          </button>
+        </div>
         <button class="icon-btn" id="selectAllBtn" title="Select all" aria-label="Select all" type="button">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6L9 17l-5-5"></path></svg>
         </button>

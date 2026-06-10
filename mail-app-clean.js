@@ -44,12 +44,14 @@ let draftSaveTimer = null;
 
 function updateSelectedCount() {
   const el = document.getElementById('selectedCount');
-  if (!el) return;
+  const bulk = document.getElementById('bulkActions');
   if (selectedIds.size) {
     el.textContent = `${selectedIds.size} selected`;
     el.style.display = '';
+    if (bulk) bulk.style.display = 'flex';
   } else {
     el.style.display = 'none';
+    if (bulk) bulk.style.display = 'none';
   }
 }
 
@@ -307,6 +309,38 @@ function bindUi() {
 
   tick();
   setInterval(tick, 1000);
+
+  function bulkAction(fn) {
+    return () => Promise.all([...selectedIds].map(fn)).then(() => {
+      selectedIds.clear();
+      renderList();
+    });
+  }
+
+  document.getElementById('bulkTrashBtn').addEventListener('click', bulkAction((id) => updateDoc(doc(db, 'mail', id), { folder: 'trash' }).then(() => {
+    const msg = allMessages.find((m) => m.id === id);
+    if (msg) msg.folder = 'trash';
+  })));
+  document.getElementById('bulkArchiveBtn').addEventListener('click', bulkAction((id) => updateDoc(doc(db, 'mail', id), { folder: 'archived' }).then(() => {
+    const msg = allMessages.find((m) => m.id === id);
+    if (msg) msg.folder = 'archived';
+  })));
+  document.getElementById('bulkFlagBtn').addEventListener('click', bulkAction((id) => {
+    const msg = allMessages.find((m) => m.id === id);
+    const next = !msg?.flagged;
+    if (msg) msg.flagged = next;
+    return updateDoc(doc(db, 'mail', id), { flagged: next });
+  }));
+  document.getElementById('bulkReadBtn').addEventListener('click', bulkAction((id) => {
+    const msg = allMessages.find((m) => m.id === id);
+    if (msg) msg.unread = false;
+    return updateDoc(doc(db, 'mail', id), { unread: false });
+  }));
+  document.getElementById('bulkUnreadBtn').addEventListener('click', bulkAction((id) => {
+    const msg = allMessages.find((m) => m.id === id);
+    if (msg) msg.unread = true;
+    return updateDoc(doc(db, 'mail', id), { unread: true });
+  }));
 }
 
 async function loadMessages() {
