@@ -29,6 +29,7 @@ const db = getFirestore(app);
 const storage = getStorage(app);
 const loadingOverlay = document.getElementById('appLoadingOverlay');
 const initialRouteState = getRouteStateFromLocation();
+window.SYNTHRUN_UPDATE_LOADING?.(1);
 
 let currentUser = null;
 let allMessages = [];
@@ -149,12 +150,12 @@ onAuthStateChanged(auth, async (user) => {
     uiBound = true;
   }
 
-  // DEBUG helper: expose a function to get the current user's ID token from the console
-  // Use in browser console: window._getIdToken().then(t => console.log(t))
   window._getIdToken = async () => (currentUser ? await currentUser.getIdToken() : null);
 
+  window.SYNTHRUN_UPDATE_LOADING?.(2);
   await loadMessages();
   await restoreRouteState();
+  window.SYNTHRUN_UPDATE_LOADING?.(5);
   setAppLoading(false);
 });
 
@@ -174,6 +175,8 @@ function bootDebugUser(email) {
     initials: email.split('@')[0].slice(0, 2).toUpperCase(),
   };
 
+  window.SYNTHRUN_UPDATE_LOADING?.(2);
+
   const initials = email.split('@')[0].slice(0, 2).toUpperCase();
   const initializeDebugUi = () => {
     document.getElementById('userAvatar').textContent = initials;
@@ -188,6 +191,8 @@ function bootDebugUser(email) {
 
     window._getIdToken = async () => null;
     allMessages = [];
+    window.SYNTHRUN_UPDATE_LOADING?.(3);
+    window.SYNTHRUN_UPDATE_LOADING?.(4);
     updateFolderSelection(currentFolder);
     renderList();
   };
@@ -280,10 +285,12 @@ async function loadMessages() {
   if (!currentUser) return;
 
   try {
+    window.SYNTHRUN_UPDATE_LOADING?.(3);
     const snap = await getDocs(query(collection(db, 'mail'), where('recipientEmail', '==', currentUser.email)));
     allMessages = snap.docs
       .map((entry) => ({ id: entry.id, ...entry.data() }))
       .sort((left, right) => toMillis(right.receivedAt) - toMillis(left.receivedAt));
+    window.SYNTHRUN_UPDATE_LOADING?.(4);
     renderList();
   } catch (error) {
     console.error('loadMessages:', error);
@@ -896,8 +903,15 @@ window.SYNTHRUN_CLOSE_MESSAGE_VIEW = closeMessageView;
 
 function setAppLoading(isLoading) {
   if (!loadingOverlay) return;
-  loadingOverlay.classList.toggle('hidden', !isLoading);
-  loadingOverlay.setAttribute('aria-busy', String(isLoading));
+  if (!isLoading) {
+    window.SYNTHRUN_UPDATE_LOADING?.(5);
+    setTimeout(() => {
+      window.__hideLoader?.();
+    }, 600);
+  } else {
+    loadingOverlay.classList.remove('hidden');
+    loadingOverlay.setAttribute('aria-busy', 'true');
+  }
 }
 
 function clearComposeValidation() {

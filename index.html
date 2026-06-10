@@ -5,6 +5,22 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="robots" content="noindex, nofollow">
 <title>Synthrun Mail</title>
+<script>
+window.__loadingPhases = [
+  { label: 'Initialising…', pct: 10 },
+  { label: 'Connecting to server…', pct: 25 },
+  { label: 'Authenticating session…', pct: 50 },
+  { label: 'Syncing mailboxes…', pct: 70 },
+  { label: 'Loading threads…', pct: 88 },
+  { label: 'Ready', pct: 100 },
+];
+window.__loadingReady = false;
+window.__loadingQueue = [];
+window.SYNTHRUN_UPDATE_LOADING = function(i) {
+  if (!window.__loadingReady) { window.__loadingQueue.push(i); return; }
+  window.__setPhase(i);
+};
+</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;1,9..144,300;1,9..144,400&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
 <style>
@@ -1445,19 +1461,11 @@ document.getElementById('mailHomeBtn')?.addEventListener('click', async (event) 
   const bar = document.getElementById('loadingBar');
   const pct = document.getElementById('loadingPct');
   const phaseLabel = document.getElementById('loadingPhaseLabel');
-  const stepDots = [0,1,2,3,4].map(i => document.getElementById('step'+i));
+  const stepDots = document.querySelectorAll('.loading-step-dot');
 
-  const phases = [
-    { label: 'Connecting to server…', pct: 15 },
-    { label: 'Authenticating session…', pct: 35 },
-    { label: 'Syncing mailboxes…', pct: 60 },
-    { label: 'Loading threads…', pct: 82 },
-    { label: 'Ready', pct: 100 },
-  ];
+  const phases = window.__loadingPhases;
 
-  let particles = [];
   let animId = null;
-  let currentPhase = 0;
   let pctVal = 0;
   let targetPct = 0;
 
@@ -1487,13 +1495,16 @@ document.getElementById('mailHomeBtn')?.addEventListener('click', async (event) 
   }
 
   function initParticles(count) {
-    particles = [];
+    const arr = [];
     for (let i = 0; i < count; i++) {
       const p = spawnParticle();
       p.life = Math.random();
-      particles.push(p);
+      arr.push(p);
     }
+    return arr;
   }
+
+  let particles = initParticles(55);
 
   function drawParticles() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -1508,12 +1519,10 @@ document.getElementById('mailHomeBtn')?.addEventListener('click', async (event) 
       ctx.fillStyle = `rgba(${p.color},${a})`;
       ctx.fill();
     });
-
   }
 
   function tick() {
     drawParticles();
-    // Smooth progress
     if (pctVal < targetPct) {
       pctVal = Math.min(pctVal + 0.8, targetPct);
       bar.style.width = pctVal + '%';
@@ -1522,9 +1531,8 @@ document.getElementById('mailHomeBtn')?.addEventListener('click', async (event) 
     animId = requestAnimationFrame(tick);
   }
 
-  function setPhase(i) {
+  window.__setPhase = function(i) {
     if (i >= phases.length) return;
-    currentPhase = i;
     const ph = phases[i];
     phaseLabel.textContent = ph.label;
     targetPct = ph.pct;
@@ -1533,28 +1541,25 @@ document.getElementById('mailHomeBtn')?.addEventListener('click', async (event) 
       if (idx < i) dot.classList.add('done');
       else if (idx === i) dot.classList.add('active');
     });
+  };
+
+  window.__hideLoader = function() {
+    if (animId) cancelAnimationFrame(animId);
+    overlay.classList.add('hidden');
+    overlay.setAttribute('aria-busy', 'false');
+  };
+
+  /* Flush buffered phase calls from early-loading code */
+  window.__loadingReady = true;
+  for (const idx of window.__loadingQueue) {
+    window.__setPhase(idx);
   }
+  window.__loadingQueue = [];
 
-  function startLoader() {
-    resize();
-    initParticles(55);
-    setPhase(0);
-    tick();
-
-    const delays = [0, 400, 800, 1300, 1800];
-    delays.forEach((d, i) => {
-      setTimeout(() => setPhase(i), d);
-    });
-
-    setTimeout(() => {
-      if (animId) cancelAnimationFrame(animId);
-      overlay.classList.add('hidden');
-      overlay.setAttribute('aria-busy', 'false');
-    }, 2400);
-  }
+  resize();
+  tick();
 
   window.addEventListener('resize', resize);
-  startLoader();
 })();
 
 /* ── Mobile back button ── */
