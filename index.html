@@ -155,7 +155,8 @@ body[data-theme="dark"] .h-search { background: rgba(0,0,0,0.16); }
 body[data-theme="dark"] .icon-btn:hover { background: rgba(255,255,255,0.05); }
 .icon-btn:focus-visible { outline: 2px solid var(--text); outline-offset: 2px; }
 .icon-btn svg { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 1.6; }
-#flagBtn[aria-pressed="true"] svg {
+#flagBtn[aria-pressed="true"] svg,
+#importantBtn[aria-pressed="true"] svg {
   fill: currentColor;
 }
 #archiveBtn[aria-pressed="true"] svg {
@@ -1528,6 +1529,15 @@ const THEME_ICONS = {
 };
 const THEME_LABELS = { system: 'System', light: 'Light', dark: 'Dark' };
 
+function setCookie(name, value, days = 365) {
+  const d = new Date();
+  d.setTime(d.getTime() + days * 864e5);
+  document.cookie = name + '=' + encodeURIComponent(value) + ';expires=' + d.toUTCString() + ';path=/;SameSite=Lax';
+}
+function getCookie(name) {
+  return document.cookie.split('; ').find((r) => r.startsWith(name + '='))?.split('=')[1];
+}
+
 function getEffectiveTheme(theme = localStorage.getItem('synthrun-theme') || 'system') {
   if (theme === 'system') {
     return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
@@ -1555,6 +1565,7 @@ function renderThemeIcon(theme = localStorage.getItem('synthrun-theme') || 'syst
 
 function setTheme(theme) {
   localStorage.setItem('synthrun-theme', theme);
+  setCookie('synthrun-theme', theme);
   applyTheme(theme);
   renderThemeIcon(theme);
 }
@@ -1563,7 +1574,7 @@ systemMedia.addEventListener('change', () => {
   const t = localStorage.getItem('synthrun-theme') || 'system';
   applyTheme(t);
 });
-setTheme(localStorage.getItem('synthrun-theme') || 'system');
+setTheme(localStorage.getItem('synthrun-theme') || decodeURIComponent(getCookie('synthrun-theme') || '') || 'system');
 themeBtn?.addEventListener('click', () => {
   const c = localStorage.getItem('synthrun-theme') || 'system';
   setTheme(c === 'system' ? 'light' : c === 'light' ? 'dark' : 'system');
@@ -1699,11 +1710,16 @@ function initResize(handleId, cssVar, minPx, maxPx) {
     document.removeEventListener('mousemove', onMouseMove);
     document.removeEventListener('mouseup', onMouseUp);
     const val = parseInt(getComputedStyle(document.documentElement).getPropertyValue(cssVar).trim());
-    if (val) localStorage.setItem('synthrun-' + cssVar.replace('--', ''), val);
+    if (val) {
+      const key = 'synthrun-' + cssVar.replace('--', '');
+      localStorage.setItem(key, val);
+      setCookie(key, val);
+    }
   }
 
   handle.addEventListener('mousedown', onMouseDown);
-  const saved = localStorage.getItem('synthrun-' + cssVar.replace('--', ''));
+  const key = 'synthrun-' + cssVar.replace('--', '');
+  const saved = localStorage.getItem(key) || getCookie(key);
   if (saved && window.innerWidth > 900) {
     document.documentElement.style.setProperty(cssVar, saved + 'px');
   }
