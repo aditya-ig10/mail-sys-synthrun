@@ -19,9 +19,9 @@ const SEND_ENDPOINT = getSendEndpoint();
 const LOGIN_URL = '/login/';
 const ALLOWED_DOMAIN = 'synthrun.site';
 const BOUNCE_ADDRESS_PATTERN = /^bounces-[^@]+@gw\.d\.sender-sib\.com$/i;
-const FOLDER_LABELS = { inbox: 'Inbox', unread: 'Unread', sent: 'Sent', archived: 'Archived', flagged: 'Flagged', clients: 'Clients' };
-const ROUTE_FOLDER_ALIASES = { all: 'inbox', inbox: 'inbox', unread: 'unread', sent: 'sent', archive: 'archived', archived: 'archived', flagged: 'flagged', clients: 'clients' };
-const ROUTE_FOLDER_SEGMENTS = { inbox: 'all', unread: 'unread', sent: 'sent', archived: 'archive', flagged: 'flagged', clients: 'clients' };
+const FOLDER_LABELS = { inbox: 'Inbox', unread: 'Unread', sent: 'Sent', archived: 'Archived', flagged: 'Flagged', important: 'Important', drafts: 'Drafts', trash: 'Trash', clients: 'Clients' };
+const ROUTE_FOLDER_ALIASES = { all: 'inbox', inbox: 'inbox', unread: 'unread', sent: 'sent', archive: 'archived', archived: 'archived', flagged: 'flagged', important: 'important', drafts: 'drafts', draft: 'drafts', trash: 'trash', clients: 'clients' };
+const ROUTE_FOLDER_SEGMENTS = { inbox: 'all', unread: 'unread', sent: 'sent', archived: 'archive', flagged: 'flagged', important: 'important', drafts: 'drafts', trash: 'trash', clients: 'clients' };
 
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
@@ -37,6 +37,8 @@ let activeMessageId = null;
 let draftAttachments = [];
 let uiBound = false;
 let composeBusy = false;
+let draftDocId = null;
+let draftSaveTimer = null;
 const DEBUG_USER = globalThis.SYNTHRUN_DEBUG_USER || localStorage.getItem('synthrun-debug-user') || '';
 
 function getRouteStateFromLocation() {
@@ -221,6 +223,16 @@ function bindUi() {
     await loadMessages();
   };
 
+  document.getElementById('importantBtn').addEventListener('click', () => {
+    if (activeMessageId) toggleImportant(activeMessageId);
+  });
+  document.getElementById('restoreBtn').addEventListener('click', () => {
+    if (activeMessageId) restoreMessage(activeMessageId);
+  });
+  document.getElementById('deleteForeverBtn').addEventListener('click', () => {
+    if (activeMessageId) deleteForever(activeMessageId);
+  });
+
   document.getElementById('userChip').addEventListener('click', () => {
     const menu = document.getElementById('userMenu');
     const open = menu.classList.toggle('show');
@@ -250,6 +262,11 @@ function bindUi() {
       showFolderView({ folder: link.dataset.folder });
       renderList();
     });
+  });
+
+  ['compTo', 'compCc', 'compSubject', 'compBody', 'compHtmlBody'].forEach((id) => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener('input', scheduleDraftSave);
   });
 
   tick();
@@ -287,6 +304,7 @@ async function saveSentMessage(to, cc, subject, body, attachments = []) {
       recipientEmail: currentUser.email,
       unread: false,
       flagged: false,
+      important: false,
       receivedAt: serverTimestamp(),
     };
 
@@ -373,12 +391,15 @@ function renderList() {
   const queryText = document.getElementById('searchInput').value.trim().toLowerCase();
   let messages = allMessages.slice();
 
-  if (currentFolder === 'unread') messages = messages.filter((message) => message.unread && message.folder !== 'sent');
+  if (currentFolder === 'unread') messages = messages.filter((message) => message.unread && message.folder !== 'sent' && message.folder !== 'draft' && message.folder !== 'trash');
   else if (currentFolder === 'sent') messages = messages.filter((message) => message.folder === 'sent');
   else if (currentFolder === 'archived') messages = messages.filter((message) => message.folder === 'archived');
   else if (currentFolder === 'flagged') messages = messages.filter((message) => message.flagged);
+  else if (currentFolder === 'important') messages = messages.filter((message) => message.important);
+  else if (currentFolder === 'drafts') messages = messages.filter((message) => message.folder === 'draft');
+  else if (currentFolder === 'trash') messages = messages.filter((message) => message.folder === 'trash');
   else if (currentFolder === 'clients') messages = messages.filter((message) => Array.isArray(message.labels) && message.labels.includes('clients'));
-  else messages = messages.filter((message) => message.folder !== 'sent');
+  else messages = messages.filter((message) => message.folder !== 'sent' && message.folder !== 'draft' && message.folder !== 'trash');
 
   if (queryText) {
     messages = messages.filter((message) => {
@@ -389,11 +410,17 @@ function renderList() {
     });
   }
 
-  const inboxUnread = allMessages.filter((message) => message.unread && message.folder !== 'sent').length;
+  const inboxUnread = allMessages.filter((message) => message.unread && message.folder !== 'sent' && message.folder !== 'draft' && message.folder !== 'trash').length;
+  const draftCount = allMessages.filter((message) => message.folder === 'draft').length;
+  const trashCount = allMessages.filter((message) => message.folder === 'trash').length;
+  const importantCount = allMessages.filter((message) => message.important).length;
   document.getElementById('badge-inbox').textContent = String(inboxUnread || 0);
   document.getElementById('badge-unread').textContent = String(inboxUnread || 0);
   document.getElementById('badge-archived').textContent = String(allMessages.filter((message) => message.folder === 'archived').length || 0);
   document.getElementById('badge-sent').textContent = String(allMessages.filter((message) => message.folder === 'sent').length || '—');
+  document.getElementById('badge-important').textContent = String(importantCount || 0);
+  document.getElementById('badge-drafts').textContent = String(draftCount || '—');
+  document.getElementById('badge-trash').textContent = String(trashCount || 0);
   document.getElementById('statusCount').textContent = `${messages.length} message${messages.length === 1 ? '' : 's'}`;
 
   container.innerHTML = '';
@@ -436,6 +463,79 @@ function renderList() {
     });
     container.appendChild(item);
   });
+}
+
+async function loadDraft() {
+  if (!currentUser) return null;
+  try {
+    const snap = await getDocs(query(
+      collection(db, 'mail'),
+      where('recipientEmail', '==', currentUser.email)
+    ));
+    const draftDoc = snap.docs.find((d) => d.data().folder === 'draft');
+    if (!draftDoc) return null;
+    draftDocId = draftDoc.id;
+    return { id: draftDoc.id, ...draftDoc.data() };
+  } catch (err) {
+    console.warn('loadDraft:', err);
+    return null;
+  }
+}
+
+async function saveDraft() {
+  if (!currentUser) return;
+  const to = document.getElementById('compTo').value.trim();
+  const cc = document.getElementById('compCc').value.trim();
+  const subject = document.getElementById('compSubject').value.trim();
+  const rawBody = String(window.SYNTHRUN_GET_COMPOSE_BODY?.() || '').trim();
+  const isHtmlMode = Boolean(window.SYNTHRUN_GET_COMPOSE_IS_HTML?.());
+  if (!to && !cc && !subject && !rawBody) return;
+
+  const data = {
+    folder: 'draft',
+    from: currentUser.email,
+    fromName: formatSenderName(currentUser.email),
+    senderEmail: currentUser.email,
+    to,
+    cc,
+    subject,
+    body: rawBody,
+    htmlBody: isHtmlMode ? rawBody : '',
+    senderUid: currentUser.uid,
+    recipientEmail: currentUser.email,
+    unread: false,
+    flagged: false,
+    important: false,
+    isHtml: isHtmlMode,
+    updatedAt: serverTimestamp(),
+  };
+
+  try {
+    if (draftDocId) {
+      await updateDoc(doc(db, 'mail', draftDocId), data);
+    } else {
+      const ref = await addDoc(collection(db, 'mail'), data);
+      draftDocId = ref.id;
+    }
+    document.getElementById('composeUploadStatus').textContent = 'Draft saved';
+  } catch (err) {
+    console.warn('saveDraft:', err);
+  }
+}
+
+async function clearDraft() {
+  if (!draftDocId) return;
+  try {
+    await deleteDoc(doc(db, 'mail', draftDocId));
+  } catch (err) {
+    console.warn('clearDraft:', err);
+  }
+  draftDocId = null;
+}
+
+function scheduleDraftSave() {
+  if (draftSaveTimer) clearTimeout(draftSaveTimer);
+  draftSaveTimer = setTimeout(saveDraft, 2000);
 }
 
 async function openMessage(id, { updateRoute = true, replaceRoute = false } = {}) {
@@ -498,12 +598,22 @@ async function openMessage(id, { updateRoute = true, replaceRoute = false } = {}
   const replyTarget = getSenderIdentity(message).email || message.from || '';
   document.getElementById('replyBtn').onclick = () => openCompose({ to: replyTarget, subject: `Re: ${message.subject || ''}`, prefill: `\n\n---\nFrom: ${getSenderLabel(message) || ''}\n${message.body || ''}` });
   document.getElementById('forwardBtn').onclick = () => openCompose({ subject: `Fwd: ${message.subject || ''}`, prefill: `\n\n---\nFrom: ${getSenderLabel(message) || ''}\n${message.body || ''}` });
-  document.getElementById('deleteBtn').onclick = () => deleteMessage(id);
+  const isTrash = message.folder === 'trash';
+  document.getElementById('deleteBtn').onclick = () => isTrash ? deleteForever(id) : trashMessage(id);
+  document.getElementById('deleteBtn').title = isTrash ? 'Delete forever' : 'Trash';
+  document.getElementById('deleteBtn').setAttribute('aria-label', isTrash ? 'Delete forever' : 'Move to trash');
   document.getElementById('archiveBtn').onclick = () => toggleArchive(id);
   document.getElementById('flagBtn').onclick = () => toggleFlag(id);
+  document.getElementById('importantBtn').onclick = () => toggleImportant(id);
   document.getElementById('markUnreadBtn').onclick = () => markUnread(id);
   syncArchiveButtonState(message.folder === 'archived');
   syncFlagButtonState(message.flagged);
+  syncImportantButtonState(message.important);
+
+  document.getElementById('replyBtn').style.display = isTrash ? 'none' : '';
+  document.getElementById('forwardBtn').style.display = isTrash ? 'none' : '';
+  document.getElementById('restoreBtn').style.display = isTrash ? '' : 'none';
+  document.getElementById('deleteForeverBtn').style.display = isTrash ? '' : 'none';
 
   if (updateRoute) {
     syncRouteToLocation({ folder: currentFolder, messageId: id, replace: replaceRoute });
@@ -592,6 +702,70 @@ async function markUnread(id) {
   showToast('Marked unread.');
 }
 
+async function toggleImportant(id) {
+  const message = allMessages.find((entry) => entry.id === id);
+  if (!message) return;
+  const nextValue = !message.important;
+  message.important = nextValue;
+
+  try {
+    await updateDoc(doc(db, 'mail', id), { important: nextValue });
+  } catch (error) {
+    console.warn('toggleImportant update failed:', error);
+  }
+
+  syncImportantButtonState(nextValue);
+  renderList();
+  showToast(nextValue ? 'Marked important.' : 'Unmarked important.');
+}
+
+function syncImportantButtonState(isImportant) {
+  const btn = document.getElementById('importantBtn');
+  if (!btn) return;
+  btn.setAttribute('aria-pressed', String(Boolean(isImportant)));
+}
+
+async function trashMessage(id) {
+  try {
+    await updateDoc(doc(db, 'mail', id), { folder: 'trash' });
+    const moved = allMessages.find((m) => m.id === id);
+    if (moved) moved.folder = 'trash';
+    closeMessageView({ replaceRoute: true });
+    renderList();
+    showToast('Moved to trash.');
+  } catch (error) {
+    console.error('trashMessage:', error);
+    showToast('Could not trash message.', true);
+  }
+}
+
+async function restoreMessage(id) {
+  try {
+    await updateDoc(doc(db, 'mail', id), { folder: 'inbox' });
+    const restored = allMessages.find((m) => m.id === id);
+    if (restored) restored.folder = 'inbox';
+    closeMessageView({ replaceRoute: true });
+    renderList();
+    showToast('Restored to inbox.');
+  } catch (error) {
+    console.error('restoreMessage:', error);
+    showToast('Could not restore message.', true);
+  }
+}
+
+async function deleteForever(id) {
+  try {
+    await deleteDoc(doc(db, 'mail', id));
+    allMessages = allMessages.filter((m) => m.id !== id);
+    closeMessageView({ replaceRoute: true });
+    renderList();
+    showToast('Permanently deleted.');
+  } catch (error) {
+    console.error('deleteForever:', error);
+    showToast('Could not delete.', true);
+  }
+}
+
 function closeMessageView({ replaceRoute = false } = {}) {
   activeMessageId = null;
   setMessageOpenState(false);
@@ -666,14 +840,39 @@ function stripHtmlToText(html) {
   return container.textContent.replace(/\s+\n/g, '\n').replace(/\n\s+/g, '\n').replace(/[ \t]+/g, ' ').trim();
 }
 
-function openCompose({ to = '', cc = '', subject = '', prefill = '' } = {}) {
-  document.getElementById('compTo').value = to;
-  document.getElementById('compCc').value = cc;
-  document.getElementById('compSubject').value = subject;
-  document.getElementById('compBody').value = prefill;
+async function openCompose({ to = '', cc = '', subject = '', prefill = '' } = {}) {
+  const isReply = Boolean(to || cc || subject || prefill);
+  if (!isReply) {
+    const draft = await loadDraft();
+    if (draft) {
+      document.getElementById('compTo').value = draft.to || '';
+      document.getElementById('compCc').value = draft.cc || '';
+      document.getElementById('compSubject').value = draft.subject || '';
+      if (draft.isHtml && draft.htmlBody) {
+        const modeTemplateBtn = document.getElementById('modeTemplateBtn');
+        if (modeTemplateBtn) modeTemplateBtn.click();
+        const htmlBodyTA = document.getElementById('compHtmlBody');
+        if (htmlBodyTA) htmlBodyTA.value = draft.htmlBody;
+      } else {
+        document.getElementById('compBody').value = draft.body || '';
+      }
+      setComposeStatus('Draft restored');
+    }
+    if (!draft) {
+      document.getElementById('compTo').value = '';
+      document.getElementById('compCc').value = '';
+      document.getElementById('compSubject').value = '';
+      document.getElementById('compBody').value = '';
+    }
+  } else {
+    document.getElementById('compTo').value = to;
+    document.getElementById('compCc').value = cc;
+    document.getElementById('compSubject').value = subject;
+    document.getElementById('compBody').value = prefill;
+    setComposeStatus('');
+  }
   document.getElementById('attachmentInput').value = '';
   draftAttachments = [];
-  setComposeStatus('');
   renderDraftAttachments();
   window.SYNTHRUN_RESET_COMPOSE_MODAL?.();
   clearComposeValidation();
@@ -681,8 +880,11 @@ function openCompose({ to = '', cc = '', subject = '', prefill = '' } = {}) {
   document.getElementById('compTo').focus();
 }
 
-function closeCompose() {
+async function closeCompose() {
   if (composeBusy) return;
+  await clearDraft();
+  if (draftSaveTimer) clearTimeout(draftSaveTimer);
+  draftSaveTimer = null;
   document.getElementById('composeOverlay').classList.remove('show');
   document.getElementById('attachmentInput').value = '';
   draftAttachments = [];
@@ -828,6 +1030,9 @@ async function sendMessage() {
       throw new Error(errorPayload.error || `Worker returned ${response.status}`);
     }
 
+    await clearDraft();
+    if (draftSaveTimer) clearTimeout(draftSaveTimer);
+    draftSaveTimer = null;
     await saveSentMessage(to, cc, subject, body, attachments);
     await loadMessages();
     composeBusy = false;

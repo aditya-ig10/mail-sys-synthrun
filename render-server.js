@@ -260,6 +260,7 @@ async function storeMailboxMessages({ senderEmail, fromName, to, cc, subject, te
     attachments: Array.isArray(attachments) ? attachments : [],
     unread: true,
     flagged: false,
+    important: false,
     receivedAt: admin.firestore.FieldValue.serverTimestamp(),
   };
 

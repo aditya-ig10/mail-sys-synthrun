@@ -15,6 +15,10 @@ service cloud.firestore {
       );
     }
 
+    // Covers inbox, sent, archived, flagged, important, drafts, and trash.
+    // Drafts are stored with recipientEmail = current user, so the same rules apply.
+    // Trashed messages keep their original recipientEmail, so they remain accessible.
+    // important field updates are treated like any other field update on owned messages.
     match /mail/{docId} {
       allow create: if isSynthrunUser()
         && (
