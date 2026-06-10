@@ -19,9 +19,9 @@ const SEND_ENDPOINT = getSendEndpoint();
 const LOGIN_URL = '/login/';
 const ALLOWED_DOMAIN = 'synthrun.site';
 const BOUNCE_ADDRESS_PATTERN = /^bounces-[^@]+@gw\.d\.sender-sib\.com$/i;
-const FOLDER_LABELS = { inbox: 'Inbox', unread: 'Unread', sent: 'Sent', archived: 'Archived', flagged: 'Flagged', important: 'Important', drafts: 'Drafts', trash: 'Trash', clients: 'Clients' };
-const ROUTE_FOLDER_ALIASES = { all: 'inbox', inbox: 'inbox', unread: 'unread', sent: 'sent', archive: 'archived', archived: 'archived', flagged: 'flagged', important: 'important', drafts: 'drafts', draft: 'drafts', trash: 'trash', clients: 'clients' };
-const ROUTE_FOLDER_SEGMENTS = { inbox: 'all', unread: 'unread', sent: 'sent', archived: 'archive', flagged: 'flagged', important: 'important', drafts: 'drafts', trash: 'trash', clients: 'clients' };
+const FOLDER_LABELS = { inbox: 'Inbox', unread: 'Unread', sent: 'Sent', outbox: 'Outbox', archived: 'Archived', flagged: 'Flagged', important: 'Important', drafts: 'Drafts', trash: 'Trash', clients: 'Clients' };
+const ROUTE_FOLDER_ALIASES = { all: 'inbox', inbox: 'inbox', unread: 'unread', sent: 'sent', outbox: 'outbox', archive: 'archived', archived: 'archived', flagged: 'flagged', important: 'important', drafts: 'drafts', draft: 'drafts', trash: 'trash', clients: 'clients' };
+const ROUTE_FOLDER_SEGMENTS = { inbox: 'all', unread: 'unread', sent: 'sent', outbox: 'outbox', archived: 'archive', flagged: 'flagged', important: 'important', drafts: 'drafts', trash: 'trash', clients: 'clients' };
 
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
@@ -232,6 +232,9 @@ function bindUi() {
   document.getElementById('deleteForeverBtn').addEventListener('click', () => {
     if (activeMessageId) deleteForever(activeMessageId);
   });
+  document.getElementById('retryBtn').addEventListener('click', () => {
+    if (activeMessageId) retryOutboxMessage(activeMessageId);
+  });
 
   document.getElementById('userChip').addEventListener('click', () => {
     const menu = document.getElementById('userMenu');
@@ -315,6 +318,87 @@ async function saveSentMessage(to, cc, subject, body, attachments = [], htmlBody
   }
 }
 
+async function saveOutboxMessage(to, cc, subject, body, htmlBody = '') {
+  try {
+    const message = {
+      folder: 'outbox',
+      status: 'sending',
+      from: currentUser.email,
+      fromName: formatSenderName(currentUser.email),
+      senderEmail: currentUser.email,
+      to,
+      cc,
+      subject,
+      body,
+      htmlBody,
+      attachments: [],
+      senderUid: currentUser.uid,
+      recipientEmail: currentUser.email,
+      unread: false,
+      flagged: false,
+      important: false,
+      receivedAt: serverTimestamp(),
+    };
+    const docRef = await addDoc(collection(db, 'mail'), message);
+    return docRef.id;
+  } catch (error) {
+    console.error('saveOutboxMessage:', error);
+    return null;
+  }
+}
+
+async function updateOutboxStatus(id, updates) {
+  if (!id) return;
+  try {
+    await updateDoc(doc(db, 'mail', id), updates);
+  } catch (error) {
+    console.error('updateOutboxStatus:', error);
+  }
+}
+
+async function retryOutboxMessage(id) {
+  const message = allMessages.find((m) => m.id === id);
+  if (!message || message.folder !== 'outbox') return;
+  try {
+    await updateOutboxStatus(id, { status: 'sending' });
+    const attachments = Array.isArray(message.attachments) ? message.attachments : [];
+    const bodyWithLinks = `${message.body || ''}${buildAttachmentText(attachments)}`;
+    const finalHtmlBody = `${message.htmlBody || ''}${buildAttachmentHtml(attachments)}`;
+    const debugUser = globalThis.SYNTHRUN_DEBUG_USER || localStorage.getItem('synthrun-debug-user');
+    const idToken = debugUser ? null : await currentUser.getIdToken();
+    const response = await fetch(SEND_ENDPOINT, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(idToken ? { Authorization: `Bearer ${idToken}` } : {}),
+        ...(debugUser ? { 'X-Debug-User': debugUser } : {}),
+      },
+      body: JSON.stringify({
+        to: message.to,
+        cc: message.cc,
+        subject: message.subject,
+        body: bodyWithLinks,
+        htmlBody: finalHtmlBody,
+        attachments,
+        from: currentUser.email,
+      }),
+    });
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}));
+      throw new Error(err.error || `Worker returned ${response.status}`);
+    }
+    await updateOutboxStatus(id, { folder: 'sent', status: 'sent' });
+    await loadMessages();
+    showToast('Message sent.');
+  } catch (error) {
+    console.error('retryOutboxMessage:', error);
+    await updateOutboxStatus(id, { status: 'failed' });
+    showToast(`Send failed: ${error.message}`, true);
+    await loadMessages();
+  }
+}
+window.SYNTHRUN_RETRY_OUTBOX = retryOutboxMessage;
+
 function formatSenderName(senderEmail) {
   const localPart = String(senderEmail || '')
     .split('@')[0]
@@ -392,15 +476,16 @@ function renderList() {
   const queryText = document.getElementById('searchInput').value.trim().toLowerCase();
   let messages = allMessages.slice();
 
-  if (currentFolder === 'unread') messages = messages.filter((message) => message.unread && message.folder !== 'sent' && message.folder !== 'draft' && message.folder !== 'trash');
+  if (currentFolder === 'unread') messages = messages.filter((message) => message.unread && message.folder !== 'sent' && message.folder !== 'draft' && message.folder !== 'trash' && message.folder !== 'outbox');
   else if (currentFolder === 'sent') messages = messages.filter((message) => message.folder === 'sent');
+  else if (currentFolder === 'outbox') messages = messages.filter((message) => message.folder === 'outbox');
   else if (currentFolder === 'archived') messages = messages.filter((message) => message.folder === 'archived');
   else if (currentFolder === 'flagged') messages = messages.filter((message) => message.flagged);
   else if (currentFolder === 'important') messages = messages.filter((message) => message.important);
   else if (currentFolder === 'drafts') messages = messages.filter((message) => message.folder === 'draft');
   else if (currentFolder === 'trash') messages = messages.filter((message) => message.folder === 'trash');
   else if (currentFolder === 'clients') messages = messages.filter((message) => Array.isArray(message.labels) && message.labels.includes('clients'));
-  else messages = messages.filter((message) => message.folder !== 'sent' && message.folder !== 'draft' && message.folder !== 'trash');
+  else messages = messages.filter((message) => message.folder !== 'sent' && message.folder !== 'draft' && message.folder !== 'trash' && message.folder !== 'outbox');
 
   if (queryText) {
     messages = messages.filter((message) => {
@@ -411,10 +496,11 @@ function renderList() {
     });
   }
 
-  const inboxUnread = allMessages.filter((message) => message.unread && message.folder !== 'sent' && message.folder !== 'draft' && message.folder !== 'trash').length;
+  const inboxUnread = allMessages.filter((message) => message.unread && message.folder !== 'sent' && message.folder !== 'draft' && message.folder !== 'trash' && message.folder !== 'outbox').length;
   const draftCount = allMessages.filter((message) => message.folder === 'draft').length;
   const trashCount = allMessages.filter((message) => message.folder === 'trash').length;
   const importantCount = allMessages.filter((message) => message.important).length;
+  const outboxCount = allMessages.filter((message) => message.folder === 'outbox').length;
   document.getElementById('badge-inbox').textContent = String(inboxUnread || 0);
   document.getElementById('badge-unread').textContent = String(inboxUnread || 0);
   document.getElementById('badge-archived').textContent = String(allMessages.filter((message) => message.folder === 'archived').length || 0);
@@ -422,6 +508,7 @@ function renderList() {
   document.getElementById('badge-important').textContent = String(importantCount || 0);
   document.getElementById('badge-drafts').textContent = String(draftCount || '—');
   document.getElementById('badge-trash').textContent = String(trashCount || 0);
+  document.getElementById('badge-outbox').textContent = String(outboxCount || 0);
   document.getElementById('statusCount').textContent = `${messages.length} message${messages.length === 1 ? '' : 's'}`;
 
   container.innerHTML = '';
@@ -443,13 +530,14 @@ function renderList() {
 
     const timestamp = toDate(message.receivedAt);
     const attachmentCount = Array.isArray(message.attachments) ? message.attachments.length : 0;
-    const senderLabel = message.folder === 'sent' ? `To: ${message.to || ''}` : getSenderLabel(message);
+    const senderLabel = message.folder === 'sent' ? `To: ${message.to || ''}` : message.folder === 'outbox' ? getSenderLabel(message) : getSenderLabel(message);
 
     item.innerHTML = `
       <div>
         <div class="thread-from">${escapeHtml(senderLabel)}</div>
         <div class="thread-subject">${escapeHtml(message.subject || '(no subject)')}</div>
         <div class="thread-preview">${escapeHtml((message.body || '').slice(0, 80))}</div>
+        ${message.folder === 'outbox' ? `<div class="thread-tags"><span class="thread-tag ${message.status === 'failed' ? 'tag-error' : message.status === 'sending' ? 'tag-pending' : ''}">${message.status === 'sending' ? 'Sending...' : message.status === 'failed' ? 'Failed' : 'Pending'}</span></div>` : ''}
         ${attachmentCount ? `<div class="thread-tags"><span class="thread-tag">📎 ${attachmentCount} attachment${attachmentCount === 1 ? '' : 's'}</span></div>` : ''}
         ${Array.isArray(message.labels) && message.labels.length ? `<div class="thread-tags">${message.labels.map((label) => `<span class="thread-tag">${escapeHtml(label)}</span>`).join('')}</div>` : ''}
       </div>
@@ -560,7 +648,7 @@ async function openMessage(id, { updateRoute = true, replaceRoute = false } = {}
 
   const timestamp = toDate(message.receivedAt);
   document.getElementById('viewSubject').textContent = message.subject || '(no subject)';
-  document.getElementById('viewCount').textContent = message.folder === 'sent' ? 'Sent' : 'Inbox';
+  document.getElementById('viewCount').textContent = message.folder === 'sent' ? 'Sent' : message.folder === 'outbox' ? 'Outbox' : 'Inbox';
   document.getElementById('viewDate').textContent = timestamp.toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' });
 
   const attachments = Array.isArray(message.attachments) ? message.attachments : [];
@@ -600,6 +688,7 @@ async function openMessage(id, { updateRoute = true, replaceRoute = false } = {}
   document.getElementById('replyBtn').onclick = () => openCompose({ to: replyTarget, subject: `Re: ${message.subject || ''}`, prefill: `\n\n---\nFrom: ${getSenderLabel(message) || ''}\n${message.body || ''}` });
   document.getElementById('forwardBtn').onclick = () => openCompose({ subject: `Fwd: ${message.subject || ''}`, prefill: `\n\n---\nFrom: ${getSenderLabel(message) || ''}\n${message.body || ''}` });
   const isTrash = message.folder === 'trash';
+  const isOutbox = message.folder === 'outbox';
   document.getElementById('deleteBtn').onclick = () => isTrash ? deleteForever(id) : trashMessage(id);
   document.getElementById('deleteBtn').title = isTrash ? 'Delete forever' : 'Trash';
   document.getElementById('deleteBtn').setAttribute('aria-label', isTrash ? 'Delete forever' : 'Move to trash');
@@ -611,10 +700,11 @@ async function openMessage(id, { updateRoute = true, replaceRoute = false } = {}
   syncFlagButtonState(message.flagged);
   syncImportantButtonState(message.important);
 
-  document.getElementById('replyBtn').style.display = isTrash ? 'none' : '';
-  document.getElementById('forwardBtn').style.display = isTrash ? 'none' : '';
+  document.getElementById('replyBtn').style.display = isTrash || isOutbox ? 'none' : '';
+  document.getElementById('forwardBtn').style.display = isTrash || isOutbox ? 'none' : '';
   document.getElementById('restoreBtn').style.display = isTrash ? '' : 'none';
   document.getElementById('deleteForeverBtn').style.display = isTrash ? '' : 'none';
+  document.getElementById('retryBtn').style.display = isOutbox && message.status === 'failed' ? '' : 'none';
 
   if (updateRoute) {
     syncRouteToLocation({ folder: currentFolder, messageId: id, replace: replaceRoute });
@@ -962,9 +1052,18 @@ async function uploadDraftAttachments() {
   const total = draftAttachments.length;
   const debugUser = globalThis.SYNTHRUN_DEBUG_USER || localStorage.getItem('synthrun-debug-user');
   const idToken = debugUser ? null : await currentUser.getIdToken();
+  const progressEl = document.getElementById('uploadProgress');
+  const progressBar = document.getElementById('uploadProgressBar');
+
+  if (total) {
+    progressEl.style.display = 'block';
+    progressBar.style.width = '0%';
+  }
 
   for (let index = 0; index < draftAttachments.length; index += 1) {
     const file = draftAttachments[index];
+    const pct = Math.round(((index) / total) * 100);
+    progressBar.style.width = `${pct}%`;
     setComposeStatus(`Uploading ${index + 1}/${total}: ${file.name}`);
     const base64 = await fileToBase64(file);
     const response = await fetch('/upload', {
@@ -996,6 +1095,10 @@ async function uploadDraftAttachments() {
   }
 
   setComposeStatus(total ? `Uploaded ${total} file${total === 1 ? '' : 's'}` : '');
+  if (total) {
+    progressBar.style.width = '100%';
+    setTimeout(() => { progressEl.style.display = 'none'; }, 800);
+  }
   return uploads;
 }
 
@@ -1033,11 +1136,20 @@ async function sendMessage() {
   discardButton.disabled = true;
   composeBusy = true;
 
+  let outboxId = null;
+  let uploadedAttachments = [];
+
   try {
+    const failedOutboxMessages = allMessages.filter((m) => m.folder === 'outbox' && m.status === 'failed');
+    for (const msg of failedOutboxMessages) {
+      deleteDoc(doc(db, 'mail', msg.id)).catch(() => {});
+    }
+    setComposeStatus('Saving to outbox...');
+    outboxId = await saveOutboxMessage(to, cc, subject, body, htmlBody);
     setComposeStatus(draftAttachments.length ? 'Preparing attachments...' : 'Sending...');
-    const attachments = await uploadDraftAttachments();
-    const bodyWithLinks = `${body}${buildAttachmentText(attachments)}`;
-    const finalHtmlBody = `${htmlBody}${buildAttachmentHtml(attachments)}`;
+    uploadedAttachments = await uploadDraftAttachments();
+    const bodyWithLinks = `${body}${buildAttachmentText(uploadedAttachments)}`;
+    const finalHtmlBody = `${htmlBody}${buildAttachmentHtml(uploadedAttachments)}`;
     const debugUser = globalThis.SYNTHRUN_DEBUG_USER || localStorage.getItem('synthrun-debug-user');
     const idToken = debugUser ? null : await currentUser.getIdToken();
 
@@ -1048,7 +1160,7 @@ async function sendMessage() {
         ...(idToken ? { Authorization: `Bearer ${idToken}` } : {}),
         ...(debugUser ? { 'X-Debug-User': debugUser } : {}),
       },
-      body: JSON.stringify({ to, cc, subject, body: bodyWithLinks, htmlBody: finalHtmlBody, attachments, from: currentUser.email }),
+      body: JSON.stringify({ to, cc, subject, body: bodyWithLinks, htmlBody: finalHtmlBody, attachments: uploadedAttachments, from: currentUser.email }),
     });
 
     if (!response.ok) {
@@ -1056,10 +1168,10 @@ async function sendMessage() {
       throw new Error(errorPayload.error || `Worker returned ${response.status}`);
     }
 
+    await updateOutboxStatus(outboxId, { folder: 'sent', status: 'sent', attachments: uploadedAttachments });
     await clearDraft();
     if (draftSaveTimer) clearTimeout(draftSaveTimer);
     draftSaveTimer = null;
-    await saveSentMessage(to, cc, subject, body, attachments, finalHtmlBody);
     await loadMessages();
     composeBusy = false;
     closeCompose();
@@ -1069,6 +1181,10 @@ async function sendMessage() {
     setComposeStatus('');
     markComposeValidation(invalid);
     showToast(`Send failed: ${error.message}`, true);
+    if (outboxId) {
+      await updateOutboxStatus(outboxId, { status: 'failed', attachments: draftAttachments.length ? uploadedAttachments : [] });
+    }
+    await loadMessages();
   } finally {
     button.disabled = false;
     button.classList.remove('loading');

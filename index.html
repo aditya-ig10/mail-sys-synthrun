@@ -324,6 +324,8 @@ body[data-theme="dark"] .thread-item.active { background: rgba(255,255,255,0.06)
 .thread-item.unread .thread-dot { display: block; }
 .thread-tags { display: flex; gap: 5px; margin-top: 7px; flex-wrap: wrap; }
 .thread-tag { font-size: 9px; letter-spacing: 0.08em; text-transform: uppercase; padding: 2px 6px; border: 1px solid var(--line); line-height: 1.6; }
+.tag-pending { border-color: var(--accent); color: var(--accent); }
+.tag-error { border-color: #e74c3c; color: #e74c3c; }
 .empty-state { padding: 32px 20px; color: var(--subtle); text-align: center; line-height: 1.8; }
 .empty-state svg { width: 28px; height: 28px; stroke: currentColor; fill: none; stroke-width: 1.2; margin-bottom: 10px; opacity: 0.5; display: block; margin-inline: auto; }
 
@@ -622,6 +624,9 @@ body[data-theme="dark"] .compose-attachments { background: rgba(255,255,255,0.01
 .compose-attachments-bar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .compose-attachment-note { font-size: 10px; color: var(--subtle); text-transform: uppercase; letter-spacing: 0.08em; }
 .compose-upload-status { font-size: 10px; color: var(--subtle); text-transform: uppercase; letter-spacing: 0.08em; margin-left: auto; }
+.upload-progress { padding: 6px 13px; }
+.upload-progress-track { height: 2px; background: var(--line); position: relative; overflow: hidden; border-radius: 2px; }
+.upload-progress-bar { height: 100%; background: var(--accent); width: 0%; transition: width 0.3s ease; border-radius: 2px; }
 .attachment-list { display: grid; gap: 6px; margin-top: 10px; max-height: 140px; overflow-y: auto; }
 .attachment-chip { display: flex; justify-content: space-between; gap: 8px; align-items: center; border: 1px solid var(--line); padding: 8px 10px; background: rgba(0,0,0,0.02); }
 .attachment-chip-info { min-width: 0; }
@@ -850,7 +855,7 @@ header, .app-body, .compose-modal { animation: pageRise 0.32s ease both; }
 
 /* ─── Mobile Navigation ──────────────────────────────────────── */
 .mobile-nav { display: none; position: fixed; bottom: 0; left: 0; right: 0; height: 52px; z-index: 20; background: var(--panel); border-top: 1px solid var(--line); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); }
-.mobile-nav-inner { display: grid; grid-template-columns: repeat(8, 1fr); height: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.mobile-nav-inner { display: grid; grid-template-columns: repeat(9, 1fr); height: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
 .mobile-nav-btn { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; border: 0; background: transparent; cursor: pointer; color: var(--subtle); font-size: 9px; letter-spacing: 0.08em; text-transform: uppercase; padding: 0; transition: color var(--transition); -webkit-tap-highlight-color: transparent; }
 .mobile-nav-btn.active { color: var(--text); }
 .mobile-nav-btn svg { width: 18px; height: 18px; stroke: currentColor; fill: none; stroke-width: 1.4; }
@@ -1072,6 +1077,10 @@ button:focus:not(:focus-visible), input:focus:not(:focus-visible) { outline: non
         <span class="side-link-left"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"></path></svg>Sent</span>
         <span class="side-badge zero" id="badge-sent">—</span>
       </button>
+      <button class="side-link" data-folder="outbox" id="nav-outbox" type="button">
+        <span class="side-link-left"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2M8 5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2M8 5h8"></path><path d="M12 11v5M10 13l2 2 2-2"></path></svg>Outbox</span>
+        <span class="side-badge" id="badge-outbox">0</span>
+      </button>
     </div>
     <hr>
     <div class="side-section">
@@ -1175,6 +1184,10 @@ button:focus:not(:focus-visible), input:focus:not(:focus-visible) { outline: non
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"></path></svg>
             Delete forever
           </button>
+          <button class="reply-btn primary" id="retryBtn" type="button" style="display:none">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12a8 8 0 0 1 14.9-3.9M20 12a8 8 0 0 1-14.9 3.9"></path><path d="M20 4v4h-4M4 20v-4h4"></path></svg>
+            Retry
+          </button>
         </div>
       </div>
     </div>
@@ -1224,6 +1237,10 @@ button:focus:not(:focus-visible), input:focus:not(:focus-visible) { outline: non
     <button class="mobile-nav-btn" data-folder="trash" id="mob-trash" type="button" aria-label="Trash">
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"></path></svg>
       Trash
+    </button>
+    <button class="mobile-nav-btn" data-folder="outbox" id="mob-outbox" type="button" aria-label="Outbox">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2M8 5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2M8 5h8"></path><path d="M12 11v5M10 13l2 2 2-2"></path></svg>
+      Outbox
     </button>
   </div>
 </nav>
@@ -1335,6 +1352,11 @@ button:focus:not(:focus-visible), input:focus:not(:focus-visible) { outline: non
         <input type="file" id="attachmentInput" multiple hidden aria-hidden="true">
       </div>
       <div class="attachment-list" id="attachmentList" aria-label="Attached files"></div>
+      <div class="upload-progress" id="uploadProgress" style="display:none">
+        <div class="upload-progress-track">
+          <div class="upload-progress-bar" id="uploadProgressBar"></div>
+        </div>
+      </div>
     </div>
     <div class="compose-footer">
       <button class="send-btn" id="sendBtn" type="button">
