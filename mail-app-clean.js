@@ -35,11 +35,38 @@ let currentUser = null;
 let allMessages = [];
 let currentFolder = initialRouteState.folder;
 let activeMessageId = null;
+let selectedIds = new Set();
 let draftAttachments = [];
 let uiBound = false;
 let composeBusy = false;
 let draftDocId = null;
 let draftSaveTimer = null;
+
+function updateSelectedCount() {
+  const el = document.getElementById('selectedCount');
+  if (!el) return;
+  if (selectedIds.size) {
+    el.textContent = `${selectedIds.size} selected`;
+    el.style.display = '';
+  } else {
+    el.style.display = 'none';
+  }
+}
+
+function toggleSelected(id) {
+  if (selectedIds.has(id)) {
+    selectedIds.delete(id);
+  } else {
+    selectedIds.add(id);
+  }
+  const item = document.querySelector(`.thread-item[data-id="${id}"]`);
+  if (item) {
+    item.classList.toggle('selected');
+    const cb = item.querySelector('.thread-avatar-checkbox');
+    if (cb) cb.classList.toggle('checked');
+  }
+  updateSelectedCount();
+}
 const DEBUG_USER = globalThis.SYNTHRUN_DEBUG_USER || localStorage.getItem('synthrun-debug-user') || '';
 
 function getRouteStateFromLocation() {
@@ -83,6 +110,7 @@ function updateFolderSelection(folder) {
 }
 
 function showFolderView({ folder = currentFolder, replaceRoute = false } = {}) {
+  selectedIds.clear();
   updateFolderSelection(folder);
   activeMessageId = null;
   document.getElementById('emptyView').style.display = 'flex';
@@ -524,6 +552,7 @@ function renderList() {
   document.getElementById('statusCount').textContent = `${messages.length} message${messages.length === 1 ? '' : 's'}`;
 
   container.innerHTML = '';
+  updateSelectedCount();
   if (!messages.length) {
     container.innerHTML = `
       <div class="empty-state">
@@ -544,7 +573,15 @@ function renderList() {
     const attachmentCount = Array.isArray(message.attachments) ? message.attachments.length : 0;
     const senderLabel = message.folder === 'sent' ? `To: ${message.to || ''}` : message.folder === 'outbox' ? getSenderLabel(message) : getSenderLabel(message);
 
+    const initial = escapeHtml((senderLabel.charAt(0) || '?').toUpperCase());
+
     item.innerHTML = `
+      <div class="thread-avatar" data-id="${message.id}">
+        <span class="thread-avatar-initials">${initial}</span>
+        <div class="thread-avatar-checkbox${selectedIds.has(message.id) ? ' checked' : ''}">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6L9 17l-5-5"></path></svg>
+        </div>
+      </div>
       <div>
         <div class="thread-from">${escapeHtml(senderLabel)}</div>
         <div class="thread-subject">${escapeHtml(message.subject || '(no subject)')}</div>
@@ -558,10 +595,21 @@ function renderList() {
         <div class="thread-dot" aria-hidden="true"></div>
       </div>`;
 
+    const avatarEl = item.querySelector('.thread-avatar');
+    avatarEl.addEventListener('click', (e) => {
+      e.stopPropagation();
+      toggleSelected(message.id);
+    });
+
     item.addEventListener('click', () => openMessage(message.id));
     item.addEventListener('keydown', (event) => {
       if (event.key === 'Enter' || event.key === ' ') openMessage(message.id);
     });
+
+    if (selectedIds.has(message.id)) {
+      item.classList.add('selected');
+    }
+
     container.appendChild(item);
   });
 }
@@ -926,6 +974,26 @@ function syncArchiveButtonState(isArchived) {
   archiveButton.title = archived ? 'Unarchive' : 'Archive';
   archiveButton.setAttribute('aria-label', archived ? 'Unarchive message' : 'Archive message');
 }
+
+window.SYNTHRUN_TOGGLE_SELECT_ALL = function() {
+  const container = document.getElementById('threadItems');
+  if (!container) return;
+  const visible = container.querySelectorAll('.thread-item');
+  if (visible.length === selectedIds.size) {
+    selectedIds.clear();
+    container.querySelectorAll('.thread-item').forEach((el) => el.classList.remove('selected'));
+    container.querySelectorAll('.thread-avatar-checkbox').forEach((el) => el.classList.remove('checked'));
+  } else {
+    selectedIds.clear();
+    container.querySelectorAll('.thread-item').forEach((el) => {
+      const id = el.dataset.id;
+      if (id) selectedIds.add(id);
+      el.classList.add('selected');
+    });
+    container.querySelectorAll('.thread-avatar-checkbox').forEach((el) => el.classList.add('checked'));
+  }
+  updateSelectedCount();
+};
 
 window.SYNTHRUN_CLOSE_MESSAGE_VIEW = closeMessageView;
 
