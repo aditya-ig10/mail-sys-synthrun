@@ -122,29 +122,14 @@ function showFolderView({ folder = currentFolder, replaceRoute = false } = {}) {
 }
 
 async function restoreRouteState() {
-  const { folder, messageId } = getRouteStateFromLocation();
+  const { folder } = getRouteStateFromLocation();
   updateFolderSelection(folder);
   activeMessageId = null;
   document.getElementById('emptyView').style.display = 'flex';
   document.getElementById('messageView').style.display = 'none';
   setMessageOpenState(false);
-
-  if (!messageId) {
-    syncRouteToLocation({ folder, messageId: null, replace: true });
-    renderList();
-    return;
-  }
-
-  const messageExists = allMessages.some((message) => message.id === messageId);
-  if (!messageExists) {
-    syncRouteToLocation({ folder, messageId: null, replace: true });
-    renderList();
-    return;
-  }
-
-  syncRouteToLocation({ folder, messageId, replace: true });
+  syncRouteToLocation({ folder, messageId: null, replace: true });
   renderList();
-  await openMessage(messageId, { updateRoute: false, replaceRoute: true });
 }
 
 window.addEventListener('popstate', () => {
