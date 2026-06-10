@@ -481,29 +481,15 @@ function getSenderIdentity(message) {
 
 function getSenderLabel(message) {
   const sender = getSenderIdentity(message);
+  const name = sender.name && !isGenericSenderName(sender.name) ? sender.name : '';
 
-  if (sender.name && sender.email) {
-    if (isGenericSenderName(sender.name)) {
-      return sender.email;
-    }
-    return `${sender.name} <${sender.email}>`;
-  }
+  if (name) return name;
 
-  if (sender.name) {
-    if (isGenericSenderName(sender.name) && sender.email) {
-      return sender.email;
-    }
-    return sender.name;
-  }
-
-  if (sender.email) {
-    return sender.email;
-  }
+  const email = sender.email || sanitizeEmail(message.from) || '';
+  if (email && !isBounceAddress(email)) return email;
 
   const fallback = sanitizeEmail(message.from);
-  if (isBounceAddress(fallback)) {
-    return 'Synthrun Mail';
-  }
+  if (isBounceAddress(fallback)) return 'Synthrun Mail';
 
   return fallback || 'Unknown';
 }
@@ -573,11 +559,9 @@ function renderList() {
     const attachmentCount = Array.isArray(message.attachments) ? message.attachments.length : 0;
     const senderLabel = message.folder === 'sent' ? `To: ${message.to || ''}` : message.folder === 'outbox' ? getSenderLabel(message) : getSenderLabel(message);
 
-    const initial = escapeHtml((senderLabel.charAt(0) || '?').toUpperCase());
-
     item.innerHTML = `
       <div class="thread-avatar" data-id="${message.id}">
-        <span class="thread-avatar-initials">${initial}</span>
+        <svg class="thread-avatar-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-7 8-7s8 3 8 7"/></svg>
         <div class="thread-avatar-checkbox${selectedIds.has(message.id) ? ' checked' : ''}">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6L9 17l-5-5"></path></svg>
         </div>
@@ -585,7 +569,7 @@ function renderList() {
       <div>
         <div class="thread-from">${escapeHtml(senderLabel)}</div>
         <div class="thread-subject">${escapeHtml(message.subject || '(no subject)')}</div>
-        <div class="thread-preview">${escapeHtml((message.body || '').slice(0, 80))}</div>
+        <div class="thread-preview">${escapeHtml(stripMarkdown(message.body || '').slice(0, 80))}</div>
         ${message.folder === 'outbox' ? `<div class="thread-tags"><span class="thread-tag ${message.status === 'failed' ? 'tag-error' : message.status === 'sending' ? 'tag-pending' : ''}">${message.status === 'sending' ? 'Sending...' : message.status === 'failed' ? 'Failed' : 'Pending'}</span></div>` : ''}
         ${attachmentCount ? `<div class="thread-tags"><span class="thread-tag">📎 ${attachmentCount} attachment${attachmentCount === 1 ? '' : 's'}</span></div>` : ''}
         ${Array.isArray(message.labels) && message.labels.length ? `<div class="thread-tags">${message.labels.map((label) => `<span class="thread-tag">${escapeHtml(label)}</span>`).join('')}</div>` : ''}
@@ -1372,6 +1356,21 @@ function escapeHtml(value) {
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;');
+}
+
+function stripMarkdown(text) {
+  return String(text)
+    .replace(/\*\*(.+?)\*\*/g, '$1')
+    .replace(/\*(.+?)\*/g, '$1')
+    .replace(/__(.+?)__/g, '$1')
+    .replace(/_(.+?)_/g, '$1')
+    .replace(/~~(.+?)~~/g, '$1')
+    .replace(/`(.+?)`/g, '$1')
+    .replace(/^#{1,6}\s+/gm, '')
+    .replace(/```[\s\S]*?```/g, '')
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+    .replace(/^[>\s]+/gm, '')
+    .trim();
 }
 
 function showToast(message, isError = false) {
