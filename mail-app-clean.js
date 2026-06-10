@@ -288,7 +288,7 @@ async function loadMessages() {
   }
 }
 
-async function saveSentMessage(to, cc, subject, body, attachments = []) {
+async function saveSentMessage(to, cc, subject, body, attachments = [], htmlBody = '') {
   try {
     const message = {
       folder: 'sent',
@@ -299,6 +299,7 @@ async function saveSentMessage(to, cc, subject, body, attachments = []) {
       cc,
       subject,
       body,
+      htmlBody,
       attachments,
       senderUid: currentUser.uid,
       recipientEmail: currentUser.email,
@@ -589,7 +590,7 @@ async function openMessage(id, { updateRoute = true, replaceRoute = false } = {}
         </div>
         <div class="mail-bubble-time">${timestamp.toLocaleString([], { dateStyle: 'long', timeStyle: 'short' })}</div>
       </div>
-      <div class="mail-bubble-body">${escapeHtml(message.body || '')}</div>
+      <div class="mail-bubble-body${message.htmlBody ? ' is-html' : ''}">${message.htmlBody || escapeHtml(message.body || '')}</div>
       ${attachmentMarkup}
     </div>`;
 
@@ -947,25 +948,50 @@ async function onAttachmentsSelected(event) {
   renderDraftAttachments();
 }
 
+function fileToBase64(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result.split(',')[1]);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
 async function uploadDraftAttachments() {
   const uploads = [];
   const total = draftAttachments.length;
+  const debugUser = globalThis.SYNTHRUN_DEBUG_USER || localStorage.getItem('synthrun-debug-user');
+  const idToken = debugUser ? null : await currentUser.getIdToken();
 
   for (let index = 0; index < draftAttachments.length; index += 1) {
     const file = draftAttachments[index];
     setComposeStatus(`Uploading ${index + 1}/${total}: ${file.name}`);
-    const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
-    const uniqueId = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
-    const path = `mail-attachments/${currentUser.uid}/${uniqueId}-${safeName}`;
-    const fileRef = storageRef(storage, path);
-    await uploadBytes(fileRef, file, { contentType: file.type || 'application/octet-stream' });
-    const url = await getDownloadURL(fileRef);
+    const base64 = await fileToBase64(file);
+    const response = await fetch('/upload', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(idToken ? { Authorization: `Bearer ${idToken}` } : {}),
+        ...(debugUser ? { 'X-Debug-User': debugUser } : {}),
+      },
+      body: JSON.stringify({
+        name: file.name,
+        type: file.type || 'application/octet-stream',
+        size: file.size,
+        data: base64,
+      }),
+    });
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}));
+      throw new Error(err.error || `Upload failed with ${response.status}`);
+    }
+    const result = await response.json();
     uploads.push({
-      name: file.name,
-      size: file.size,
-      type: file.type || 'application/octet-stream',
-      url,
-      path,
+      name: result.name,
+      size: result.size,
+      type: result.type,
+      fileId: result.fileId,
+      url: result.url,
     });
   }
 
@@ -1033,7 +1059,7 @@ async function sendMessage() {
     await clearDraft();
     if (draftSaveTimer) clearTimeout(draftSaveTimer);
     draftSaveTimer = null;
-    await saveSentMessage(to, cc, subject, body, attachments);
+    await saveSentMessage(to, cc, subject, body, attachments, finalHtmlBody);
     await loadMessages();
     composeBusy = false;
     closeCompose();
