@@ -134,7 +134,7 @@ async function getTelegramFileUrl(fileId) {
   return `https://api.telegram.org/file/bot${TELEGRAM_BOT_TOKEN}/${result.result.file_path}`;
 }
 
-async function sendViaBrevoApi({ senderAddress, fromName, userEmail, to, cc, subject, text, htmlContent, attachments }) {
+async function sendViaBrevoApi({ senderAddress, fromName, userEmail, to, cc, bcc, subject, text, htmlContent, attachments }) {
   const apiKey = getBrevoApiKey();
   if (!apiKey) {
     throw new Error('Missing BREVO_API_KEY');
@@ -156,6 +156,9 @@ async function sendViaBrevoApi({ senderAddress, fromName, userEmail, to, cc, sub
 
   if (cc) {
     payload.cc = [{ email: sanitizeEmail(cc) }];
+  }
+  if (bcc) {
+    payload.bcc = [{ email: sanitizeEmail(bcc) }];
   }
 
   if (Array.isArray(attachments) && attachments.length) {
@@ -279,8 +282,8 @@ function isInternalMailbox(email) {
   return sanitizeEmail(email).endsWith(`@${getAllowedDomain()}`);
 }
 
-async function storeMailboxMessages({ senderEmail, fromName, to, cc, subject, text, htmlContent, attachments }) {
-  const recipients = [...new Set([to, cc].map(sanitizeEmail).filter(Boolean).filter(isInternalMailbox))];
+async function storeMailboxMessages({ senderEmail, fromName, to, cc, bcc, subject, text, htmlContent, attachments }) {
+  const recipients = [...new Set([to, cc, bcc].map(sanitizeEmail).filter(Boolean).filter(isInternalMailbox))];
   if (!recipients.length) {
     return;
   }
@@ -425,7 +428,7 @@ app.post('/send', async (req, res) => {
       return sendJson(res, 403, { error: 'Sender not authorised' });
     }
 
-    const { to, cc, subject, body: text, htmlBody, attachments = [] } = req.body || {};
+    const { to, cc, bcc, subject, body: text, htmlBody, attachments = [] } = req.body || {};
     const fallbackText = String(text || '').trim() || htmlToText(htmlBody);
     if (!to || !subject || (!fallbackText && !htmlBody)) {
       return sendJson(res, 400, { error: 'Missing required fields: to, subject, body' });
@@ -436,6 +439,7 @@ app.post('/send', async (req, res) => {
 
     const recipients = [sanitizeEmail(to)];
     if (cc) recipients.push(sanitizeEmail(cc));
+    if (bcc) recipients.push(sanitizeEmail(bcc));
     const htmlContent = htmlBody || `<div style="font-family:monospace;font-size:14px;color:#111;white-space:pre-wrap;max-width:640px;margin:0 auto;padding:24px;">${htmlEscape(fallbackText)}</div>`;
 
     const resolvedAttachments = await resolveAttachments(Array.isArray(attachments) ? attachments : []);
@@ -449,6 +453,7 @@ app.post('/send', async (req, res) => {
         userEmail,
         to,
         cc,
+        bcc,
         subject,
         text: fallbackText,
         htmlContent,
@@ -461,6 +466,7 @@ app.post('/send', async (req, res) => {
         replyTo: userEmail,
         to: sanitizeEmail(to),
         ...(cc ? { cc: sanitizeEmail(cc) } : {}),
+        ...(bcc ? { bcc: sanitizeEmail(bcc) } : {}),
         subject: String(subject),
         text: fallbackText,
         html: htmlContent,
@@ -484,6 +490,7 @@ app.post('/send', async (req, res) => {
         fromName,
         to,
         cc,
+        bcc,
         subject,
         text: fallbackText,
         htmlContent,

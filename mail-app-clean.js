@@ -267,7 +267,7 @@ function bindUi() {
     });
   });
 
-  ['compTo', 'compCc', 'compSubject', 'compBody', 'compHtmlBody'].forEach((id) => {
+  ['compTo', 'compCc', 'compBcc', 'compSubject', 'compBody', 'compHtmlBody'].forEach((id) => {
     const el = document.getElementById(id);
     if (el) el.addEventListener('input', scheduleDraftSave);
   });
@@ -318,7 +318,7 @@ async function saveSentMessage(to, cc, subject, body, attachments = [], htmlBody
   }
 }
 
-async function saveOutboxMessage(to, cc, subject, body, htmlBody = '') {
+async function saveOutboxMessage(to, cc, bcc, subject, body, htmlBody = '') {
   try {
     const message = {
       folder: 'outbox',
@@ -328,6 +328,7 @@ async function saveOutboxMessage(to, cc, subject, body, htmlBody = '') {
       senderEmail: currentUser.email,
       to,
       cc,
+      bcc,
       subject,
       body,
       htmlBody,
@@ -375,7 +376,8 @@ async function retryOutboxMessage(id) {
       },
       body: JSON.stringify({
         to: message.to,
-        cc: message.cc,
+        cc: message.cc || '',
+        bcc: message.bcc || '',
         subject: message.subject,
         body: bodyWithLinks,
         htmlBody: finalHtmlBody,
@@ -575,10 +577,11 @@ async function saveDraft() {
   if (!currentUser) return;
   const to = document.getElementById('compTo').value.trim();
   const cc = document.getElementById('compCc').value.trim();
+  const bcc = document.getElementById('compBcc').value.trim();
   const subject = document.getElementById('compSubject').value.trim();
   const rawBody = String(window.SYNTHRUN_GET_COMPOSE_BODY?.() || '').trim();
   const isHtmlMode = Boolean(window.SYNTHRUN_GET_COMPOSE_IS_HTML?.());
-  if (!to && !cc && !subject && !rawBody) return;
+  if (!to && !cc && !bcc && !subject && !rawBody) return;
 
   const data = {
     folder: 'draft',
@@ -587,6 +590,7 @@ async function saveDraft() {
     senderEmail: currentUser.email,
     to,
     cc,
+    bcc,
     subject,
     body: rawBody,
     htmlBody: isHtmlMode ? rawBody : '',
@@ -931,13 +935,16 @@ function stripHtmlToText(html) {
   return container.textContent.replace(/\s+\n/g, '\n').replace(/\n\s+/g, '\n').replace(/[ \t]+/g, ' ').trim();
 }
 
-async function openCompose({ to = '', cc = '', subject = '', prefill = '' } = {}) {
-  const isReply = Boolean(to || cc || subject || prefill);
+async function openCompose({ to = '', cc = '', bcc = '', subject = '', prefill = '' } = {}) {
+  const isReply = Boolean(to || cc || bcc || subject || prefill);
   if (!isReply) {
     const draft = await loadDraft();
     if (draft) {
       document.getElementById('compTo').value = draft.to || '';
       document.getElementById('compCc').value = draft.cc || '';
+      document.getElementById('compBcc').value = draft.bcc || '';
+      if (draft.cc) window.SYNTHRUN_OPEN_CC?.();
+      if (draft.bcc) window.SYNTHRUN_OPEN_BCC?.();
       document.getElementById('compSubject').value = draft.subject || '';
       if (draft.isHtml && draft.htmlBody) {
         const modeTemplateBtn = document.getElementById('modeTemplateBtn');
@@ -952,12 +959,14 @@ async function openCompose({ to = '', cc = '', subject = '', prefill = '' } = {}
     if (!draft) {
       document.getElementById('compTo').value = '';
       document.getElementById('compCc').value = '';
+      document.getElementById('compBcc').value = '';
       document.getElementById('compSubject').value = '';
       document.getElementById('compBody').value = '';
     }
   } else {
     document.getElementById('compTo').value = to;
     document.getElementById('compCc').value = cc;
+    document.getElementById('compBcc').value = bcc;
     document.getElementById('compSubject').value = subject;
     document.getElementById('compBody').value = prefill;
     setComposeStatus('');
@@ -1102,14 +1111,36 @@ async function uploadDraftAttachments() {
   return uploads;
 }
 
+function getEmailTheme() {
+  return document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
+}
+
+function emailThemeColors() {
+  const isDark = getEmailTheme() === 'dark';
+  return {
+    text: isDark ? '#e8e6df' : '#111',
+    muted: isDark ? '#8a8a8a' : '#888',
+    border: isDark ? '#333' : '#e0dfd9',
+    bg: isDark ? '#1a1a1a' : '#fff',
+    bodyBg: isDark ? '#121212' : '#fff',
+    link: isDark ? '#6ab0f3' : '#111',
+  };
+}
+
+function themedEmailWrapper(bodyHtml) {
+  const c = emailThemeColors();
+  return `<div style="font-family:monospace;font-size:14px;color:${c.text};white-space:pre-wrap;max-width:640px;margin:0 auto;padding:24px;">${bodyHtml}</div>`;
+}
+
 async function sendMessage() {
   const to = document.getElementById('compTo').value.trim();
   const cc = document.getElementById('compCc').value.trim();
+  const bcc = document.getElementById('compBcc').value.trim();
   const subject = document.getElementById('compSubject').value.trim();
   const isHtmlMode = Boolean(window.SYNTHRUN_GET_COMPOSE_IS_HTML?.());
   const rawBody = String(window.SYNTHRUN_GET_COMPOSE_BODY?.() || '').trim();
   const body = isHtmlMode ? stripHtmlToText(rawBody) : rawBody;
-  const htmlBody = isHtmlMode ? rawBody : `<div style="font-family:monospace;font-size:14px;color:#111;white-space:pre-wrap;max-width:640px;margin:0 auto;padding:24px;">${escapeHtml(body)}</div>`;
+  const htmlBody = isHtmlMode ? rawBody : themedEmailWrapper(escapeHtml(body));
 
   clearComposeValidation();
 
@@ -1145,7 +1176,7 @@ async function sendMessage() {
       deleteDoc(doc(db, 'mail', msg.id)).catch(() => {});
     }
     setComposeStatus('Saving to outbox...');
-    outboxId = await saveOutboxMessage(to, cc, subject, body, htmlBody);
+    outboxId = await saveOutboxMessage(to, cc, bcc, subject, body, htmlBody);
     setComposeStatus(draftAttachments.length ? 'Preparing attachments...' : 'Sending...');
     uploadedAttachments = await uploadDraftAttachments();
     const bodyWithLinks = `${body}${buildAttachmentText(uploadedAttachments)}`;
@@ -1160,7 +1191,7 @@ async function sendMessage() {
         ...(idToken ? { Authorization: `Bearer ${idToken}` } : {}),
         ...(debugUser ? { 'X-Debug-User': debugUser } : {}),
       },
-      body: JSON.stringify({ to, cc, subject, body: bodyWithLinks, htmlBody: finalHtmlBody, attachments: uploadedAttachments, from: currentUser.email }),
+      body: JSON.stringify({ to, cc, bcc, subject, body: bodyWithLinks, htmlBody: finalHtmlBody, attachments: uploadedAttachments, from: currentUser.email }),
     });
 
     if (!response.ok) {
@@ -1204,10 +1235,11 @@ function buildAttachmentText(attachments) {
 
 function buildAttachmentHtml(attachments) {
   if (!attachments.length) return '';
+  const c = emailThemeColors();
   return `
-    <div style="margin-top:16px;border-top:1px solid #e0dfd9;padding-top:12px;">
-      <div style="font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:#888;margin-bottom:8px;">Attachments</div>
-      ${attachments.map((attachment) => `<div style="margin-bottom:8px;"><a href="${escapeHtml(attachment.url)}" target="_blank" rel="noreferrer" style="color:#111;text-decoration:underline;">${escapeHtml(attachment.name)}</a> <span style="color:#888;font-size:11px;">(${escapeHtml(formatBytes(attachment.size))})</span></div>`).join('')}
+    <div style="margin-top:16px;border-top:1px solid ${c.border};padding-top:12px;">
+      <div style="font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:${c.muted};margin-bottom:8px;">Attachments</div>
+      ${attachments.map((attachment) => `<div style="margin-bottom:8px;"><a href="${escapeHtml(attachment.url)}" target="_blank" rel="noreferrer" style="color:${c.link};text-decoration:underline;">${escapeHtml(attachment.name)}</a> <span style="color:${c.muted};font-size:11px;">(${escapeHtml(formatBytes(attachment.size))})</span></div>`).join('')}
     </div>`;
 }
 

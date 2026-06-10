@@ -353,9 +353,13 @@ body[data-theme="dark"] .mail-sender-avatar { background: rgba(255,255,255,0.04)
 .mail-sender-addr { font-size: 10px; color: var(--subtle); margin-top: 1px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .mail-bubble-time { font-size: 10px; color: var(--subtle); white-space: nowrap; flex-shrink: 0; }
 .mail-bubble-body { padding: 14px 13px 10px; white-space: pre-wrap; line-height: 1.85; font-size: 13px; color: var(--muted); }
-.mail-bubble-body.is-html { white-space: normal; color: var(--text); }
+.mail-bubble-body.is-html { white-space: normal; color: var(--text); background: transparent; }
 .mail-bubble-body.is-html img { max-width: 100%; height: auto; }
 .mail-bubble-body.is-html a { color: var(--accent); text-decoration: underline; }
+.mail-bubble-body.is-html div[style*="color:#111"] { color: var(--text) !important; }
+.mail-bubble-body.is-html div[style*="color:#888"] { color: var(--subtle) !important; }
+.mail-bubble-body.is-html div[style*="border-top:1px solid #e0dfd9"] { border-top-color: var(--line) !important; }
+.mail-bubble-body.is-html a[style*="color:#111"] { color: var(--accent) !important; }
 .mail-attachments { padding: 0 13px 13px; }
 .mail-attachments-title { font-size: 9px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--subtle); margin-bottom: 8px; }
 .mail-attachments-list { display: grid; gap: 6px; }
@@ -608,6 +612,12 @@ body[data-theme="dark"] .compose-close:hover { background: rgba(255,255,255,0.05
 .compose-field.invalid label { color: #b14b4b; }
 .compose-field.invalid input { color: #b14b4b; }
 .compose-field.invalid { box-shadow: inset 0 -1px 0 #b14b4b; }
+.compose-recipient-input { display: flex; align-items: center; gap: 6px; flex: 1; }
+.compose-recipient-input input { flex: 1; }
+.compose-toggle-link { font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--subtle); cursor: pointer; white-space: nowrap; transition: color var(--transition); padding: 2px 4px; border: 1px solid transparent; }
+.compose-toggle-link:hover { color: var(--accent); border-color: var(--line); }
+.compose-toggle-link.hidden { display: none; }
+.compose-toggle-link.active { color: var(--accent); }
 .compose-body { flex: 1; overflow: auto; padding: 13px; min-height: 160px; }
 .compose-body textarea { width: 100%; min-height: 200px; height: 100%; border: 0; outline: 0; resize: none; background: transparent; color: var(--text); line-height: 1.8; font-size: 12px; }
 .compose-body textarea::placeholder { color: var(--subtle); }
@@ -1316,11 +1326,19 @@ button:focus:not(:focus-visible), input:focus:not(:focus-visible) { outline: non
 
     <div class="compose-field">
       <label for="compTo">To</label>
-      <input type="email" id="compTo" placeholder="recipient@example.com" autocomplete="email">
+      <div class="compose-recipient-input">
+        <input type="text" id="compTo" placeholder="recipient@example.com" autocomplete="email">
+        <span class="compose-toggle-link" id="ccToggleBtn">Cc</span>
+        <span class="compose-toggle-link" id="bccToggleBtn">Bcc</span>
+      </div>
     </div>
-    <div class="compose-field">
+    <div class="compose-field compose-cc-field" id="ccField" style="display:none">
       <label for="compCc">Cc</label>
-      <input type="email" id="compCc" placeholder="optional" autocomplete="off">
+      <input type="text" id="compCc" placeholder="email1, email2, ..." autocomplete="off">
+    </div>
+    <div class="compose-field compose-bcc-field" id="bccField" style="display:none">
+      <label for="compBcc">Bcc</label>
+      <input type="text" id="compBcc" placeholder="email1, email2, ..." autocomplete="off">
     </div>
     <div class="compose-field">
       <label for="compSubject">Subject</label>
@@ -1830,6 +1848,38 @@ setInterval(updateClock, 30000);
     htmlCodePane.classList.remove('active');
   });
 
+  /* Cc / Bcc toggle */
+  const ccField = document.getElementById('ccField');
+  const bccField = document.getElementById('bccField');
+  const ccToggle = document.getElementById('ccToggleBtn');
+  const bccToggle = document.getElementById('bccToggleBtn');
+  function resetRecipientFields() {
+    ccField.style.display = 'none';
+    bccField.style.display = 'none';
+    ccToggle.classList.remove('active');
+    bccToggle.classList.remove('active');
+    document.getElementById('compCc').value = '';
+    document.getElementById('compBcc').value = '';
+  }
+  ccToggle.addEventListener('click', () => {
+    const show = ccField.style.display === 'none';
+    ccField.style.display = show ? '' : 'none';
+    ccToggle.classList.toggle('active', show);
+    if (show) document.getElementById('compCc').focus();
+  });
+  bccToggle.addEventListener('click', () => {
+    const show = bccField.style.display === 'none';
+    bccField.style.display = show ? '' : 'none';
+    bccToggle.classList.toggle('active', show);
+    if (show) document.getElementById('compBcc').focus();
+  });
+  window.SYNTHRUN_OPEN_CC = () => {
+    if (ccField.style.display === 'none') ccToggle.click();
+  };
+  window.SYNTHRUN_OPEN_BCC = () => {
+    if (bccField.style.display === 'none') bccToggle.click();
+  };
+
   /* Reset compose when overlay closes */
   document.getElementById('closeCompose')?.addEventListener('click', () => {
     void switchMode('plain');
@@ -1837,6 +1887,7 @@ setInterval(updateClock, 30000);
     templateCards.forEach(c => { c.classList.remove('selected'); c.setAttribute('aria-checked','false'); });
     htmlBodyTA.value = '';
     resetComposePlacement();
+    resetRecipientFields();
   });
   document.getElementById('discardBtn')?.addEventListener('click', () => {
     void switchMode('plain');
@@ -1844,6 +1895,7 @@ setInterval(updateClock, 30000);
     templateCards.forEach(c => { c.classList.remove('selected'); c.setAttribute('aria-checked','false'); });
     htmlBodyTA.value = '';
     resetComposePlacement();
+    resetRecipientFields();
   });
 
   /* Expose getter for mail-app-clean.js to retrieve body content */
