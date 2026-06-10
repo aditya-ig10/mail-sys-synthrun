@@ -371,11 +371,11 @@ body[data-theme="dark"] .mail-sender-avatar { background: rgba(255,255,255,0.04)
 .mail-bubble-body { padding: 14px 13px 10px; white-space: pre-wrap; line-height: 1.85; font-size: 13px; color: var(--muted); }
 .mail-bubble-body.is-html { white-space: normal; color: var(--text); background: transparent; }
 .mail-bubble-body.is-html img { max-width: 100%; height: auto; }
-.mail-bubble-body.is-html a { color: var(--accent); text-decoration: underline; }
-.mail-bubble-body.is-html div[style*="color:#111"] { color: var(--text) !important; }
-.mail-bubble-body.is-html div[style*="color:#888"] { color: var(--subtle) !important; }
-.mail-bubble-body.is-html div[style*="border-top:1px solid #e0dfd9"] { border-top-color: var(--line) !important; }
-.mail-bubble-body.is-html a[style*="color:#111"] { color: var(--accent) !important; }
+.mail-bubble-body.is-html a { color: var(--accent) !important; text-decoration: underline; }
+.mail-bubble-body.is-html table { width: 100% !important; max-width: 100% !important; }
+.mail-bubble-body.is-html td { word-break: break-word; }
+.mail-bubble-body.is-html * { color: var(--text) !important; }
+.mail-bubble-body.is-html a, .mail-bubble-body.is-html a * { color: var(--accent) !important; }
 .mail-attachments { padding: 0 13px 13px; }
 .mail-attachments-title { font-size: 9px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--subtle); margin-bottom: 8px; }
 .mail-attachments-list { display: grid; gap: 6px; }

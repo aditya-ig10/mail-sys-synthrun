@@ -440,7 +440,7 @@ app.post('/send', async (req, res) => {
     const recipients = [sanitizeEmail(to)];
     if (cc) recipients.push(sanitizeEmail(cc));
     if (bcc) recipients.push(sanitizeEmail(bcc));
-    const htmlContent = htmlBody || `<div style="font-family:monospace;font-size:14px;color:#111;white-space:pre-wrap;max-width:640px;margin:0 auto;padding:24px;">${htmlEscape(fallbackText)}</div>`;
+    const htmlContent = htmlBody || `<div style="font-family:monospace;font-size:14px;white-space:pre-wrap;max-width:640px;margin:0 auto;padding:24px;">${htmlEscape(fallbackText)}</div>`;
 
     const resolvedAttachments = await resolveAttachments(Array.isArray(attachments) ? attachments : []);
 

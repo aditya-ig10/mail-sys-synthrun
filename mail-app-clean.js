@@ -1125,25 +1125,8 @@ async function uploadDraftAttachments() {
   return uploads;
 }
 
-function getEmailTheme() {
-  return document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
-}
-
-function emailThemeColors() {
-  const isDark = getEmailTheme() === 'dark';
-  return {
-    text: isDark ? '#e8e6df' : '#111',
-    muted: isDark ? '#8a8a8a' : '#888',
-    border: isDark ? '#333' : '#e0dfd9',
-    bg: isDark ? '#1a1a1a' : '#fff',
-    bodyBg: isDark ? '#121212' : '#fff',
-    link: isDark ? '#6ab0f3' : '#111',
-  };
-}
-
 function themedEmailWrapper(bodyHtml) {
-  const c = emailThemeColors();
-  return `<div style="font-family:monospace;font-size:14px;color:${c.text};white-space:pre-wrap;max-width:640px;margin:0 auto;padding:24px;">${bodyHtml}</div>`;
+  return `<div style="font-family:monospace;font-size:14px;white-space:pre-wrap;max-width:640px;margin:0 auto;padding:24px;">${bodyHtml}</div>`;
 }
 
 async function sendMessage() {
@@ -1249,11 +1232,10 @@ function buildAttachmentText(attachments) {
 
 function buildAttachmentHtml(attachments) {
   if (!attachments.length) return '';
-  const c = emailThemeColors();
   return `
-    <div style="margin-top:16px;border-top:1px solid ${c.border};padding-top:12px;">
-      <div style="font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:${c.muted};margin-bottom:8px;">Attachments</div>
-      ${attachments.map((attachment) => `<div style="margin-bottom:8px;"><a href="${escapeHtml(attachment.url)}" target="_blank" rel="noreferrer" style="color:${c.link};text-decoration:underline;">${escapeHtml(attachment.name)}</a> <span style="color:${c.muted};font-size:11px;">(${escapeHtml(formatBytes(attachment.size))})</span></div>`).join('')}
+    <div style="margin-top:16px;border-top:1px solid #e0dfd9;padding-top:12px;">
+      <div style="font-size:11px;letter-spacing:0.08em;text-transform:uppercase;margin-bottom:8px;">Attachments</div>
+      ${attachments.map((attachment) => `<div style="margin-bottom:8px;"><a href="${escapeHtml(attachment.url)}" target="_blank" rel="noreferrer" style="text-decoration:underline;">${escapeHtml(attachment.name)}</a> <span style="font-size:11px;">(${escapeHtml(formatBytes(attachment.size))})</span></div>`).join('')}
     </div>`;
 }
 
