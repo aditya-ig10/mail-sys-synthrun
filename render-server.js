@@ -282,15 +282,77 @@ function isInternalMailbox(email) {
   return sanitizeEmail(email).endsWith(`@${getAllowedDomain()}`);
 }
 
-async function storeMailboxMessages({ senderEmail, fromName, to, cc, bcc, subject, text, htmlContent, attachments }) {
+const SPAM_KEYWORDS = [
+  'urgent', 'act now', 'free money', 'limited time', 'click here', 'congratulations',
+  'you won', 'winner', 'cash prize', 'guaranteed', 'no risk', 'double your',
+  'earn extra', 'work from home', 'make money', 'credit card', 'verify account',
+  'account suspended', 'unusual activity', 'login attempt', 'password expired',
+  'claim your', 'exclusive deal', 'order now', 'buy now', 'discount',
+  'million dollars', 'lottery', 'selected winner', 'prize winner',
+  'investment opportunity', 'weight loss', 'enlargement', 'pharmacy',
+  'prescription', 'cheap prices', 'lowest price', '100% satisfied',
+  'satisfaction guaranteed', 'accept credit cards', 'no medical',
+  'social security', 'bank account', 'wire transfer', 'western union',
+  'money order', 'cost per click', 'search engine', 'advertising',
+  'traffic', 'seo', 'ranking', 'unsubscribe here',
+];
+
+function isProbablySpam({ from, subject, text, htmlContent }) {
+  let score = 0;
+  const body = String(text || htmlContent || '').toLowerCase();
+  const subjectLower = String(subject || '').toLowerCase();
+
+  // Keyword scoring
+  for (const keyword of SPAM_KEYWORDS) {
+    if (subjectLower.includes(keyword)) score += 3;
+    if (body.includes(keyword)) score += 1;
+  }
+
+  // Suspicious patterns in subject
+  if (/^[A-Z0-9\s!]{10,}$/.test(String(subject))) score += 2; // all caps
+  if (/[!]{2,}/.test(String(subject))) score += 2;
+  if (/\$\d/.test(String(subject))) score += 1;
+
+  // Link ratio in body
+  if (body.length > 100) {
+    const links = (body.match(/https?:\/\/[^\s]+/g) || []).length;
+    const linkRatio = links / (body.split(/\s+/).length || 1);
+    if (linkRatio > 0.3) score += 3;
+    if (linkRatio > 0.5) score += 2;
+  }
+
+  // All-caps body segments
+  const words = body.split(/\s+/).filter((w) => w.length > 3);
+  const capsWords = words.filter((w) => /^[A-Z]+$/.test(w)).length;
+  if (words.length > 10 && capsWords / words.length > 0.4) score += 2;
+
+  // Excessive HTML in plain-text field (likely disguised)
+  if (text && text.includes('<') && text.includes('>')) score += 1;
+
+  // Common spam phrases in body
+  if (body.includes('click the link below')) score += 1;
+  if (body.includes('confirm your')) score += 1;
+  if (body.includes('you have been selected')) score += 2;
+
+  return score >= 4;
+}
+
+async function storeMailboxMessages({ senderEmail, fromName, to, cc, bcc, subject, text, htmlContent, attachments, skipSpamCheck }) {
   const recipients = [...new Set([to, cc, bcc].map(sanitizeEmail).filter(Boolean).filter(isInternalMailbox))];
   if (!recipients.length) {
     return;
   }
 
   const db = admin.firestore();
+
+  let folder = 'inbox';
+  if (!skipSpamCheck) {
+    const spam = isProbablySpam({ from: senderEmail, subject, text, htmlContent });
+    if (spam) folder = 'spam';
+  }
+
   const payload = {
-    folder: 'inbox',
+    folder,
     from: senderEmail,
     fromName,
     senderEmail,
@@ -495,6 +557,7 @@ app.post('/send', async (req, res) => {
         text: fallbackText,
         htmlContent,
         attachments: storeAttachments,
+        skipSpamCheck: true,
       });
     } catch (storeError) {
       console.warn('Could not store mailbox copy:', storeError);
@@ -504,6 +567,50 @@ app.post('/send', async (req, res) => {
   } catch (error) {
     const status = error.message === 'Missing Authorization header' ? 401 : 502;
     return sendJson(res, status, { error: error.message });
+  }
+});
+
+app.options('/receive', (req, res) => {
+  cors(req, res);
+  res.status(204).end();
+});
+
+app.post('/receive', async (req, res) => {
+  cors(req, res);
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return sendJson(res, 401, { error: 'Missing Authorization header' });
+    }
+    const token = authHeader.slice(7);
+    const expectedToken = String(process.env.RECEIVE_TOKEN || '').trim();
+    if (!expectedToken || token !== expectedToken) {
+      return sendJson(res, 403, { error: 'Invalid token' });
+    }
+
+    const { from, to, cc, bcc, subject, text, html, attachments } = req.body;
+
+    if (!from || !to) {
+      return sendJson(res, 400, { error: 'Missing required fields: from, to' });
+    }
+
+    await storeMailboxMessages({
+      senderEmail: sanitizeEmail(from),
+      fromName: from.split('@')[0] || 'Unknown',
+      to: sanitizeEmail(to),
+      cc: cc ? sanitizeEmail(cc) : '',
+      bcc: bcc ? sanitizeEmail(bcc) : '',
+      subject: subject || '(no subject)',
+      text: text || '',
+      htmlContent: html || '',
+      attachments: Array.isArray(attachments) ? attachments : [],
+      skipSpamCheck: false,
+    });
+
+    return sendJson(res, 200, { ok: true });
+  } catch (error) {
+    console.error('/receive error:', error);
+    return sendJson(res, 502, { error: error.message });
   }
 });
 

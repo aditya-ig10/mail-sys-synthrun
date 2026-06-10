@@ -137,17 +137,31 @@
     const pathName = window.location.pathname.replace(/\/$/, '');
     const slug = decodeURIComponent(pathName.split('/').pop().replace(/\.html$/, ''));
 
-    function setTheme(theme) {
-      if (theme === 'auto') document.body.removeAttribute('data-theme');
-      else document.body.setAttribute('data-theme', theme);
-      localStorage.setItem('synthrun-theme', theme);
+    const media = window.matchMedia('(prefers-color-scheme: dark)');
+
+    function applyTheme(t) {
+      const effective = t === 'system' ? (media.matches ? 'dark' : 'light') : t;
+      if (effective === 'dark') {
+        document.documentElement.setAttribute('data-theme', 'dark');
+        document.body.setAttribute('data-theme', 'dark');
+      } else {
+        document.documentElement.removeAttribute('data-theme');
+        document.body.removeAttribute('data-theme');
+      }
     }
 
-    setTheme(localStorage.getItem('synthrun-theme') || 'auto');
+    function setTheme(theme) {
+      localStorage.setItem('synthrun-theme', theme);
+      applyTheme(theme);
+    }
+
+    if (!localStorage.getItem('synthrun-theme')) localStorage.setItem('synthrun-theme', 'system');
+    setTheme(localStorage.getItem('synthrun-theme'));
     document.getElementById('themeBtn').addEventListener('click', () => {
-      const current = localStorage.getItem('synthrun-theme') || 'auto';
-      setTheme(current === 'auto' ? 'dark' : current === 'dark' ? 'light' : 'auto');
+      const current = localStorage.getItem('synthrun-theme') || 'system';
+      setTheme(current === 'system' ? 'light' : current === 'light' ? 'dark' : 'system');
     });
+    media.addEventListener('change', () => applyTheme(localStorage.getItem('synthrun-theme') || 'system'));
 
     function formatName(email) {
       const localPart = String(email || '').split('@')[0].replace(/[._-]+/g, ' ').trim();

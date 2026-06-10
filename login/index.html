@@ -439,21 +439,35 @@ main {
 </script>
 
 <script>
-  // Theme logic
   const themeBtn   = document.getElementById('themeBtn');
   const themeLabel = document.getElementById('themeLabel');
   const media      = window.matchMedia('(prefers-color-scheme: dark)');
 
-  function setTheme(t) {
-    if (t === 'auto') { document.body.removeAttribute('data-theme'); themeLabel.textContent = 'Auto'; }
-    else { document.body.setAttribute('data-theme', t); themeLabel.textContent = t.charAt(0).toUpperCase() + t.slice(1); }
-    localStorage.setItem('synthrun-theme', t);
+  function applyTheme(t) {
+    const effective = t === 'system'
+      ? (media.matches ? 'dark' : 'light')
+      : t;
+    if (effective === 'dark') {
+      document.documentElement.setAttribute('data-theme', 'dark');
+      document.body.setAttribute('data-theme', 'dark');
+    } else {
+      document.documentElement.removeAttribute('data-theme');
+      document.body.removeAttribute('data-theme');
+    }
   }
-  setTheme(localStorage.getItem('synthrun-theme') || 'auto');
+
+  function setTheme(t) {
+    localStorage.setItem('synthrun-theme', t);
+    applyTheme(t);
+    themeLabel.textContent = t === 'system' ? 'Auto' : t.charAt(0).toUpperCase() + t.slice(1);
+  }
+  if (!localStorage.getItem('synthrun-theme')) localStorage.setItem('synthrun-theme', 'system');
+  setTheme(localStorage.getItem('synthrun-theme'));
   themeBtn.addEventListener('click', () => {
-    const c = localStorage.getItem('synthrun-theme') || 'auto';
-    setTheme(c === 'auto' ? 'dark' : c === 'dark' ? 'light' : 'auto');
+    const c = localStorage.getItem('synthrun-theme') || 'system';
+    setTheme(c === 'system' ? 'light' : c === 'light' ? 'dark' : 'system');
   });
+  media.addEventListener('change', () => applyTheme(localStorage.getItem('synthrun-theme') || 'system'));
 </script>
 </body>
 </html>

@@ -369,13 +369,11 @@ body[data-theme="dark"] .mail-sender-avatar { background: rgba(255,255,255,0.04)
 .mail-sender-addr { font-size: 10px; color: var(--subtle); margin-top: 1px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .mail-bubble-time { font-size: 10px; color: var(--subtle); white-space: nowrap; flex-shrink: 0; }
 .mail-bubble-body { padding: 14px 13px 10px; white-space: pre-wrap; line-height: 1.85; font-size: 13px; color: var(--muted); }
-.mail-bubble-body.is-html { white-space: normal; color: var(--text); background: transparent; }
+.mail-bubble-body.is-html { white-space: normal; color: var(--text); background: transparent; color-scheme: light dark; }
 .mail-bubble-body.is-html img { max-width: 100%; height: auto; }
-.mail-bubble-body.is-html a { color: var(--accent) !important; text-decoration: underline; }
-.mail-bubble-body.is-html table { width: 100% !important; max-width: 100% !important; }
+.mail-bubble-body.is-html a { color: var(--accent); text-decoration: underline; }
+.mail-bubble-body.is-html table { max-width: 100% !important; }
 .mail-bubble-body.is-html td { word-break: break-word; }
-.mail-bubble-body.is-html * { color: var(--text) !important; }
-.mail-bubble-body.is-html a, .mail-bubble-body.is-html a * { color: var(--accent) !important; }
 .mail-attachments { padding: 0 13px 13px; }
 .mail-attachments-title { font-size: 9px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--subtle); margin-bottom: 8px; }
 .mail-attachments-list { display: grid; gap: 6px; }
@@ -628,12 +626,29 @@ body[data-theme="dark"] .compose-close:hover { background: rgba(255,255,255,0.05
 .compose-field.invalid label { color: #b14b4b; }
 .compose-field.invalid input { color: #b14b4b; }
 .compose-field.invalid { box-shadow: inset 0 -1px 0 #b14b4b; }
-.compose-recipient-input { display: flex; align-items: center; gap: 6px; flex: 1; }
-.compose-recipient-input input { flex: 1; }
-.compose-toggle-link { font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--subtle); cursor: pointer; white-space: nowrap; transition: color var(--transition); padding: 2px 4px; border: 1px solid transparent; }
+.compose-recipient-input { display: flex; align-items: flex-start; gap: 6px; flex: 1; min-width: 0; }
+.compose-recipient-input > .recipient-chips { flex: 1; }
+.compose-toggle-link { font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--subtle); cursor: pointer; white-space: nowrap; transition: color var(--transition); padding: 2px 4px; border: 1px solid transparent; margin-top: 9px; flex-shrink: 0; }
 .compose-toggle-link:hover { color: var(--accent); border-color: var(--line); }
 .compose-toggle-link.hidden { display: none; }
 .compose-toggle-link.active { color: var(--accent); }
+
+/* ─── Recipient Chip Input ────────────────────────────── */
+.recipient-chips { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; padding: 7px 0; min-height: 34px; }
+.chip { display: inline-flex; align-items: center; gap: 3px; padding: 2px 6px 2px 8px; background: var(--accent); color: var(--accent-contrast); font-size: 11px; border-radius: 3px; letter-spacing: 0.02em; line-height: 1.5; }
+.chip-remove { display: grid; place-items: center; width: 14px; height: 14px; border: 0; background: transparent; color: var(--accent-contrast); cursor: pointer; font-size: 13px; line-height: 1; padding: 0; opacity: 0.65; transition: opacity 0.15s; }
+.chip-remove:hover { opacity: 1; }
+.chip-input { border: 0; outline: 0; background: transparent; color: var(--text); font-size: 12px; min-width: 80px; flex: 1; }
+.chip-input::placeholder { color: var(--subtle); }
+
+/* ─── Resizable Split ─────────────────────────────────── */
+.resize-handle { position: relative; flex-shrink: 0; cursor: col-resize; z-index: 5; }
+.resize-handle::after { content: ''; position: absolute; inset: 0; transition: background 0.15s; }
+.resize-handle:hover::after, .resize-handle.resizing::after { background: var(--accent); }
+#sidebarResize { width: 3px; }
+#sidebarResize::after { left: -4px; right: -4px; top: 0; bottom: 0; }
+#splitResize { width: 3px; }
+#splitResize::after { left: -4px; right: -4px; top: 0; bottom: 0; }
 .compose-body { flex: 1; overflow: auto; padding: 13px; min-height: 160px; }
 .compose-body textarea { width: 100%; min-height: 200px; height: 100%; border: 0; outline: 0; resize: none; background: transparent; color: var(--text); line-height: 1.8; font-size: 12px; }
 .compose-body textarea::placeholder { color: var(--subtle); }
@@ -881,7 +896,7 @@ header, .app-body, .compose-modal { animation: pageRise 0.32s ease both; }
 
 /* ─── Mobile Navigation ──────────────────────────────────────── */
 .mobile-nav { display: none; position: fixed; bottom: 0; left: 0; right: 0; height: 52px; z-index: 20; background: var(--panel); border-top: 1px solid var(--line); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); }
-.mobile-nav-inner { display: grid; grid-template-columns: repeat(9, 1fr); height: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.mobile-nav-inner { display: grid; grid-template-columns: repeat(10, 1fr); height: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
 .mobile-nav-btn { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; border: 0; background: transparent; cursor: pointer; color: var(--subtle); font-size: 9px; letter-spacing: 0.08em; text-transform: uppercase; padding: 0; transition: color var(--transition); -webkit-tap-highlight-color: transparent; }
 .mobile-nav-btn.active { color: var(--text); }
 .mobile-nav-btn svg { width: 18px; height: 18px; stroke: currentColor; fill: none; stroke-width: 1.4; }
@@ -1121,6 +1136,10 @@ button:focus:not(:focus-visible), input:focus:not(:focus-visible) { outline: non
       <button class="side-link" data-folder="clients" type="button">
         <span class="side-link-left"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="9" r="3"></circle><circle cx="16" cy="10" r="2"></circle><path d="M3 20c1-3 3-5 6-5s5 2 6 5M17 20c.3-1 1.3-3 3-3"></path></svg>Clients</span>
       </button>
+      <button class="side-link" data-folder="spam" type="button">
+        <span class="side-link-left"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2L2 7v5c0 8 4 12 10 14 6-2 10-6 10-14V7l-10-5z"></path><path d="M12 8v4M12 16h0"></path></svg>Spam</span>
+        <span class="side-badge" id="badge-spam">0</span>
+      </button>
     </div>
     <hr>
     <div class="side-section">
@@ -1142,7 +1161,7 @@ button:focus:not(:focus-visible), input:focus:not(:focus-visible) { outline: non
       </button>
     </div>
   </aside>
-
+  <div class="resize-handle" id="sidebarResize" aria-hidden="true"></div>
   <div class="mail-panel" id="mailPanel">
     <div class="thread-list" id="threadList">
       <div class="thread-toolbar">
@@ -1153,6 +1172,7 @@ button:focus:not(:focus-visible), input:focus:not(:focus-visible) { outline: non
       </div>
       <div class="thread-items" id="threadItems" role="list" aria-label="Messages"></div>
     </div>
+    <div class="resize-handle" id="splitResize" aria-hidden="true"></div>
     <div class="mail-view" id="mailView">
       <div class="mail-view-empty" id="emptyView" aria-live="polite">
         <div class="mail-view-empty-inner">
@@ -1205,6 +1225,10 @@ button:focus:not(:focus-visible), input:focus:not(:focus-visible) { outline: non
           <button class="reply-btn" id="restoreBtn" type="button" style="display:none">
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12a8 8 0 0 1 14.9-3.9M20 12a8 8 0 0 1-14.9 3.9"></path><path d="M20 4v4h-4M4 20v-4h4"></path></svg>
             Restore
+          </button>
+          <button class="reply-btn" id="notSpamBtn" type="button" style="display:none">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2L2 7v5c0 8 4 12 10 14 6-2 10-6 10-14V7l-10-5z"></path><path d="M12 8v4M12 16h0"></path></svg>
+            Not spam
           </button>
           <button class="reply-btn" id="deleteForeverBtn" type="button" style="display:none">
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"></path></svg>
@@ -1263,6 +1287,10 @@ button:focus:not(:focus-visible), input:focus:not(:focus-visible) { outline: non
     <button class="mobile-nav-btn" data-folder="trash" id="mob-trash" type="button" aria-label="Trash">
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"></path></svg>
       Trash
+    </button>
+    <button class="mobile-nav-btn" data-folder="spam" id="mob-spam" type="button" aria-label="Spam">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2L2 7v5c0 8 4 12 10 14 6-2 10-6 10-14V7l-10-5z"></path><path d="M12 8v4M12 16h0"></path></svg>
+      Spam
     </button>
     <button class="mobile-nav-btn" data-folder="outbox" id="mob-outbox" type="button" aria-label="Outbox">
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2M8 5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2M8 5h8"></path><path d="M12 11v5M10 13l2 2 2-2"></path></svg>
@@ -1341,20 +1369,29 @@ button:focus:not(:focus-visible), input:focus:not(:focus-visible) { outline: non
     </div>
 
     <div class="compose-field">
-      <label for="compTo">To</label>
+      <label>To</label>
       <div class="compose-recipient-input">
-        <input type="text" id="compTo" placeholder="recipient@example.com" autocomplete="email">
+        <div class="recipient-chips" id="toChips">
+          <input type="hidden" id="compTo" value="">
+          <input type="text" class="chip-input" placeholder="recipient@example.com" autocomplete="email">
+        </div>
         <span class="compose-toggle-link" id="ccToggleBtn">Cc</span>
         <span class="compose-toggle-link" id="bccToggleBtn">Bcc</span>
       </div>
     </div>
     <div class="compose-field compose-cc-field" id="ccField" style="display:none">
-      <label for="compCc">Cc</label>
-      <input type="text" id="compCc" placeholder="email1, email2, ..." autocomplete="off">
+      <label>Cc</label>
+      <div class="recipient-chips" id="ccChips">
+        <input type="hidden" id="compCc" value="">
+        <input type="text" class="chip-input" placeholder="add recipient" autocomplete="off">
+      </div>
     </div>
     <div class="compose-field compose-bcc-field" id="bccField" style="display:none">
-      <label for="compBcc">Bcc</label>
-      <input type="text" id="compBcc" placeholder="email1, email2, ..." autocomplete="off">
+      <label>Bcc</label>
+      <div class="recipient-chips" id="bccChips">
+        <input type="hidden" id="compBcc" value="">
+        <input type="text" class="chip-input" placeholder="add recipient" autocomplete="off">
+      </div>
     </div>
     <div class="compose-field">
       <label for="compSubject">Subject</label>
@@ -1411,38 +1448,191 @@ button:focus:not(:focus-visible), input:focus:not(:focus-visible) { outline: non
 <script type="module" src="./mail-app-clean.js"></script>
 <script src="./templates.js"></script>
 <script>
-/* ── Theme ── */
+/* ── 3-Way Theme ── */
 const themeBtn = document.getElementById('themeBtn');
+const THEME_ICONS = {
+  system: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="6" width="16" height="12" rx="1"></rect><path d="M9 22h6M12 18v4"></path></svg>',
+  light: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"></path></svg>',
+  dark: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z"></path></svg>',
+};
+const THEME_LABELS = { system: 'System', light: 'Light', dark: 'Dark' };
 
-function getEffectiveTheme(theme = localStorage.getItem('synthrun-theme') || 'auto') {
-  if (theme === 'auto') {
+function getEffectiveTheme(theme = localStorage.getItem('synthrun-theme') || 'system') {
+  if (theme === 'system') {
     return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
   }
   return theme;
 }
 
-function renderThemeIcon(theme = localStorage.getItem('synthrun-theme') || 'auto') {
+function applyTheme(theme) {
+  const effective = getEffectiveTheme(theme);
+  if (effective === 'dark') {
+    document.documentElement.setAttribute('data-theme', 'dark');
+    document.body.setAttribute('data-theme', 'dark');
+  } else {
+    document.documentElement.removeAttribute('data-theme');
+    document.body.removeAttribute('data-theme');
+  }
+}
+
+function renderThemeIcon(theme = localStorage.getItem('synthrun-theme') || 'system') {
   if (!themeBtn) return;
-  const dark = getEffectiveTheme(theme) === 'dark';
-  themeBtn.innerHTML = dark
-    ? '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"></path></svg>'
-    : '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z"></path></svg>';
-  themeBtn.title = dark ? 'Switch to light mode' : 'Switch to dark mode';
-  themeBtn.setAttribute('aria-label', dark ? 'Switch to light mode' : 'Switch to dark mode');
+  themeBtn.innerHTML = THEME_ICONS[theme] || THEME_ICONS.system;
+  themeBtn.title = `Theme: ${THEME_LABELS[theme] || 'System'} (click to cycle)`;
+  themeBtn.setAttribute('aria-label', `Theme: ${THEME_LABELS[theme] || 'System'}`);
 }
 
 function setTheme(theme) {
-  if (theme === 'auto') document.body.removeAttribute('data-theme');
-  else document.body.setAttribute('data-theme', theme);
   localStorage.setItem('synthrun-theme', theme);
+  applyTheme(theme);
   renderThemeIcon(theme);
 }
-setTheme(localStorage.getItem('synthrun-theme') || 'auto');
+const systemMedia = window.matchMedia('(prefers-color-scheme: dark)');
+systemMedia.addEventListener('change', () => {
+  const t = localStorage.getItem('synthrun-theme') || 'system';
+  applyTheme(t);
+});
+setTheme(localStorage.getItem('synthrun-theme') || 'system');
 themeBtn?.addEventListener('click', () => {
-  const c = localStorage.getItem('synthrun-theme') || 'auto';
-  setTheme(c === 'auto' ? 'dark' : c === 'dark' ? 'light' : 'auto');
+  const c = localStorage.getItem('synthrun-theme') || 'system';
+  setTheme(c === 'system' ? 'light' : c === 'light' ? 'dark' : 'system');
 });
 renderThemeIcon();
+
+/* ── Body data-theme sync (for backward CSS compat) ── */
+const themeObserver = new MutationObserver(() => {
+  const htmlTheme = document.documentElement.getAttribute('data-theme');
+  document.body.setAttribute('data-theme', htmlTheme || 'light');
+});
+themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+
+/* ── Recipient Chip Input ── */
+function initChipInput(containerId, placeholder = 'add recipient') {
+  const container = document.getElementById(containerId);
+  const hidden = container.querySelector('input[type="hidden"]');
+  const chipInput = container.querySelector('.chip-input');
+  let chips = [];
+
+  function parseEmails(str) {
+    return str.split(/[,;]/).map(s => s.trim().toLowerCase()).filter(Boolean);
+  }
+
+  function render() {
+    hidden.value = chips.join(', ');
+    let html = '';
+    for (const email of chips) {
+      const enc = email.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+      html += `<span class="chip">${enc}<button class="chip-remove" data-email="${enc}">&times;</button></span>`;
+    }
+    html += `<input type="text" class="chip-input" placeholder="${chips.length ? '' : placeholder}" autocomplete="email">`;
+    container.innerHTML = html;
+    const newInput = container.querySelector('.chip-input');
+    const existingChips = parseEmails(hidden.value);
+    if (existingChips.length && !chips.length) {
+      chips = existingChips;
+      render();
+      return;
+    }
+    bindInput(newInput);
+    bindRemoves();
+  }
+
+  function bindInput(input) {
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ',') {
+        e.preventDefault();
+        addFromInput(input);
+      } else if (e.key === 'Backspace' && input.selectionStart === 0 && chips.length) {
+        chips.pop();
+        render();
+      }
+    });
+    input.addEventListener('blur', () => addFromInput(input));
+    input.addEventListener('paste', () => setTimeout(() => addFromInput(input), 0));
+  }
+
+  function bindRemoves() {
+    container.querySelectorAll('.chip-remove').forEach(btn => {
+      btn.addEventListener('click', () => {
+        chips = chips.filter(e => e !== btn.dataset.email);
+        render();
+      });
+    });
+  }
+
+  function addFromInput(input) {
+    const val = input.value.trim().replace(/[,;]+$/, '').trim();
+    if (val) {
+      const parsed = parseEmails(val);
+      for (const email of parsed) {
+        if (!chips.includes(email)) chips.push(email);
+      }
+    }
+    input.value = '';
+    render();
+  }
+
+  chips = parseEmails(hidden.value);
+  render();
+}
+window.SYNTHRUN_INIT_CHIP_INPUT = initChipInput;
+
+function flushChipInputs() {
+  ['toChips', 'ccChips', 'bccChips'].forEach((id) => {
+    const container = document.getElementById(id);
+    if (!container) return;
+    const input = container.querySelector('.chip-input');
+    if (input && input.value.trim()) {
+      const hidden = container.querySelector('input[type="hidden"]');
+      const existing = hidden.value ? hidden.value.split(',').map(s => s.trim()).filter(Boolean) : [];
+      const newEmails = input.value.split(/[,;]/).map(s => s.trim().toLowerCase()).filter(Boolean);
+      const all = [...existing];
+      for (const e of newEmails) { if (!all.includes(e)) all.push(e); }
+      hidden.value = all.join(', ');
+      initChipInput(id);
+    }
+  });
+}
+window.SYNTHRUN_FLUSH_CHIPS = flushChipInputs;
+
+/* ── Resizable Splits ── */
+function initResize(handleId, cssVar, minPx = 160, maxPx = 500) {
+  const handle = document.getElementById(handleId);
+  let startX, startVal;
+
+  function onMouseDown(e) {
+    e.preventDefault();
+    startX = e.clientX;
+    startVal = parseInt(getComputedStyle(document.documentElement).getPropertyValue(cssVar).trim()) || 220;
+    handle.classList.add('resizing');
+    document.addEventListener('mousemove', onMouseMove);
+    document.addEventListener('mouseup', onMouseUp);
+  }
+
+  function onMouseMove(e) {
+    const dx = e.clientX - startX;
+    const dir = handleId === 'splitResize' ? -1 : 1;
+    let val = Math.round(startVal + dx * dir);
+    if (val < minPx) val = minPx;
+    if (val > maxPx) val = maxPx;
+    document.documentElement.style.setProperty(cssVar, val + 'px');
+  }
+
+  function onMouseUp() {
+    handle.classList.remove('resizing');
+    document.removeEventListener('mousemove', onMouseMove);
+    document.removeEventListener('mouseup', onMouseUp);
+    const val = parseInt(getComputedStyle(document.documentElement).getPropertyValue(cssVar).trim());
+    if (val) localStorage.setItem('synthrun-' + cssVar.replace('--', ''), val);
+  }
+
+  handle.addEventListener('mousedown', onMouseDown);
+  const saved = localStorage.getItem('synthrun-' + cssVar.replace('--', ''));
+  if (saved) document.documentElement.style.setProperty(cssVar, saved + 'px');
+}
+
+initResize('sidebarResize', '--sidebar-w', 160, 400);
+initResize('splitResize', '--thread-w', 200, 600);
 
 document.getElementById('mailHomeBtn')?.addEventListener('click', async (event) => {
   event.preventDefault();

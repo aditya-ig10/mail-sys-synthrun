@@ -19,9 +19,9 @@ const SEND_ENDPOINT = getSendEndpoint();
 const LOGIN_URL = '/login/';
 const ALLOWED_DOMAIN = 'synthrun.site';
 const BOUNCE_ADDRESS_PATTERN = /^bounces-[^@]+@gw\.d\.sender-sib\.com$/i;
-const FOLDER_LABELS = { inbox: 'Inbox', unread: 'Unread', sent: 'Sent', outbox: 'Outbox', archived: 'Archived', flagged: 'Flagged', important: 'Important', drafts: 'Drafts', trash: 'Trash', clients: 'Clients' };
-const ROUTE_FOLDER_ALIASES = { all: 'inbox', inbox: 'inbox', unread: 'unread', sent: 'sent', outbox: 'outbox', archive: 'archived', archived: 'archived', flagged: 'flagged', important: 'important', drafts: 'drafts', draft: 'drafts', trash: 'trash', clients: 'clients' };
-const ROUTE_FOLDER_SEGMENTS = { inbox: 'all', unread: 'unread', sent: 'sent', outbox: 'outbox', archived: 'archive', flagged: 'flagged', important: 'important', drafts: 'drafts', trash: 'trash', clients: 'clients' };
+const FOLDER_LABELS = { inbox: 'Inbox', unread: 'Unread', sent: 'Sent', outbox: 'Outbox', archived: 'Archived', flagged: 'Flagged', important: 'Important', drafts: 'Drafts', trash: 'Trash', clients: 'Clients', spam: 'Spam' };
+const ROUTE_FOLDER_ALIASES = { all: 'inbox', inbox: 'inbox', unread: 'unread', sent: 'sent', outbox: 'outbox', archive: 'archived', archived: 'archived', flagged: 'flagged', important: 'important', drafts: 'drafts', draft: 'drafts', trash: 'trash', clients: 'clients', spam: 'spam' };
+const ROUTE_FOLDER_SEGMENTS = { inbox: 'all', unread: 'unread', sent: 'sent', outbox: 'outbox', archived: 'archive', flagged: 'flagged', important: 'important', drafts: 'drafts', trash: 'trash', clients: 'clients', spam: 'spam' };
 
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
@@ -485,7 +485,7 @@ function renderList() {
   const queryText = document.getElementById('searchInput').value.trim().toLowerCase();
   let messages = allMessages.slice();
 
-  if (currentFolder === 'unread') messages = messages.filter((message) => message.unread && message.folder !== 'sent' && message.folder !== 'draft' && message.folder !== 'trash' && message.folder !== 'outbox');
+  if (currentFolder === 'unread') messages = messages.filter((message) => message.unread && message.folder !== 'sent' && message.folder !== 'draft' && message.folder !== 'trash' && message.folder !== 'outbox' && message.folder !== 'spam');
   else if (currentFolder === 'sent') messages = messages.filter((message) => message.folder === 'sent');
   else if (currentFolder === 'outbox') messages = messages.filter((message) => message.folder === 'outbox');
   else if (currentFolder === 'archived') messages = messages.filter((message) => message.folder === 'archived');
@@ -494,7 +494,8 @@ function renderList() {
   else if (currentFolder === 'drafts') messages = messages.filter((message) => message.folder === 'draft');
   else if (currentFolder === 'trash') messages = messages.filter((message) => message.folder === 'trash');
   else if (currentFolder === 'clients') messages = messages.filter((message) => Array.isArray(message.labels) && message.labels.includes('clients'));
-  else messages = messages.filter((message) => message.folder !== 'sent' && message.folder !== 'draft' && message.folder !== 'trash' && message.folder !== 'outbox');
+  else if (currentFolder === 'spam') messages = messages.filter((message) => message.folder === 'spam');
+  else messages = messages.filter((message) => message.folder !== 'sent' && message.folder !== 'draft' && message.folder !== 'trash' && message.folder !== 'outbox' && message.folder !== 'spam');
 
   if (queryText) {
     messages = messages.filter((message) => {
@@ -505,11 +506,12 @@ function renderList() {
     });
   }
 
-  const inboxUnread = allMessages.filter((message) => message.unread && message.folder !== 'sent' && message.folder !== 'draft' && message.folder !== 'trash' && message.folder !== 'outbox').length;
+  const inboxUnread = allMessages.filter((message) => message.unread && message.folder !== 'sent' && message.folder !== 'draft' && message.folder !== 'trash' && message.folder !== 'outbox' && message.folder !== 'spam').length;
   const draftCount = allMessages.filter((message) => message.folder === 'draft').length;
   const trashCount = allMessages.filter((message) => message.folder === 'trash').length;
   const importantCount = allMessages.filter((message) => message.important).length;
   const outboxCount = allMessages.filter((message) => message.folder === 'outbox').length;
+  const spamCount = allMessages.filter((message) => message.folder === 'spam').length;
   document.getElementById('badge-inbox').textContent = String(inboxUnread || 0);
   document.getElementById('badge-unread').textContent = String(inboxUnread || 0);
   document.getElementById('badge-archived').textContent = String(allMessages.filter((message) => message.folder === 'archived').length || 0);
@@ -518,6 +520,7 @@ function renderList() {
   document.getElementById('badge-drafts').textContent = String(draftCount || '—');
   document.getElementById('badge-trash').textContent = String(trashCount || 0);
   document.getElementById('badge-outbox').textContent = String(outboxCount || 0);
+  document.getElementById('badge-spam').textContent = String(spamCount || 0);
   document.getElementById('statusCount').textContent = `${messages.length} message${messages.length === 1 ? '' : 's'}`;
 
   container.innerHTML = '';
@@ -582,6 +585,7 @@ async function loadDraft() {
 
 async function saveDraft() {
   if (!currentUser) return;
+  window.SYNTHRUN_FLUSH_CHIPS?.();
   const to = document.getElementById('compTo').value.trim();
   const cc = document.getElementById('compCc').value.trim();
   const bcc = document.getElementById('compBcc').value.trim();
@@ -659,7 +663,7 @@ async function openMessage(id, { updateRoute = true, replaceRoute = false } = {}
 
   const timestamp = toDate(message.receivedAt);
   document.getElementById('viewSubject').textContent = message.subject || '(no subject)';
-  document.getElementById('viewCount').textContent = message.folder === 'sent' ? 'Sent' : message.folder === 'outbox' ? 'Outbox' : 'Inbox';
+  document.getElementById('viewCount').textContent = message.folder === 'sent' ? 'Sent' : message.folder === 'outbox' ? 'Outbox' : message.folder === 'spam' ? 'Spam' : 'Inbox';
   document.getElementById('viewDate').textContent = timestamp.toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' });
 
   const attachments = Array.isArray(message.attachments) ? message.attachments : [];
@@ -700,22 +704,32 @@ async function openMessage(id, { updateRoute = true, replaceRoute = false } = {}
   document.getElementById('forwardBtn').onclick = () => openCompose({ subject: `Fwd: ${message.subject || ''}`, prefill: `\n\n---\nFrom: ${getSenderLabel(message) || ''}\n${message.body || ''}` });
   const isTrash = message.folder === 'trash';
   const isOutbox = message.folder === 'outbox';
+  const isSpam = message.folder === 'spam';
   document.getElementById('deleteBtn').onclick = () => isTrash ? deleteForever(id) : trashMessage(id);
-  document.getElementById('deleteBtn').title = isTrash ? 'Delete forever' : 'Trash';
-  document.getElementById('deleteBtn').setAttribute('aria-label', isTrash ? 'Delete forever' : 'Move to trash');
-  document.getElementById('archiveBtn').onclick = () => toggleArchive(id);
+  document.getElementById('deleteBtn').title = isTrash ? 'Delete forever' : isSpam ? 'Move to trash' : 'Trash';
+  document.getElementById('deleteBtn').setAttribute('aria-label', isTrash ? 'Delete forever' : isSpam ? 'Move to trash' : 'Move to trash');
+  document.getElementById('archiveBtn').onclick = () => isSpam ? markAsNotSpam(id) : toggleArchive(id);
   document.getElementById('flagBtn').onclick = () => toggleFlag(id);
   document.getElementById('importantBtn').onclick = () => toggleImportant(id);
   document.getElementById('markUnreadBtn').onclick = () => markUnread(id);
   syncArchiveButtonState(message.folder === 'archived');
+  if (isSpam) {
+    document.getElementById('archiveBtn').title = 'Not spam';
+    document.getElementById('archiveBtn').setAttribute('aria-label', 'Mark as not spam');
+  }
   syncFlagButtonState(message.flagged);
   syncImportantButtonState(message.important);
 
-  document.getElementById('replyBtn').style.display = isTrash || isOutbox ? 'none' : '';
-  document.getElementById('forwardBtn').style.display = isTrash || isOutbox ? 'none' : '';
+  document.getElementById('replyBtn').style.display = isTrash || isOutbox || isSpam ? 'none' : '';
+  document.getElementById('forwardBtn').style.display = isTrash || isOutbox || isSpam ? 'none' : '';
+  document.getElementById('notSpamBtn').style.display = isSpam ? '' : 'none';
   document.getElementById('restoreBtn').style.display = isTrash ? '' : 'none';
-  document.getElementById('deleteForeverBtn').style.display = isTrash ? '' : 'none';
+  document.getElementById('deleteForeverBtn').style.display = isTrash || isSpam ? '' : 'none';
   document.getElementById('retryBtn').style.display = isOutbox && message.status === 'failed' ? '' : 'none';
+
+  if (isSpam) {
+    document.getElementById('notSpamBtn').onclick = () => markAsNotSpam(id);
+  }
 
   if (updateRoute) {
     syncRouteToLocation({ folder: currentFolder, messageId: id, replace: replaceRoute });
@@ -855,6 +869,20 @@ async function restoreMessage(id) {
   }
 }
 
+async function markAsNotSpam(id) {
+  try {
+    await updateDoc(doc(db, 'mail', id), { folder: 'inbox' });
+    const msg = allMessages.find((m) => m.id === id);
+    if (msg) msg.folder = 'inbox';
+    closeMessageView({ replaceRoute: true });
+    renderList();
+    showToast('Moved to inbox.');
+  } catch (error) {
+    console.error('markAsNotSpam:', error);
+    showToast('Could not move to inbox.', true);
+  }
+}
+
 async function deleteForever(id) {
   try {
     await deleteDoc(doc(db, 'mail', id));
@@ -951,6 +979,9 @@ function stripHtmlToText(html) {
 
 async function openCompose({ to = '', cc = '', bcc = '', subject = '', prefill = '' } = {}) {
   const isReply = Boolean(to || cc || bcc || subject || prefill);
+  document.getElementById('compTo').value = to;
+  document.getElementById('compCc').value = cc;
+  document.getElementById('compBcc').value = bcc;
   if (!isReply) {
     const draft = await loadDraft();
     if (draft) {
@@ -971,16 +1002,10 @@ async function openCompose({ to = '', cc = '', bcc = '', subject = '', prefill =
       setComposeStatus('Draft restored');
     }
     if (!draft) {
-      document.getElementById('compTo').value = '';
-      document.getElementById('compCc').value = '';
-      document.getElementById('compBcc').value = '';
       document.getElementById('compSubject').value = '';
       document.getElementById('compBody').value = '';
     }
   } else {
-    document.getElementById('compTo').value = to;
-    document.getElementById('compCc').value = cc;
-    document.getElementById('compBcc').value = bcc;
     document.getElementById('compSubject').value = subject;
     document.getElementById('compBody').value = prefill;
     setComposeStatus('');
@@ -990,8 +1015,11 @@ async function openCompose({ to = '', cc = '', bcc = '', subject = '', prefill =
   renderDraftAttachments();
   window.SYNTHRUN_RESET_COMPOSE_MODAL?.();
   clearComposeValidation();
+  window.SYNTHRUN_INIT_CHIP_INPUT?.('toChips', 'recipient@example.com');
+  window.SYNTHRUN_INIT_CHIP_INPUT?.('ccChips');
+  window.SYNTHRUN_INIT_CHIP_INPUT?.('bccChips');
   document.getElementById('composeOverlay').classList.add('show');
-  document.getElementById('compTo').focus();
+  document.getElementById('toChips').querySelector('.chip-input')?.focus();
 }
 
 async function closeCompose() {
@@ -1130,6 +1158,7 @@ function themedEmailWrapper(bodyHtml) {
 }
 
 async function sendMessage() {
+  window.SYNTHRUN_FLUSH_CHIPS?.();
   const to = document.getElementById('compTo').value.trim();
   const cc = document.getElementById('compCc').value.trim();
   const bcc = document.getElementById('compBcc').value.trim();
