@@ -101,7 +101,7 @@ header {
   z-index: 10;
 }
 .h-logo {
-  display: inline-flex;
+  display: flex;
   gap: 9px;
   align-items: center;
   justify-content: center;
@@ -110,6 +110,7 @@ header {
   letter-spacing: 0.14em;
   height: 100%;
   padding: 0 18px;
+  flex: 1; min-width: 0;
   border-right: 1px solid var(--line);
   color: var(--text);
   transition: background var(--transition);
@@ -117,6 +118,19 @@ header {
 .h-logo:hover { background: rgba(0,0,0,0.03); }
 body[data-theme="dark"] .h-logo:hover { background: rgba(255,255,255,0.03); }
 .h-logo svg { width: 17px; height: 17px; stroke: currentColor; fill: none; stroke-width: 1.4; flex-shrink: 0; }
+
+/* ─── Sidebar Toggle (mobile only) ──────────────────────────── */
+.sidebar-toggle {
+  display: none;
+  place-items: center;
+  width: 44px; height: 44px;
+  border: none; background: none;
+  cursor: pointer; color: var(--text);
+  flex-shrink: 0;
+  -webkit-tap-highlight-color: transparent;
+}
+.sidebar-toggle svg { width: 20px; height: 20px; stroke: currentColor; fill: none; stroke-width: 1.6; }
+.h-left { display: flex; align-items: center; }
 
 .h-search {
   display: flex;
@@ -247,6 +261,8 @@ aside hr { width: 100%; border: 0; border-top: 1px solid var(--line); margin: 0;
   text-transform: uppercase; font-size: 11px; letter-spacing: 0.1em;
   cursor: pointer;
   transition: opacity var(--transition);
+  border-radius: 10px;
+  font-weight: 600;
 }
 .compose-btn:hover { opacity: 0.85; }
 .compose-btn:focus-visible { outline: 2px solid var(--text); outline-offset: 2px; }
@@ -686,6 +702,7 @@ body[data-theme="dark"] .compose-close:hover { background: rgba(255,255,255,0.05
 .compose-body { flex: 1; overflow: auto; padding: 13px; min-height: 160px; }
 
 /* ─── Resizable Splits ─────────────────────────────────── */
+.sidebar-backdrop { display: none; }
 .resize-handle {
   position: absolute; top: 0; bottom: 0;
   width: 5px; cursor: col-resize; z-index: 10;
@@ -944,18 +961,6 @@ header, .app-body, .compose-modal { animation: pageRise 0.32s ease both; }
   *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; }
 }
 
-/* ─── Mobile Navigation ──────────────────────────────────────── */
-.mobile-nav { display: none; position: fixed; bottom: 0; left: 0; right: 0; height: 52px; z-index: 20; background: var(--panel); border-top: 1px solid var(--line); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); }
-.mobile-nav-inner { display: grid; grid-template-columns: repeat(10, 1fr); height: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
-.mobile-nav-btn { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; border: 0; background: transparent; cursor: pointer; color: var(--subtle); font-size: 9px; letter-spacing: 0.08em; text-transform: uppercase; padding: 0; transition: color var(--transition); -webkit-tap-highlight-color: transparent; }
-.mobile-nav-btn.active { color: var(--text); }
-.mobile-nav-btn svg { width: 18px; height: 18px; stroke: currentColor; fill: none; stroke-width: 1.4; }
-.mobile-nav-badge { position: absolute; top: 6px; right: calc(50% - 16px); min-width: 16px; height: 16px; padding: 0 4px; background: var(--unread-dot); color: #fff; font-size: 8px; border-radius: 8px; display: grid; place-items: center; line-height: 1; }
-.mobile-nav-btn { position: relative; }
-.mobile-compose-fab {
-  display: none;
-}
-
 /* ─── Responsive ─────────────────────────────────────────────── */
 @media (max-width: 1100px) {
   :root { --thread-w: 280px; }
@@ -965,8 +970,30 @@ header, .app-body, .compose-modal { animation: pageRise 0.32s ease both; }
 }
 @media (max-width: 900px) {
   header { grid-template-columns: auto 1fr auto; }
-  .h-logo { border-right: 1px solid var(--line); padding: 0 14px; }
-  aside { display: none !important; }
+  .sidebar-toggle { display: grid; }
+  .h-logo { padding: 0 14px; }
+  aside {
+    position: fixed; z-index: 30; left: 0; top: 0; bottom: 0;
+    width: 260px;
+    display: flex !important; flex-direction: column;
+    background: var(--panel-strong);
+    border-right: 1px solid var(--line);
+    padding: 12px 12px 20px;
+    transform: translateX(-100%);
+    transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  aside .compose-btn { margin-bottom: 8px; }
+  .sidebar-open aside { transform: translateX(0); }
+  .sidebar-backdrop {
+    display: none;
+    position: fixed; inset: 0; z-index: 29;
+    background: rgba(0,0,0,0.45);
+    backdrop-filter: blur(2px);
+    -webkit-backdrop-filter: blur(2px);
+  }
+  .sidebar-open .sidebar-backdrop { display: block; }
   .app-body { grid-template-columns: 1fr; }
   .status-bar .status-item:nth-child(3) { display: none; }
 }
@@ -979,14 +1006,15 @@ header, .app-body, .compose-modal { animation: pageRise 0.32s ease both; }
   .user-chip { padding: 5px 8px; }
 }
 @media (max-width: 640px) {
-  :root { --status-h: 0px; --mobile-nav-h: 52px; --header-h: 48px; }
+  :root { --status-h: 0px; --mobile-nav-h: 0px; --header-h: 48px; }
   body { overflow: hidden; }
   header { padding-right: 10px; height: var(--header-h); }
+  .h-logo { padding: 0 10px; border-right: none; font-size: 10px; }
+  .h-logo svg { width: 15px; height: 15px; }
   .h-search { display: flex; flex: 1; min-width: 0; max-width: none; height: 32px; margin-right: 8px; padding: 0 10px; }
   .h-search input { font-size: 11px; }
   .status-bar { display: none; }
-  .mobile-nav { display: block; }
-  .app-body { height: calc(100vh - var(--header-h) - var(--mobile-nav-h)); grid-template-columns: 1fr; overflow: hidden; }
+  .app-body { height: calc(100vh - var(--header-h)); grid-template-columns: 1fr; overflow: hidden; }
   .mail-panel { grid-template-columns: 1fr; position: relative; height: 100%; overflow: hidden; }
   .thread-list { display: flex !important; position: absolute; inset: 0; width: 100%; z-index: 1; background: var(--panel-strong); transform: translateX(0); transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1); will-change: transform; }
   .thread-items { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; }
@@ -1015,32 +1043,11 @@ header, .app-body, .compose-modal { animation: pageRise 0.32s ease both; }
   .mail-bubble-header { padding: 10px 12px; }
   .mail-view-empty h3 { font-size: 20px; }
   .compose-overlay { padding: 0; align-items: flex-end; }
-  .compose-modal { width: 100%; max-height: calc(100vh - var(--header-h) - var(--mobile-nav-h)); position: relative; border-left: 0; border-right: 0; border-bottom: 0; }
+  .compose-modal { width: 100%; max-height: calc(100vh - var(--header-h)); position: relative; border-left: 0; border-right: 0; border-bottom: 0; }
   .compose-body { min-height: 120px; }
   .compose-body textarea { min-height: 120px; }
-  .toast { bottom: calc(var(--mobile-nav-h) + 12px); }
+  .toast { bottom: 12px; }
   .template-grid { padding-bottom: 10px; }
-  .mobile-compose-fab {
-    display: grid;
-    position: fixed;
-    right: 14px;
-    bottom: calc(var(--mobile-nav-h) + 14px);
-    width: 58px;
-    height: 58px;
-    border-radius: 18px;
-    align-items: center;
-    justify-items: center;
-    border: 1px solid var(--accent);
-    background: var(--accent);
-    color: var(--accent-contrast);
-    box-shadow: 0 14px 34px rgba(0,0,0,0.22);
-    z-index: 24;
-    cursor: pointer;
-    -webkit-tap-highlight-color: transparent;
-  }
-  .mobile-compose-fab:hover { opacity: 0.92; }
-  .mobile-compose-fab:focus-visible { outline: 2px solid var(--text); outline-offset: 3px; }
-  .mobile-compose-fab svg { width: 20px; height: 20px; stroke: currentColor; fill: none; stroke-width: 1.6; }
 }
 
 @media (min-width: 641px) {
@@ -1114,13 +1121,18 @@ button:focus:not(:focus-visible), input:focus:not(:focus-visible) { outline: non
 
 <!-- ── Header ────────────────────────────────────────────────── -->
 <header>
-  <a href="/" class="h-logo" id="mailHomeBtn" aria-label="Synthrun Mail home">
-    <svg viewBox="0 0 24 24" aria-hidden="true">
-      <circle cx="12" cy="12" r="8.5"></circle>
-      <path d="M7 14c1.4-2.6 3.1-4 5.1-4s3.8 1.4 5.2 4"></path>
-    </svg>
-    Mail
-  </a>
+  <div class="h-left">
+    <button class="sidebar-toggle" id="sidebarToggle" type="button" aria-label="Toggle navigation">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18M3 12h18M3 18h18"></path></svg>
+    </button>
+    <a href="/" class="h-logo" id="mailHomeBtn" aria-label="Synthrun Mail home">
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <circle cx="12" cy="12" r="8.5"></circle>
+        <path d="M7 14c1.4-2.6 3.1-4 5.1-4s3.8 1.4 5.2 4"></path>
+      </svg>
+      Mail
+    </a>
+  </div>
   <div class="h-search" role="search">
     <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="m16.5 16.5 4 4"></path></svg>
     <input type="search" id="searchInput" placeholder="Search mail…" aria-label="Search mail">
@@ -1215,6 +1227,7 @@ button:focus:not(:focus-visible), input:focus:not(:focus-visible) { outline: non
       </button>
     </div>
   </aside>
+  <div class="sidebar-backdrop" id="sidebarBackdrop" aria-hidden="true"></div>
   <div class="resize-handle" id="sidebarResize" aria-hidden="true"></div>
   <div class="mail-panel" id="mailPanel">
     <div class="thread-list" id="threadList">
@@ -1324,55 +1337,7 @@ button:focus:not(:focus-visible), input:focus:not(:focus-visible) { outline: non
   <div class="status-item ml" id="statusTime"></div>
 </div>
 
-<!-- ── Mobile Bottom Nav ──────────────────────────────────────── -->
-<nav class="mobile-nav" aria-label="Main navigation">
-  <div class="mobile-nav-inner">
-    <button class="mobile-nav-btn active" data-folder="inbox" id="mob-inbox" type="button" aria-label="Inbox">
-      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 8l7.9 5.3a2 2 0 0 0 2.2 0L21 8M5 19h14a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2z"></path></svg>
-      Inbox
-      <span class="mobile-nav-badge" id="mob-badge-inbox" style="display:none"></span>
-    </button>
-    <button class="mobile-nav-btn" data-folder="unread" id="mob-unread" type="button" aria-label="Unread">
-      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"></circle><path d="M2 12C4.7 6.5 8 4 12 4s7.3 2.5 10 8c-2.7 5.5-6 8-10 8S4.7 17.5 2 12"></path></svg>
-      Unread
-    </button>
-    <button class="mobile-nav-btn" data-folder="sent" id="mob-sent" type="button" aria-label="Sent">
-      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"></path></svg>
-      Sent
-    </button>
-    <button class="mobile-nav-btn" data-folder="archived" id="mob-archived" type="button" aria-label="Archived">
-      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7h18v4H3z"></path><path d="M5 11v8h14v-8"></path><path d="M9 15h6"></path></svg>
-      Archived
-    </button>
-    <button class="mobile-nav-btn" data-folder="flagged" id="mob-flagged" type="button" aria-label="Flagged">
-      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"></path><path d="M4 22V15"></path></svg>
-      Flagged
-    </button>
-    <button class="mobile-nav-btn" data-folder="important" id="mob-important" type="button" aria-label="Important">
-      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2l3.1 6.3 6.9 1-5 4.9 1.2 6.9L12 16.5 5.8 21l1.2-6.9L2 9.2l6.9-1L12 2z"></path></svg>
-      Imp.
-    </button>
-    <button class="mobile-nav-btn" data-folder="drafts" id="mob-drafts" type="button" aria-label="Drafts">
-      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5H5a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-7"></path><path d="m18 2 4 4-9 9H9v-4l9-9z"></path></svg>
-      Drafts
-    </button>
-    <button class="mobile-nav-btn" data-folder="trash" id="mob-trash" type="button" aria-label="Trash">
-      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"></path></svg>
-      Trash
-    </button>
-    <button class="mobile-nav-btn" data-folder="spam" id="mob-spam" type="button" aria-label="Spam">
-      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2L2 7v5c0 8 4 12 10 14 6-2 10-6 10-14V7l-10-5z"></path><path d="M12 8v4M12 16h0"></path></svg>
-      Spam
-    </button>
-    <button class="mobile-nav-btn" data-folder="outbox" id="mob-outbox" type="button" aria-label="Outbox">
-      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2M8 5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2M8 5h8"></path><path d="M12 11v5M10 13l2 2 2-2"></path></svg>
-      Outbox
-    </button>
-  </div>
-</nav>
-<button class="mobile-compose-fab" id="mob-compose" type="button" aria-label="Compose">
-  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5H5a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-7"></path><path d="m18 2 4 4-9 9H9v-4l9-9z"></path></svg>
-</button>
+<!-- ── Mobile sidebar is now the sidebar with overlay ─────────── -->
 
 <!-- ══════════════════════════════════════════════════════════════
      NEW: Enhanced Compose Overlay with Template Picker
@@ -1484,7 +1449,7 @@ button:focus:not(:focus-visible), input:focus:not(:focus-visible) { outline: non
       <div class="html-editor-pane active" id="htmlCodePane">
         <textarea id="compHtmlBody" placeholder="Paste or write your HTML email here…" aria-label="HTML message body" spellcheck="false"></textarea>
       </div>
-      <iframe class="html-preview-pane" id="htmlPreviewPane" title="Email HTML preview" sandbox="allow-same-origin"></iframe>
+      <iframe class="html-preview-pane" id="htmlPreviewPane" title="Email HTML preview" sandbox="allow-same-origin allow-scripts"></iframe>
     </div>
 
     <div class="compose-attachments">
@@ -1608,6 +1573,7 @@ function initChipInput(containerId, placeholder = 'add recipient') {
     }
     html += `<input type="text" class="chip-input" placeholder="${chips.length ? '' : placeholder}" autocomplete="email">`;
     container.innerHTML = html;
+    container.prepend(hidden);
     const newInput = container.querySelector('.chip-input');
     const existingChips = parseEmails(hidden.value);
     if (existingChips.length && !chips.length) {
@@ -1862,25 +1828,26 @@ if (mobileBackBtn) {
   });
 }
 
-/* ── Mobile compose trigger ── */
-const mobCompose = document.getElementById('mob-compose');
-if (mobCompose) {
-  mobCompose.addEventListener('click', () => {
-    document.getElementById('composeBtn')?.click();
+/* ── Sidebar toggle (mobile) ── */
+const sidebarToggle = document.getElementById('sidebarToggle');
+const sidebarBackdrop = document.getElementById('sidebarBackdrop');
+function closeSidebar() {
+  document.body.classList.remove('sidebar-open');
+}
+if (sidebarToggle) {
+  sidebarToggle.addEventListener('click', () => {
+    document.body.classList.toggle('sidebar-open');
   });
 }
+if (sidebarBackdrop) {
+  sidebarBackdrop.addEventListener('click', closeSidebar);
+}
 
-/* ── Mobile nav folder switching ── */
-document.querySelectorAll('.mobile-nav-btn[data-folder]').forEach(btn => {
-  btn.addEventListener('click', () => {
-    window.SYNTHRUN_CLOSE_MESSAGE_VIEW?.();
-    const folder = btn.dataset.folder;
-    const desktopBtn = document.querySelector(`[data-folder="${folder}"]`);
-    if (desktopBtn && desktopBtn !== btn) desktopBtn.click();
-    document.querySelectorAll('.mobile-nav-btn').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
-  });
+/* ── Close sidebar on folder click (mobile) ── */
+document.querySelectorAll('aside .side-link[data-folder]').forEach(btn => {
+  btn.addEventListener('click', closeSidebar);
 });
+document.getElementById('composeBtn')?.addEventListener('click', closeSidebar);
 
 /* ── Keyboard: close user menu on Escape ── */
 document.addEventListener('keydown', e => {

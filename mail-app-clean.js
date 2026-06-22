@@ -107,7 +107,6 @@ function updateFolderSelection(folder) {
   currentFolder = folder;
   document.getElementById('folderLabel').textContent = FOLDER_LABELS[folder] || folder;
   document.querySelectorAll('.side-link').forEach((item) => item.classList.remove('active'));
-  document.querySelectorAll('.mobile-nav-btn').forEach((item) => item.classList.remove('active'));
   document.querySelectorAll(`[data-folder="${folder}"]`).forEach((item) => item.classList.add('active'));
 }
 
