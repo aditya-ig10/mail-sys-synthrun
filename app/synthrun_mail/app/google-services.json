@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "509942158944",
+    "project_id": "synthrun-site",
+    "storage_bucket": "synthrun-site.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:509942158944:android:eaad075b8f1ef03a5b9505",
+        "android_client_info": {
+          "package_name": "com.synthrun.mail"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBhHjeLL5_REmM1F41MdN4LtV0jmmk7-aI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
