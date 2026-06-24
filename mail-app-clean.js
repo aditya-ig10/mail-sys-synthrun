@@ -121,13 +121,19 @@ function showFolderView({ folder = currentFolder, replaceRoute = false } = {}) {
 }
 
 async function restoreRouteState() {
-  const { folder } = getRouteStateFromLocation();
+  const { folder, messageId } = getRouteStateFromLocation();
   updateFolderSelection(folder);
   activeMessageId = null;
-  document.getElementById('emptyView').style.display = 'flex';
-  document.getElementById('messageView').style.display = 'none';
-  setMessageOpenState(false);
-  syncRouteToLocation({ folder, messageId: null, replace: true });
+
+  if (messageId) {
+    await openMessage(messageId, { replaceRoute: true });
+  } else {
+    document.getElementById('emptyView').style.display = 'flex';
+    document.getElementById('messageView').style.display = 'none';
+    setMessageOpenState(false);
+  }
+
+  syncRouteToLocation({ folder, messageId: messageId || null, replace: true });
   renderList();
 }
 
@@ -1201,6 +1207,10 @@ async function uploadDraftAttachments() {
 
   for (let index = 0; index < draftAttachments.length; index += 1) {
     const file = draftAttachments[index];
+    if (file.url) {
+      uploads.push({ name: file.name, size: file.size, type: file.type, fileId: file.fileId, url: file.url });
+      continue;
+    }
     const pct = Math.round(((index) / total) * 100);
     progressBar.style.width = `${pct}%`;
     setComposeStatus(`Uploading ${index + 1}/${total}: ${file.name}`);
