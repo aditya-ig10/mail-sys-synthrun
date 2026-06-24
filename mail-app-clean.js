@@ -728,6 +728,27 @@ async function openMessage(id, { updateRoute = true, replaceRoute = false } = {}
       </div>`
     : '';
 
+  let bodyHtml = '';
+  let isBodyHtml = false;
+  if (message.htmlBody && hasHtmlTags(message.htmlBody)) {
+    bodyHtml = message.htmlBody;
+    isBodyHtml = true;
+  } else if (message.htmlBody && !hasHtmlTags(message.htmlBody)) {
+    bodyHtml = escapeHtml(message.htmlBody);
+  } else if (message.body && hasHtmlTags(message.body)) {
+    bodyHtml = message.body;
+    isBodyHtml = true;
+  } else if (message.body) {
+    if (containsMarkdown(message.body)) {
+      bodyHtml = renderMarkdown(message.body);
+      isBodyHtml = true;
+    } else {
+      bodyHtml = escapeHtml(message.body);
+    }
+  }
+
+  const replyBody = message.htmlBody && hasHtmlTags(message.htmlBody) ? stripHtmlToText(message.htmlBody) : (message.body || '');
+
   document.getElementById('mailBodyScroll').innerHTML = `
     <div class="mail-bubble">
       <div class="mail-bubble-header">
@@ -740,15 +761,15 @@ async function openMessage(id, { updateRoute = true, replaceRoute = false } = {}
         </div>
         <div class="mail-bubble-time">${timestamp.toLocaleString([], { dateStyle: 'long', timeStyle: 'short' })}</div>
       </div>
-      <div class="mail-bubble-body${message.htmlBody ? ' is-html' : ''}">${message.htmlBody || escapeHtml(message.body || '')}</div>
+      <div class="mail-bubble-body${isBodyHtml ? ' is-html' : ''}">${bodyHtml}</div>
       ${attachmentMarkup}
     </div>`;
 
   document.getElementById('emptyView').style.display = 'none';
   document.getElementById('messageView').style.display = 'flex';
   const replyTarget = getSenderIdentity(message).email || message.from || '';
-  document.getElementById('replyBtn').onclick = () => openCompose({ to: replyTarget, subject: `Re: ${message.subject || ''}`, prefill: `\n\n---\nFrom: ${getSenderLabel(message) || ''}\n${message.body || ''}` });
-  document.getElementById('forwardBtn').onclick = () => openCompose({ subject: `Fwd: ${message.subject || ''}`, prefill: `\n\n---\nFrom: ${getSenderLabel(message) || ''}\n${message.body || ''}` });
+  document.getElementById('replyBtn').onclick = () => openCompose({ to: replyTarget, subject: `Re: ${message.subject || ''}`, prefill: `\n\n---\nFrom: ${getSenderLabel(message) || ''}\n${replyBody}` });
+  document.getElementById('forwardBtn').onclick = () => openCompose({ subject: `Fwd: ${message.subject || ''}`, prefill: `\n\n---\nFrom: ${getSenderLabel(message) || ''}\n${replyBody}` });
   const isTrash = message.folder === 'trash';
   const isOutbox = message.folder === 'outbox';
   const isSpam = message.folder === 'spam';
@@ -1386,6 +1407,47 @@ function stripMarkdown(text) {
     .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
     .replace(/^[>\s]+/gm, '')
     .trim();
+}
+
+function hasHtmlTags(text) {
+  return /<[a-z][\s\S]*>/i.test(String(text));
+}
+
+function containsMarkdown(text) {
+  return /(\*\*|__|~~|`|^#{1,3}\s|^\[.+\]\(|^[-*]\s|^\d+\.\s|^>\s)/m.test(String(text));
+}
+
+function renderMarkdown(text) {
+  let html = String(text);
+
+  html = html.replace(/^### (.+)$/gm, '<h3>$1</h3>');
+  html = html.replace(/^## (.+)$/gm, '<h2>$1</h2>');
+  html = html.replace(/^# (.+)$/gm, '<h1>$1</h1>');
+
+  html = html.replace(/^> (.+)$/gm, '<blockquote>$1</blockquote>');
+
+  html = html.replace(/^[\d]+\. (.+)$/gm, '<ol><li>$1</li></ol>');
+  html = html.replace(/^[-*] (.+)$/gm, '<ul><li>$1</li></ul>');
+
+  html = html.replace(/```([\s\S]*?)```/g, '<pre><code>$1</code></pre>');
+
+  html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
+
+  html = html.replace(/~~(.+?)~~/g, '<del>$1</del>');
+
+  html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+  html = html.replace(/__(.+?)__/g, '<strong>$1</strong>');
+
+  html = html.replace(/\*(.+?)\*/g, '<em>$1</em>');
+  html = html.replace(/_(.+?)_/g, '<em>$1</em>');
+
+  html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noreferrer">$1</a>');
+
+  html = html.replace(/\n{2,}/g, '</p><p>');
+  html = html.replace(/\n/g, '<br>');
+  html = '<p>' + html + '</p>';
+
+  return html;
 }
 
 function showToast(message, isError = false) {

@@ -423,7 +423,7 @@ async function resolveAttachmentContent(attachment) {
       const resp = await fetch(fileUrl);
       if (resp.ok) {
         const buffer = Buffer.from(await resp.arrayBuffer());
-        return { ...attachment, content: buffer, url: fileUrl };
+        return { ...attachment, content: buffer };
       }
     } catch (_) {}
   }
@@ -517,6 +517,12 @@ app.post('/send', async (req, res) => {
 
     const resolvedAttachments = await resolveAttachments(Array.isArray(attachments) ? attachments : []);
 
+    const baseUrl = `${req.protocol}://${req.get('host')}`;
+    const brevoAttachments = resolvedAttachments.map((a) => ({
+      ...a,
+      url: a.url && a.url.startsWith('/') ? `${baseUrl}${a.url}` : a.url,
+    }));
+
     const brevoApiKey = getBrevoApiKey();
     let info;
     if (brevoApiKey) {
@@ -530,7 +536,7 @@ app.post('/send', async (req, res) => {
         subject,
         text: fallbackText,
         htmlContent,
-        attachments: resolvedAttachments,
+        attachments: brevoAttachments,
       });
     } else {
       const transporter = createTransport();
