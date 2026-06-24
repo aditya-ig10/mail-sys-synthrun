@@ -631,6 +631,16 @@ app.post('/receive', async (req, res) => {
   }
 });
 
+app.get('/mail-app-clean.js', (_req, res) => {
+  res.type('application/javascript');
+  res.sendFile(path.join(__dirname, 'mail-app-clean.js'));
+});
+
+app.get('/templates.js', (_req, res) => {
+  res.type('application/javascript');
+  res.sendFile(path.join(__dirname, 'templates.js'));
+});
+
 app.get('/health', (_req, res) => {
   res.json({ ok: true });
 });
