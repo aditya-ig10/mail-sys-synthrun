@@ -518,7 +518,7 @@ app.post('/send', async (req, res) => {
     const resolvedAttachments = await resolveAttachments(Array.isArray(attachments) ? attachments : []);
 
     const baseUrl = `${req.protocol}://${req.get('host')}`;
-    const brevoAttachments = resolvedAttachments.map((a) => ({
+    const absoluteUrlAttachments = resolvedAttachments.map((a) => ({
       ...a,
       url: a.url && a.url.startsWith('/') ? `${baseUrl}${a.url}` : a.url,
     }));
@@ -536,7 +536,7 @@ app.post('/send', async (req, res) => {
         subject,
         text: fallbackText,
         htmlContent,
-        attachments: brevoAttachments,
+        attachments: absoluteUrlAttachments,
       });
     } else {
       const transporter = createTransport();
@@ -549,7 +549,7 @@ app.post('/send', async (req, res) => {
         subject: String(subject),
         text: fallbackText,
         html: htmlContent,
-        attachments: attachmentsToMailOptions(resolvedAttachments),
+        attachments: attachmentsToMailOptions(absoluteUrlAttachments),
         envelope: {
           from: senderAddress,
           to: recipients,
