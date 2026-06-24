@@ -5,6 +5,14 @@
       "destination": "https://mail-sys-synthrun.onrender.com/send"
     },
     {
+      "source": "/upload",
+      "destination": "https://mail-sys-synthrun.onrender.com/upload"
+    },
+    {
+      "source": "/attachment/:fileId",
+      "destination": "https://mail-sys-synthrun.onrender.com/attachment/:fileId"
+    },
+    {
       "source": "/firebase-config.js",
       "destination": "https://mail-sys-synthrun.onrender.com/firebase-config.js"
     },

@@ -1449,7 +1449,7 @@ function renderMarkdown(text) {
   html = html.replace(/__(.+?)__/g, '<strong>$1</strong>');
 
   html = html.replace(/\*(.+?)\*/g, '<em>$1</em>');
-  html = html.replace(/_(.+?)_/g, '<em>$1</em>');
+  html = html.replace(/(?<!\w)_(.+?)_(?!\w)/g, '<em>$1</em>');
 
   html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noreferrer">$1</a>');
 
