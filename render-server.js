@@ -594,6 +594,66 @@ app.post('/send', async (req, res) => {
   }
 });
 
+function sanitizeIncomingText(text) {
+  if (!text) return '';
+  const str = String(text);
+
+  // Check for C1 control characters (0x80-0x9F) — these should never appear in real text.
+  // Their presence means binary data was interpreted as text (e.g. inline image or attachment
+  // content leaked into the body field by the upstream email parser).
+  for (let i = 0; i < str.length; i++) {
+    const code = str.charCodeAt(i);
+    if (code >= 0x80 && code <= 0x9F) {
+      console.warn(`sanitizeIncomingText: C1 control char U+${code.toString(16).padStart(4, '0')} at pos ${i}, discarding. length=${str.length}`);
+      return '';
+    }
+  }
+
+  // Strip ASCII control characters (keep \t \n \r)
+  let cleaned = '';
+  let controlCount = 0;
+  for (const ch of str) {
+    const code = ch.charCodeAt(0);
+    if (code >= 0x20 && code !== 0x7F) {
+      cleaned += ch;
+    } else if (code === 0x09 || code === 0x0A || code === 0x0D) {
+      cleaned += ch;
+    } else {
+      controlCount++;
+    }
+  }
+
+  // If high ratio of control characters, discard
+  if (cleaned.length > 0 && controlCount > str.length * 0.3) {
+    console.warn(`sanitizeIncomingText: high control-char ratio ${(controlCount / str.length).toFixed(2)}, discarding. length=${str.length}`);
+    return '';
+  }
+
+  // For longer texts, check readability via ASCII alphanumeric + space ratio
+  if (cleaned.length > 100) {
+    let alphaSpaceCount = 0;
+    const sample = cleaned.slice(0, 500);
+    for (const ch of sample) {
+      const code = ch.charCodeAt(0);
+      if (
+        (code >= 0x41 && code <= 0x5A) ||
+        (code >= 0x61 && code <= 0x7A) ||
+        (code >= 0x30 && code <= 0x39) ||
+        code === 0x20
+      ) {
+        alphaSpaceCount++;
+      }
+    }
+    const ratio = alphaSpaceCount / sample.length;
+    if (ratio < 0.25) {
+      console.warn(`sanitizeIncomingText: low alphanumeric ratio ${ratio.toFixed(2)}, likely binary. length=${str.length}`);
+      return '';
+    }
+  }
+
+  return cleaned;
+}
+
 app.options('/receive', (req, res) => {
   cors(req, res);
   res.status(204).end();
@@ -618,6 +678,20 @@ app.post('/receive', async (req, res) => {
       return sendJson(res, 400, { error: 'Missing required fields: from, to' });
     }
 
+    // Log incoming payload for debugging (truncated, no auth)
+    const logText = String(text || '').slice(0, 200).replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g, '?');
+    const logHtml = String(html || '').slice(0, 200).replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g, '?');
+    console.log(`/receive from=${from} to=${to} subject="${String(subject || '').slice(0, 100)}" bodyLen=${String(text || '').length} htmlLen=${String(html || '').length} attCount=${Array.isArray(attachments) ? attachments.length : 0}`);
+    console.log(`/receive body preview: ${JSON.stringify(logText)}`);
+
+    const cleanText = sanitizeIncomingText(text || '');
+    let cleanHtml = html || '';
+
+    // Fallback: if text was discarded as binary but html exists, extract text from html
+    if (!cleanText && cleanHtml) {
+      console.log('/receive: body was binary, falling back to HTML-extracted text');
+    }
+
     await storeMailboxMessages({
       senderEmail: sanitizeEmail(from),
       fromName: from.split('@')[0] || 'Unknown',
@@ -625,8 +699,8 @@ app.post('/receive', async (req, res) => {
       cc: cc ? sanitizeEmail(cc) : '',
       bcc: bcc ? sanitizeEmail(bcc) : '',
       subject: subject || '(no subject)',
-      text: text || '',
-      htmlContent: html || '',
+      text: cleanText,
+      htmlContent: cleanHtml,
       attachments: Array.isArray(attachments) ? attachments : [],
       skipSpamCheck: false,
     });

@@ -742,26 +742,29 @@ async function openMessage(id, { updateRoute = true, replaceRoute = false } = {}
       </div>`
     : '';
 
+  const bodyText = isProbablyBinary(message.body) ? '' : (message.body || '');
+  const htmlBodyText = isProbablyBinary(message.htmlBody) ? '' : (message.htmlBody || '');
+
   let bodyHtml = '';
   let isBodyHtml = false;
-  if (message.htmlBody && hasHtmlTags(message.htmlBody)) {
-    bodyHtml = message.htmlBody;
+  if (htmlBodyText && hasHtmlTags(htmlBodyText)) {
+    bodyHtml = htmlBodyText;
     isBodyHtml = true;
-  } else if (message.htmlBody && !hasHtmlTags(message.htmlBody)) {
-    bodyHtml = escapeHtml(message.htmlBody);
-  } else if (message.body && hasHtmlTags(message.body)) {
-    bodyHtml = message.body;
+  } else if (htmlBodyText && !hasHtmlTags(htmlBodyText)) {
+    bodyHtml = escapeHtml(htmlBodyText);
+  } else if (bodyText && hasHtmlTags(bodyText)) {
+    bodyHtml = bodyText;
     isBodyHtml = true;
-  } else if (message.body) {
-    if (containsMarkdown(message.body)) {
-      bodyHtml = renderMarkdown(message.body);
+  } else if (bodyText) {
+    if (containsMarkdown(bodyText)) {
+      bodyHtml = renderMarkdown(bodyText);
       isBodyHtml = true;
     } else {
-      bodyHtml = escapeHtml(message.body);
+      bodyHtml = escapeHtml(bodyText);
     }
   }
 
-  const replyBody = message.htmlBody && hasHtmlTags(message.htmlBody) ? stripHtmlToText(message.htmlBody) : (message.body || '');
+  const replyBody = htmlBodyText && hasHtmlTags(htmlBodyText) ? stripHtmlToText(htmlBodyText) : (bodyText || '');
 
   document.getElementById('mailBodyScroll').innerHTML = `
     <div class="mail-bubble">
@@ -1434,6 +1437,16 @@ function stripMarkdown(text) {
     .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
     .replace(/^[>\s]+/gm, '')
     .trim();
+}
+
+function isProbablyBinary(text) {
+  if (!text) return false;
+  const str = String(text);
+  for (let i = 0; i < str.length; i++) {
+    const code = str.charCodeAt(i);
+    if (code >= 0x80 && code <= 0x9F) return true;
+  }
+  return false;
 }
 
 function hasHtmlTags(text) {
