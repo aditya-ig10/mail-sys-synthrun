@@ -162,10 +162,15 @@ async function sendViaBrevoApi({ senderAddress, fromName, userEmail, to, cc, bcc
   }
 
   if (Array.isArray(attachments) && attachments.length) {
-    payload.attachment = attachments.map((attachment) => ({
-      name: attachment.name || 'attachment',
-      url: attachment.url,
-    }));
+    payload.attachment = attachments.map((attachment) => {
+      const item = { name: attachment.name || 'attachment' };
+      if (attachment.content) {
+        item.content = attachment.content.toString('base64');
+      } else {
+        item.url = attachment.url;
+      }
+      return item;
+    });
   }
 
   const response = await fetch('https://api.brevo.com/v3/smtp/email', {
