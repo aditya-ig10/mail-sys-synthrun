@@ -435,10 +435,15 @@ body[data-theme="dark"] .mail-sender-avatar { background: rgba(255,255,255,0.04)
 .mail-attachments { padding: 0 13px 13px; }
 .mail-attachments-title { font-size: 9px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--subtle); margin-bottom: 8px; }
 .mail-attachments-list { display: grid; gap: 6px; }
-.mail-attachment { display: flex; justify-content: space-between; align-items: center; gap: 10px; border: 1px solid var(--line); padding: 9px 11px; background: rgba(0,0,0,0.02); transition: background var(--transition); color: var(--text); }
+.mail-attachment { display: flex; align-items: center; gap: 6px; border: 1px solid var(--line); padding: 0; background: rgba(0,0,0,0.02); transition: background var(--transition); }
 .mail-attachment:hover { background: rgba(0,0,0,0.04); }
 body[data-theme="dark"] .mail-attachment { background: rgba(255,255,255,0.02); }
 body[data-theme="dark"] .mail-attachment:hover { background: rgba(255,255,255,0.04); }
+.mail-attachment-preview { display: flex; flex: 1; justify-content: space-between; align-items: center; gap: 10px; padding: 9px 11px; color: var(--text); min-width: 0; }
+.mail-attachment-preview:hover { text-decoration: none; }
+.mail-attachment-download { display: flex; align-items: center; justify-content: center; width: 32px; height: 32px; flex-shrink: 0; color: var(--subtle); border-radius: 4px; margin-right: 6px; transition: color var(--transition), background var(--transition); }
+.mail-attachment-download:hover { color: var(--accent); background: rgba(0,0,0,0.06); }
+body[data-theme="dark"] .mail-attachment-download:hover { background: rgba(255,255,255,0.08); }
 .mail-attachment-name { font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .mail-attachment-meta { font-size: 10px; color: var(--subtle); white-space: nowrap; flex-shrink: 0; }
 

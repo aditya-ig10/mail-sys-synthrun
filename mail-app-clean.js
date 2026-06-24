@@ -725,11 +725,19 @@ async function openMessage(id, { updateRoute = true, replaceRoute = false } = {}
       <div class="mail-attachments">
         <div class="mail-attachments-title">Attachments</div>
         <div class="mail-attachments-list">
-          ${attachments.map((attachment) => `
-            <a class="mail-attachment" href="${escapeHtml(getAttachmentUrl(attachment))}" target="_blank" rel="noreferrer">
-              <span class="mail-attachment-name">${escapeHtml(attachment.name || 'attachment')}</span>
-              <span class="mail-attachment-meta">${escapeHtml(formatBytes(attachment.size || 0))}</span>
-            </a>`).join('')}
+          ${attachments.map((attachment) => {
+            const previewUrl = escapeHtml(getAttachmentUrl(attachment));
+            const downloadUrl = previewUrl + (previewUrl.includes('?') ? '&' : '?') + 'download=1';
+            return `
+            <div class="mail-attachment">
+              <a class="mail-attachment-preview" href="${previewUrl}" target="_blank" rel="noreferrer">
+                <span class="mail-attachment-name">${escapeHtml(attachment.name || 'attachment')}</span>
+                <span class="mail-attachment-meta">${escapeHtml(formatBytes(attachment.size || 0))}</span>
+              </a>
+              <a class="mail-attachment-download" href="${downloadUrl}" download title="Download ${escapeHtml(attachment.name || 'attachment')}">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              </a>
+            </div>`}).join('')}
         </div>
       </div>`
     : '';

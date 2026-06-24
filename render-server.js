@@ -457,8 +457,10 @@ app.get('/attachment/:fileId', async (req, res) => {
     if (!fileResponse.ok) return sendJson(res, 502, { error: 'Failed to fetch attachment' });
     const arrayBuffer = await fileResponse.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
-    res.setHeader('Content-Type', fileResponse.headers.get('content-type') || 'application/octet-stream');
-    res.setHeader('Content-Disposition', 'inline');
+    const isDownload = req.query.download === '1';
+    const contentType = fileResponse.headers.get('content-type') || 'application/octet-stream';
+    res.setHeader('Content-Type', contentType);
+    res.setHeader('Content-Disposition', isDownload ? 'attachment' : 'inline');
     res.setHeader('Content-Length', buffer.length);
     res.end(buffer);
   } catch (error) {
