@@ -428,7 +428,7 @@ async function resolveAttachmentContent(attachment) {
       const resp = await fetch(fileUrl);
       if (resp.ok) {
         const buffer = Buffer.from(await resp.arrayBuffer());
-        return { ...attachment, content: buffer };
+        return { ...attachment, content: buffer, url: fileUrl };
       }
     } catch (_) {}
   }
@@ -562,10 +562,10 @@ app.post('/send', async (req, res) => {
       });
     }
 
-    // Store attachments without the content buffer
+    // Store attachments with proxy URLs (not expiring Telegram CDN URLs)
     const storeAttachments = resolvedAttachments.map((a) => {
       const { content, ...rest } = a;
-      return rest;
+      return { ...rest, url: rest.fileId ? `/attachment/${rest.fileId}` : (rest.url || '') };
     });
 
     try {
