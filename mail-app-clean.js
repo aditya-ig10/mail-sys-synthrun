@@ -125,12 +125,12 @@ async function restoreRouteState() {
   updateFolderSelection(folder);
   activeMessageId = null;
 
+  document.getElementById('emptyView').style.display = 'flex';
+  document.getElementById('messageView').style.display = 'none';
+  setMessageOpenState(false);
+
   if (messageId) {
     await openMessage(messageId, { replaceRoute: true });
-  } else {
-    document.getElementById('emptyView').style.display = 'flex';
-    document.getElementById('messageView').style.display = 'none';
-    setMessageOpenState(false);
   }
 
   syncRouteToLocation({ folder, messageId: messageId || null, replace: true });
@@ -726,7 +726,7 @@ async function openMessage(id, { updateRoute = true, replaceRoute = false } = {}
         <div class="mail-attachments-title">Attachments</div>
         <div class="mail-attachments-list">
           ${attachments.map((attachment) => `
-            <a class="mail-attachment" href="${escapeHtml(attachment.url)}" target="_blank" rel="noreferrer">
+            <a class="mail-attachment" href="${escapeHtml(getAttachmentUrl(attachment))}" target="_blank" rel="noreferrer">
               <span class="mail-attachment-name">${escapeHtml(attachment.name || 'attachment')}</span>
               <span class="mail-attachment-meta">${escapeHtml(formatBytes(attachment.size || 0))}</span>
             </a>`).join('')}
@@ -1352,6 +1352,15 @@ async function sendMessage() {
   }
 }
 
+function getAttachmentUrl(attachment) {
+  if (!attachment) return '';
+  if (attachment.url && attachment.url.startsWith('/attachment/')) return attachment.url;
+  if (attachment.url && attachment.url.includes('api.telegram.org') && attachment.fileId) {
+    return '/attachment/' + attachment.fileId;
+  }
+  return attachment.url || '';
+}
+
 function buildAttachmentText(attachments) {
   if (!attachments.length) return '';
   return ['','Attachments:','', ...attachments.map((attachment) => `- ${attachment.name}: ${attachment.url}`)].join('\n');
@@ -1362,7 +1371,7 @@ function buildAttachmentHtml(attachments) {
   return `
     <div style="margin-top:16px;border-top:1px solid #e0dfd9;padding-top:12px;">
       <div style="font-size:11px;letter-spacing:0.08em;text-transform:uppercase;margin-bottom:8px;">Attachments</div>
-      ${attachments.map((attachment) => `<div style="margin-bottom:8px;"><a href="${escapeHtml(attachment.url)}" target="_blank" rel="noreferrer" style="text-decoration:underline;">${escapeHtml(attachment.name)}</a> <span style="font-size:11px;">(${escapeHtml(formatBytes(attachment.size))})</span></div>`).join('')}
+      ${attachments.map((attachment) => `<div style="margin-bottom:8px;"><a href="${escapeHtml(getAttachmentUrl(attachment))}" target="_blank" rel="noreferrer" style="text-decoration:underline;">${escapeHtml(attachment.name)}</a> <span style="font-size:11px;">(${escapeHtml(formatBytes(attachment.size))})</span></div>`).join('')}
     </div>`;
 }
 
