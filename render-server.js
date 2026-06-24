@@ -367,7 +367,18 @@ async function storeMailboxMessages({ senderEmail, fromName, to, cc, bcc, subjec
   };
 
   await Promise.all(
-    recipients.map((recipientEmail) => db.collection('mail').add({ ...payload, recipientEmail }))
+    recipients.map(async (recipientEmail) => {
+      const snap = await db.collection('mail')
+        .where('recipientEmail', '==', recipientEmail)
+        .where('senderEmail', '==', sanitizeEmail(senderEmail))
+        .where('subject', '==', String(subject))
+        .limit(1)
+        .get();
+
+      if (snap.empty) {
+        await db.collection('mail').add({ ...payload, recipientEmail });
+      }
+    })
   );
 }
 
@@ -502,7 +513,7 @@ app.post('/send', async (req, res) => {
     const recipients = [sanitizeEmail(to)];
     if (cc) recipients.push(sanitizeEmail(cc));
     if (bcc) recipients.push(sanitizeEmail(bcc));
-    const htmlContent = htmlBody || `<div style="font-family:monospace;font-size:14px;white-space:pre-wrap;max-width:640px;margin:0 auto;padding:24px;">${htmlEscape(fallbackText)}</div>`;
+    const htmlContent = htmlBody || htmlEscape(fallbackText);
 
     const resolvedAttachments = await resolveAttachments(Array.isArray(attachments) ? attachments : []);
 

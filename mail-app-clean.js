@@ -1233,7 +1233,7 @@ async function sendMessage() {
   const isHtmlMode = Boolean(window.SYNTHRUN_GET_COMPOSE_IS_HTML?.());
   const rawBody = String(window.SYNTHRUN_GET_COMPOSE_BODY?.() || '').trim();
   const body = isHtmlMode ? stripHtmlToText(rawBody) : rawBody;
-  const htmlBody = isHtmlMode ? rawBody : themedEmailWrapper(escapeHtml(body));
+  const htmlBody = isHtmlMode ? rawBody : escapeHtml(body);
 
   clearComposeValidation();
 
