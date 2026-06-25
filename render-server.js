@@ -677,17 +677,20 @@ async function processBrevoAttachments(attachments = [], caption) {
   console.log(`/receive: processing ${attachments.length} attachments`);
   attachments.forEach((att, i) => {
     const ctype = pick(att, 'contentType', 'Content-Type', 'type', 'mimeType', 'mime') || '?';
-    const rawContent = String(pick(att, 'content', 'data', 'base64', 'body') || '');
-    console.log(`/receive att[${i}]:`, JSON.stringify({
+    console.log(`/receive att[${i}]: keys=${JSON.stringify(Object.keys(att))}`, JSON.stringify({
       name: pick(att, 'name', 'filename', 'fileName'),
       size: att.size,
-      type: ctype,
-      hasContent: !!rawContent,
-      contentLen: rawContent.length,
-      contentStart: rawContent.replace(/\s/g, '').slice(0, 40),
-      url: att.url ? String(att.url).slice(0, 120) : null,
-      keys: Object.keys(att),
+      contentType: ctype,
+      disposition: att.disposition,
+      contentID: att.contentID,
     }));
+    // Log full attachment raw data (value types, not values) for debugging
+    const summary = {};
+    for (const k of Object.keys(att)) {
+      const v = att[k];
+      summary[k] = v === null ? 'null' : v === undefined ? 'undefined' : typeof v + '(' + String(v).slice(0, 40) + ')';
+    }
+    console.log(`/receive att[${i}] raw:`, JSON.stringify(summary));
   });
 
   return Promise.all(attachments.map(async (att) => {
@@ -727,12 +730,23 @@ async function processBrevoAttachments(attachments = [], caption) {
           console.warn(`/receive: Brevo API download failed for "${name}": ${resp.status}`);
         }
       } else {
-        console.warn(`/receive: no content/url/token for "${name}" — keys=${JSON.stringify(keys)}`);
-        return {
-          name, size: att.size || 0, type: contentType,
-          content: rawContent || undefined,
-          url: rawUrl || undefined,
-        };
+        // Fallback: scan ALL keys for any value that looks like base64 content
+        for (const k of keys) {
+          const v = att[k];
+          if (v && typeof v === 'string' && v.length > 50 && /^[A-Za-z0-9+/=\s]+$/.test(v) && v.length % 4 < 2) {
+            console.log(`/receive: found base64-like content in key "${k}" for "${name}"`);
+            buffer = Buffer.from(v.replace(/\s/g, ''), 'base64');
+            break;
+          }
+        }
+        if (!buffer) {
+          console.warn(`/receive: no content/url/token for "${name}" — keys=${JSON.stringify(keys)}`);
+          return {
+            name, size: att.size || 0, type: contentType,
+            content: rawContent || undefined,
+            url: rawUrl || undefined,
+          };
+        }
       }
 
       if (!buffer || buffer.length === 0) {
