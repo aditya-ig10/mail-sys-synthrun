@@ -661,34 +661,43 @@ async function downloadBuffer(url) {
   return Buffer.from(await resp.arrayBuffer());
 }
 
+function pick(obj, ...keys) {
+  for (const key of keys) {
+    if (obj[key] != null) return obj[key];
+  }
+}
+
 async function processBrevoAttachments(attachments = []) {
   if (!Array.isArray(attachments) || !attachments.length) return [];
   console.log(`/receive: processing ${attachments.length} attachments`);
   attachments.forEach((att, i) => {
-    const ctype = att.contentType || att['Content-Type'] || att.type || '?';
+    const ctype = pick(att, 'contentType', 'Content-Type', 'type', 'mimeType', 'mime') || '?';
+    const rawContent = String(pick(att, 'content', 'data', 'base64', 'body') || '');
     console.log(`/receive att[${i}]:`, JSON.stringify({
-      name: att.name || att.filename,
+      name: pick(att, 'name', 'filename', 'fileName'),
       size: att.size,
       type: ctype,
-      hasContent: !!att.content,
-      contentLen: att.content ? att.content.length : 0,
-      contentStart: att.content ? String(att.content).replace(/\s/g, '').slice(0, 40) : null,
-      url: att.url ? att.url.slice(0, 120) : null,
+      hasContent: !!rawContent,
+      contentLen: rawContent.length,
+      contentStart: rawContent.replace(/\s/g, '').slice(0, 40),
+      url: att.url ? String(att.url).slice(0, 120) : null,
       keys: Object.keys(att),
     }));
   });
 
   return Promise.all(attachments.map(async (att) => {
     try {
-      const name = att.name || att.filename || 'attachment';
-      const contentType = att.contentType || att['Content-Type'] || att.type || 'application/octet-stream';
+      const name = pick(att, 'name', 'filename', 'fileName') || 'attachment';
+      const contentType = pick(att, 'contentType', 'Content-Type', 'type', 'mimeType', 'mime') || 'application/octet-stream';
       let buffer;
 
-      const rawContent = att.content ? String(att.content).trim() : '';
+      const rawContent = String(pick(att, 'content', 'data', 'base64', 'body') || '').trim();
+      const rawUrl = pick(att, 'url', 'link', 'downloadUrl', 'href') || '';
+
       if (rawContent) {
         const stripped = rawContent.replace(/\s/g, '');
         if (/^https?:\/\//i.test(stripped)) {
-          console.log(`/receive: content looks like URL, downloading from content field: ${stripped.slice(0, 100)}`);
+          console.log(`/receive: content looks like URL for "${name}", downloading...`);
           buffer = await downloadBuffer(stripped);
         } else if (/^[A-Za-z0-9+/=]+$/.test(stripped) && stripped.length > 20) {
           buffer = Buffer.from(stripped, 'base64');
@@ -697,23 +706,27 @@ async function processBrevoAttachments(attachments = []) {
           buffer = Buffer.from(rawContent, 'utf-8');
           console.log(`/receive: using raw utf-8 content for "${name}": ${buffer.length} bytes`);
         }
-      } else if (att.url) {
-        console.log(`/receive: downloading from url for "${name}": ${att.url.slice(0, 100)}`);
-        buffer = await downloadBuffer(att.url);
+      } else if (rawUrl) {
+        console.log(`/receive: downloading from url for "${name}": ${rawUrl.slice(0, 100)}`);
+        buffer = await downloadBuffer(rawUrl);
       } else {
-        console.warn(`/receive: no content or url for attachment "${name}", storing as-is`);
+        console.warn(`/receive: no content or url for "${name}" — storing raw Brevo data so client can fall back`);
+        // Store the raw Brevo fields so client can use data: URL as last resort
         return {
           name,
           size: att.size || 0,
           type: contentType,
-          url: att.url || '',
+          content: rawContent || undefined,
+          url: rawUrl || undefined,
         };
       }
 
       if (!buffer || buffer.length === 0) {
-        console.warn(`/receive: empty buffer for attachment "${name}"`);
+        console.warn(`/receive: empty buffer for "${name}" — storing raw`);
         return {
-          name, size: att.size || 0, type: contentType, url: att.url || '',
+          name, size: att.size || 0, type: contentType,
+          content: rawContent || undefined,
+          url: rawUrl || undefined,
         };
       }
 
@@ -727,12 +740,15 @@ async function processBrevoAttachments(attachments = []) {
         url: `/attachment/${fileId}`,
       };
     } catch (error) {
-      console.warn(`/receive: failed to process attachment "${att.name || att.filename || '?'}":`, error.message);
+      console.warn(`/receive: failed to process attachment "${pick(att, 'name', 'filename', 'fileName') || '?'}":`, error.message);
+      const rawContent = String(pick(att, 'content', 'data', 'base64', 'body') || '');
+      const rawUrl = pick(att, 'url', 'link', 'downloadUrl', 'href') || '';
       return {
-        name: att.name || att.filename || 'attachment',
+        name: pick(att, 'name', 'filename', 'fileName') || 'attachment',
         size: att.size || 0,
-        type: att.contentType || att['Content-Type'] || att.type || 'application/octet-stream',
-        url: att.url || '',
+        type: pick(att, 'contentType', 'Content-Type', 'type', 'mimeType', 'mime') || 'application/octet-stream',
+        content: rawContent || undefined,
+        url: rawUrl || undefined,
       };
     }
   }));

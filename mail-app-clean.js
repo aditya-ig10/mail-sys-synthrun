@@ -726,15 +726,19 @@ async function openMessage(id, { updateRoute = true, replaceRoute = false } = {}
         <div class="mail-attachments-title">Attachments</div>
         <div class="mail-attachments-list">
           ${attachments.map((attachment) => {
-            const previewUrl = escapeHtml(getAttachmentUrl(attachment));
-            const downloadUrl = previewUrl + (previewUrl.includes('?') ? '&' : '?') + 'download=1';
+            const rawUrl = getAttachmentUrl(attachment);
+            const isDataUrl = rawUrl.startsWith('data:');
+            const previewUrl = escapeHtml(rawUrl);
+            const downloadUrl = escapeHtml(isDataUrl ? rawUrl : (rawUrl + (rawUrl.includes('?') ? '&' : '?') + 'download=1'));
+            const fileName = escapeHtml(attachment.name || 'attachment');
+            const downloadAttr = `download="${fileName}"`;
             return `
             <div class="mail-attachment">
               <a class="mail-attachment-preview" href="${previewUrl}" target="_blank" rel="noreferrer">
-                <span class="mail-attachment-name">${escapeHtml(attachment.name || 'attachment')}</span>
+                <span class="mail-attachment-name">${fileName}</span>
                 <span class="mail-attachment-meta">${escapeHtml(formatBytes(attachment.size || 0))}</span>
               </a>
-              <a class="mail-attachment-download" href="${downloadUrl}" download title="Download ${escapeHtml(attachment.name || 'attachment')}">
+              <a class="mail-attachment-download" href="${downloadUrl}" ${downloadAttr} title="Download ${fileName}">
                 <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
               </a>
             </div>`}).join('')}
@@ -1365,18 +1369,24 @@ async function sendMessage() {
 
 function getAttachmentUrl(attachment) {
   if (!attachment) return '';
-  let base = '';
+  // Has a proxy URL (telegram fileId stored) — use it with filename
   if (attachment.url && attachment.url.startsWith('/attachment/')) {
-    base = attachment.url;
-  } else if (attachment.url && attachment.url.includes('api.telegram.org') && attachment.fileId) {
-    base = '/attachment/' + attachment.fileId;
-  } else {
-    return attachment.url || '';
+    const name = attachment.name || 'attachment';
+    const sep = attachment.url.includes('?') ? '&' : '?';
+    return attachment.url + sep + 'name=' + encodeURIComponent(name);
   }
-  // Append filename so server sets Content-Disposition filename correctly
-  const name = attachment.name || 'attachment';
-  const sep = base.includes('?') ? '&' : '?';
-  return base + sep + 'name=' + encodeURIComponent(name);
+  // Has a telegram CDN URL and fileId — build proxy URL
+  if (attachment.url && attachment.url.includes('api.telegram.org') && attachment.fileId) {
+    const base = '/attachment/' + attachment.fileId;
+    return base + '?name=' + encodeURIComponent(attachment.name || 'attachment');
+  }
+  // Has raw Brevo base64 content (no fileId) — inline data URL fallback
+  if (attachment.content && typeof attachment.content === 'string' && attachment.content.length > 50) {
+    const mime = attachment.type || attachment.contentType || 'application/octet-stream';
+    return 'data:' + mime + ';base64,' + attachment.content;
+  }
+  // Whatever URL Brevo provided (may expire)
+  return attachment.url || '';
 }
 
 function buildAttachmentText(attachments) {
