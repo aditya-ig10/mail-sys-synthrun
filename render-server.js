@@ -654,6 +654,39 @@ function sanitizeIncomingText(text) {
   return cleaned;
 }
 
+async function processBrevoAttachments(attachments = []) {
+  if (!Array.isArray(attachments) || !attachments.length) return [];
+  return Promise.all(attachments.map(async (att) => {
+    try {
+      if (att.content) {
+        const buffer = Buffer.from(att.content, 'base64');
+        const { fileId } = await uploadToTelegram(buffer, att.name || 'attachment', att.contentType || 'application/octet-stream');
+        return {
+          name: att.name || 'attachment',
+          size: att.size || buffer.length,
+          type: att.contentType || 'application/octet-stream',
+          fileId,
+          url: `/attachment/${fileId}`,
+        };
+      }
+      return {
+        name: att.name || 'attachment',
+        size: att.size || 0,
+        type: att.contentType || 'application/octet-stream',
+        url: att.url || '',
+      };
+    } catch (error) {
+      console.warn('Failed to process Brevo attachment:', att.name, error.message);
+      return {
+        name: att.name || 'attachment',
+        size: att.size || 0,
+        type: att.contentType || 'application/octet-stream',
+        url: att.url || '',
+      };
+    }
+  }));
+}
+
 app.options('/receive', (req, res) => {
   cors(req, res);
   res.status(204).end();
@@ -692,6 +725,12 @@ app.post('/receive', async (req, res) => {
       console.log('/receive: body was binary, falling back to HTML-extracted text');
     }
 
+    // Process Brevo-format attachments: upload base64 content to Telegram, store with fileId
+    const processedAttachments = await processBrevoAttachments(attachments);
+    if (processedAttachments.length) {
+      console.log(`/receive: processed ${processedAttachments.length} attachments`);
+    }
+
     await storeMailboxMessages({
       senderEmail: sanitizeEmail(from),
       fromName: from.split('@')[0] || 'Unknown',
@@ -701,7 +740,7 @@ app.post('/receive', async (req, res) => {
       subject: subject || '(no subject)',
       text: cleanText,
       htmlContent: cleanHtml,
-      attachments: Array.isArray(attachments) ? attachments : [],
+      attachments: processedAttachments,
       skipSpamCheck: false,
     });
 
