@@ -345,7 +345,7 @@ function isProbablySpam({ from, subject, text, htmlContent }) {
 async function storeMailboxMessages({ senderEmail, fromName, to, cc, bcc, subject, text, htmlContent, attachments, skipSpamCheck }) {
   const recipients = [...new Set([to, cc, bcc].map(sanitizeEmail).filter(Boolean).filter(isInternalMailbox))];
   if (!recipients.length) {
-    return;
+    return [];
   }
 
   const db = admin.firestore();
@@ -371,7 +371,7 @@ async function storeMailboxMessages({ senderEmail, fromName, to, cc, bcc, subjec
     receivedAt: admin.firestore.FieldValue.serverTimestamp(),
   };
 
-  await Promise.all(
+  const ids = await Promise.all(
     recipients.map(async (recipientEmail) => {
       const snap = await db.collection('mail')
         .where('recipientEmail', '==', recipientEmail)
@@ -381,10 +381,13 @@ async function storeMailboxMessages({ senderEmail, fromName, to, cc, bcc, subjec
         .get();
 
       if (snap.empty) {
-        await db.collection('mail').add({ ...payload, recipientEmail });
+        const ref = await db.collection('mail').add({ ...payload, recipientEmail });
+        return ref.id;
       }
+      return null;
     })
   );
+  return ids.filter(Boolean);
 }
 
 function htmlEscape(value) {
@@ -792,13 +795,10 @@ app.post('/receive', async (req, res) => {
       console.log('/receive: body was binary, falling back to HTML-extracted text');
     }
 
-    // Process Brevo-format attachments: upload base64 content to Telegram, store with fileId
-    const processedAttachments = await processBrevoAttachments(attachments);
-    if (processedAttachments.length) {
-      console.log(`/receive: processed ${processedAttachments.length} attachments`);
-    }
-
-    await storeMailboxMessages({
+    // 1. Store message immediately with lightweight attachment metadata (name/size/type only).
+    //    This ensures the message shows up in inbox even if Telegram uploads are slow.
+    const rawAttachments = Array.isArray(attachments) ? attachments : [];
+    const docIds = await storeMailboxMessages({
       senderEmail: sanitizeEmail(from),
       fromName: from.split('@')[0] || 'Unknown',
       to: sanitizeEmail(to),
@@ -807,11 +807,26 @@ app.post('/receive', async (req, res) => {
       subject: subject || '(no subject)',
       text: cleanText,
       htmlContent: cleanHtml,
-      attachments: processedAttachments,
+      attachments: rawAttachments.map((a) => ({ name: a.name || 'attachment', size: a.size || 0, type: a.contentType || a.type || 'application/octet-stream' })),
       skipSpamCheck: false,
     });
 
-    return sendJson(res, 200, { ok: true });
+    // 2. Respond to Brevo immediately — the webhook can timeout while we upload.
+    res.status(200).json({ ok: true });
+
+    // 3. Process attachments (Telegram upload) in the background and patch docs.
+    if (docIds.length && rawAttachments.length) {
+      processBrevoAttachments(rawAttachments).then((processed) => {
+        const db = admin.firestore();
+        return Promise.all(docIds.map((id) =>
+          db.collection('mail').doc(id).update({ attachments: processed })
+        ));
+      }).then(() => {
+        console.log(`/receive: patched ${docIds.length} docs with processed attachments`);
+      }).catch((err) => {
+        console.error('/receive: background attachment processing failed:', err);
+      });
+    }
   } catch (error) {
     console.error('/receive error:', error);
     return sendJson(res, 502, { error: error.message });
