@@ -100,18 +100,20 @@ function getBrevoApiKey() {
   return String(process.env.BREVO_API_KEY || process.env.BREVO_API_KEY_JSON || '').trim();
 }
 
-async function uploadToTelegram(fileBuffer, fileName, mimeType) {
+async function uploadToTelegram(fileBuffer, fileName, mimeType, caption) {
   if (!TELEGRAM_BOT_TOKEN || !TELEGRAM_CHAT_ID) {
     throw new Error('Telegram not configured (TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID)');
   }
 
   const boundary = '----FormBoundary' + Math.random().toString(36).slice(2, 12);
-  const header = Buffer.from(
-    `--${boundary}\r\nContent-Disposition: form-data; name="chat_id"\r\n\r\n${TELEGRAM_CHAT_ID}\r\n` +
-    `--${boundary}\r\nContent-Disposition: form-data; name="document"; filename="${fileName}"\r\n` +
-    `Content-Type: ${mimeType}\r\n\r\n`,
-    'utf-8'
-  );
+  let parts = [
+    `--${boundary}\r\nContent-Disposition: form-data; name="chat_id"\r\n\r\n${TELEGRAM_CHAT_ID}`,
+  ];
+  if (caption) {
+    parts.push(`--${boundary}\r\nContent-Disposition: form-data; name="caption"\r\n\r\n${caption}`);
+  }
+  parts.push(`--${boundary}\r\nContent-Disposition: form-data; name="document"; filename="${fileName}"\r\nContent-Type: ${mimeType}\r\n\r\n`);
+  const header = Buffer.from(parts.join('\r\n'), 'utf-8');
   const footer = Buffer.from(`\r\n--${boundary}--\r\n`, 'utf-8');
 
   const body = Buffer.concat([header, fileBuffer, footer]);
@@ -670,7 +672,7 @@ function pick(obj, ...keys) {
   }
 }
 
-async function processBrevoAttachments(attachments = []) {
+async function processBrevoAttachments(attachments = [], caption) {
   if (!Array.isArray(attachments) || !attachments.length) return [];
   console.log(`/receive: processing ${attachments.length} attachments`);
   attachments.forEach((att, i) => {
@@ -742,7 +744,7 @@ async function processBrevoAttachments(attachments = []) {
         };
       }
 
-      const { fileId } = await uploadToTelegram(buffer, name, contentType);
+      const { fileId } = await uploadToTelegram(buffer, name, contentType, caption);
       console.log(`/receive: uploaded "${name}" to Telegram, fileId=${fileId}`);
       return {
         name,
@@ -765,6 +767,27 @@ async function processBrevoAttachments(attachments = []) {
     }
   }));
 }
+
+app.post('/telegram-forward', async (req, res) => {
+  cors(req, res);
+  try {
+    const { name, type, content, caption } = req.body || {};
+    if (!name || !content) {
+      return sendJson(res, 400, { error: 'Missing name or content (base64)' });
+    }
+
+    const buffer = Buffer.from(String(content).replace(/\s/g, ''), 'base64');
+    if (!buffer.length) {
+      return sendJson(res, 400, { error: 'Empty content after base64 decode' });
+    }
+
+    const { fileId } = await uploadToTelegram(buffer, name, type || 'application/octet-stream', caption || '');
+    return sendJson(res, 200, { ok: true, fileId });
+  } catch (error) {
+    console.error('/telegram-forward error:', error);
+    return sendJson(res, 502, { error: error.message });
+  }
+});
 
 app.options('/receive', (req, res) => {
   cors(req, res);
@@ -825,7 +848,8 @@ app.post('/receive', async (req, res) => {
 
     // 3. Process attachments (Telegram upload) in the background and patch docs.
     if (docIds.length && rawAttachments.length) {
-      processBrevoAttachments(rawAttachments).then((processed) => {
+      const caption = `📧 From: ${fromName || from}  Subject: ${subject || '(no subject)'}`;
+      processBrevoAttachments(rawAttachments, caption).then((processed) => {
         const db = admin.firestore();
         return Promise.all(docIds.map((id) =>
           db.collection('mail').doc(id).update({ attachments: processed })
