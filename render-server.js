@@ -459,8 +459,9 @@ app.get('/attachment/:fileId', async (req, res) => {
     const buffer = Buffer.from(arrayBuffer);
     const isDownload = req.query.download === '1';
     const contentType = fileResponse.headers.get('content-type') || 'application/octet-stream';
+    const fileName = String(req.query.name || 'attachment').replace(/["\r\n]/g, '');
     res.setHeader('Content-Type', contentType);
-    res.setHeader('Content-Disposition', isDownload ? 'attachment' : 'inline');
+    res.setHeader('Content-Disposition', `${isDownload ? 'attachment' : 'inline'}; filename="${fileName}"`);
     res.setHeader('Content-Length', buffer.length);
     res.end(buffer);
   } catch (error) {
@@ -654,33 +655,83 @@ function sanitizeIncomingText(text) {
   return cleaned;
 }
 
+async function downloadBuffer(url) {
+  const resp = await fetch(url);
+  if (!resp.ok) throw new Error(`download failed: ${resp.status}`);
+  return Buffer.from(await resp.arrayBuffer());
+}
+
 async function processBrevoAttachments(attachments = []) {
   if (!Array.isArray(attachments) || !attachments.length) return [];
+  console.log(`/receive: processing ${attachments.length} attachments`);
+  attachments.forEach((att, i) => {
+    const ctype = att.contentType || att['Content-Type'] || att.type || '?';
+    console.log(`/receive att[${i}]:`, JSON.stringify({
+      name: att.name || att.filename,
+      size: att.size,
+      type: ctype,
+      hasContent: !!att.content,
+      contentLen: att.content ? att.content.length : 0,
+      contentStart: att.content ? String(att.content).replace(/\s/g, '').slice(0, 40) : null,
+      url: att.url ? att.url.slice(0, 120) : null,
+      keys: Object.keys(att),
+    }));
+  });
+
   return Promise.all(attachments.map(async (att) => {
     try {
-      if (att.content) {
-        const buffer = Buffer.from(att.content, 'base64');
-        const { fileId } = await uploadToTelegram(buffer, att.name || 'attachment', att.contentType || 'application/octet-stream');
+      const name = att.name || att.filename || 'attachment';
+      const contentType = att.contentType || att['Content-Type'] || att.type || 'application/octet-stream';
+      let buffer;
+
+      const rawContent = att.content ? String(att.content).trim() : '';
+      if (rawContent) {
+        const stripped = rawContent.replace(/\s/g, '');
+        if (/^https?:\/\//i.test(stripped)) {
+          console.log(`/receive: content looks like URL, downloading from content field: ${stripped.slice(0, 100)}`);
+          buffer = await downloadBuffer(stripped);
+        } else if (/^[A-Za-z0-9+/=]+$/.test(stripped) && stripped.length > 20) {
+          buffer = Buffer.from(stripped, 'base64');
+          console.log(`/receive: decoded base64 content for "${name}": ${buffer.length} bytes`);
+        } else {
+          buffer = Buffer.from(rawContent, 'utf-8');
+          console.log(`/receive: using raw utf-8 content for "${name}": ${buffer.length} bytes`);
+        }
+      } else if (att.url) {
+        console.log(`/receive: downloading from url for "${name}": ${att.url.slice(0, 100)}`);
+        buffer = await downloadBuffer(att.url);
+      } else {
+        console.warn(`/receive: no content or url for attachment "${name}", storing as-is`);
         return {
-          name: att.name || 'attachment',
-          size: att.size || buffer.length,
-          type: att.contentType || 'application/octet-stream',
-          fileId,
-          url: `/attachment/${fileId}`,
+          name,
+          size: att.size || 0,
+          type: contentType,
+          url: att.url || '',
         };
       }
+
+      if (!buffer || buffer.length === 0) {
+        console.warn(`/receive: empty buffer for attachment "${name}"`);
+        return {
+          name, size: att.size || 0, type: contentType, url: att.url || '',
+        };
+      }
+
+      const { fileId } = await uploadToTelegram(buffer, name, contentType);
+      console.log(`/receive: uploaded "${name}" to Telegram, fileId=${fileId}`);
       return {
-        name: att.name || 'attachment',
-        size: att.size || 0,
-        type: att.contentType || 'application/octet-stream',
-        url: att.url || '',
+        name,
+        size: att.size || buffer.length,
+        type: contentType,
+        fileId,
+        url: `/attachment/${fileId}`,
       };
     } catch (error) {
-      console.warn('Failed to process Brevo attachment:', att.name, error.message);
+      console.warn(`/receive: failed to process attachment "${att.name || att.filename || '?'}":`, error.message);
       return {
-        name: att.name || 'attachment',
+        name: att.name || att.filename || 'attachment',
         size: att.size || 0,
-        type: att.contentType || 'application/octet-stream',
+        type: att.contentType || att['Content-Type'] || att.type || 'application/octet-stream',
         url: att.url || '',
       };
     }

@@ -1365,11 +1365,18 @@ async function sendMessage() {
 
 function getAttachmentUrl(attachment) {
   if (!attachment) return '';
-  if (attachment.url && attachment.url.startsWith('/attachment/')) return attachment.url;
-  if (attachment.url && attachment.url.includes('api.telegram.org') && attachment.fileId) {
-    return '/attachment/' + attachment.fileId;
+  let base = '';
+  if (attachment.url && attachment.url.startsWith('/attachment/')) {
+    base = attachment.url;
+  } else if (attachment.url && attachment.url.includes('api.telegram.org') && attachment.fileId) {
+    base = '/attachment/' + attachment.fileId;
+  } else {
+    return attachment.url || '';
   }
-  return attachment.url || '';
+  // Append filename so server sets Content-Disposition filename correctly
+  const name = attachment.name || 'attachment';
+  const sep = base.includes('?') ? '&' : '?';
+  return base + sep + 'name=' + encodeURIComponent(name);
 }
 
 function buildAttachmentText(attachments) {
