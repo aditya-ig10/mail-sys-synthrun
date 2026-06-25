@@ -692,10 +692,13 @@ async function processBrevoAttachments(attachments = []) {
     try {
       const name = pick(att, 'name', 'filename', 'fileName') || 'attachment';
       const contentType = pick(att, 'contentType', 'Content-Type', 'type', 'mimeType', 'mime') || 'application/octet-stream';
+      const keys = Object.keys(att);
       let buffer;
 
       const rawContent = String(pick(att, 'content', 'data', 'base64', 'body') || '').trim();
       const rawUrl = pick(att, 'url', 'link', 'downloadUrl', 'href') || '';
+      const downloadToken = pick(att, 'DownloadToken', 'downloadToken', 'token', 'attachmentToken') || '';
+      const brevoApiKey = getBrevoApiKey();
 
       if (rawContent) {
         const stripped = rawContent.replace(/\s/g, '');
@@ -712,13 +715,19 @@ async function processBrevoAttachments(attachments = []) {
       } else if (rawUrl) {
         console.log(`/receive: downloading from url for "${name}": ${rawUrl.slice(0, 100)}`);
         buffer = await downloadBuffer(rawUrl);
+      } else if (downloadToken && brevoApiKey) {
+        const brevoUrl = `https://api.brevo.com/v3/inbound/attachments/${downloadToken}`;
+        console.log(`/receive: downloading via Brevo API for "${name}" (token=${downloadToken.slice(0, 20)}...)`);
+        const resp = await fetch(brevoUrl, { headers: { 'api-key': brevoApiKey } });
+        if (resp.ok) {
+          buffer = Buffer.from(await resp.arrayBuffer());
+        } else {
+          console.warn(`/receive: Brevo API download failed for "${name}": ${resp.status}`);
+        }
       } else {
-        console.warn(`/receive: no content or url for "${name}" — storing raw Brevo data so client can fall back`);
-        // Store the raw Brevo fields so client can use data: URL as last resort
+        console.warn(`/receive: no content/url/token for "${name}" — keys=${JSON.stringify(keys)}`);
         return {
-          name,
-          size: att.size || 0,
-          type: contentType,
+          name, size: att.size || 0, type: contentType,
           content: rawContent || undefined,
           url: rawUrl || undefined,
         };
