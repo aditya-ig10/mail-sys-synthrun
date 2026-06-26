@@ -587,7 +587,7 @@ function renderList() {
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6L9 17l-5-5"></path></svg>
         </div>
       </div>
-      <div>
+      <div class="thread-body">
         <div class="thread-from">${escapeHtml(senderLabel)}</div>
         <div class="thread-subject">${escapeHtml(message.subject || '(no subject)')}</div>
         <div class="thread-preview">${escapeHtml(stripMarkdown(message.body || '').slice(0, 80))}</div>
