@@ -1459,11 +1459,13 @@ function stripMarkdown(text) {
 function isProbablyBinary(text) {
   if (!text) return false;
   const str = String(text);
+  let c1Count = 0;
   for (let i = 0; i < str.length; i++) {
     const code = str.charCodeAt(i);
-    if (code >= 0x80 && code <= 0x9F) return true;
+    if (code === 0x00) return true;
+    if (code >= 0x80 && code <= 0x9F) c1Count++;
   }
-  return false;
+  return str.length > 0 && c1Count / str.length > 0.3;
 }
 
 function hasHtmlTags(text) {

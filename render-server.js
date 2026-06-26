@@ -604,15 +604,17 @@ function sanitizeIncomingText(text) {
   if (!text) return '';
   const str = String(text);
 
-  // Check for C1 control characters (0x80-0x9F) — these should never appear in real text.
-  // Their presence means binary data was interpreted as text (e.g. inline image or attachment
-  // content leaked into the body field by the upstream email parser).
+  // Count C1 control characters (0x80-0x9F) — only discard if high ratio,
+  // since charset-encoded text (ISO-8859-1, Windows-1252) legitimately contains these.
+  let c1Count = 0;
   for (let i = 0; i < str.length; i++) {
     const code = str.charCodeAt(i);
-    if (code >= 0x80 && code <= 0x9F) {
-      console.warn(`sanitizeIncomingText: C1 control char U+${code.toString(16).padStart(4, '0')} at pos ${i}, discarding. length=${str.length}`);
-      return '';
-    }
+    if (code === 0x00) return '';
+    if (code >= 0x80 && code <= 0x9F) c1Count++;
+  }
+  if (str.length > 0 && c1Count / str.length > 0.3) {
+    console.warn(`sanitizeIncomingText: high C1 control-char ratio ${(c1Count / str.length).toFixed(2)}, discarding. length=${str.length}`);
+    return '';
   }
 
   // Strip ASCII control characters (keep \t \n \r)
