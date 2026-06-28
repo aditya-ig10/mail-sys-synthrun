@@ -365,10 +365,11 @@ main {
   provider.setCustomParameters({ hd: ALLOWED_DOMAIN });
 
   let pendingUser = null;
+  let isSigningIn = false;
 
-  // Redirect if already signed in
+  // Redirect if already signed in (but not during active sign-in flow)
   onAuthStateChanged(auth, (user) => {
-    if (user) window.location.href = MAIL_APP_URL;
+    if (user && !isSigningIn) window.location.href = MAIL_APP_URL;
   });
 
   // ── TOTP (standalone, no Firebase MFA) ─────────────────────────────────────
@@ -483,6 +484,7 @@ main {
       return fieldError('password', 'passwordError');
     }
 
+    isSigningIn = true;
     setLoading(true);
     try {
       const cred = await signInWithEmailAndPassword(auth, email, password);
@@ -503,6 +505,7 @@ main {
       }
       window.location.href = MAIL_APP_URL;
     } catch (err) {
+      isSigningIn = false;
       setLoading(false);
       const code = err.code;
       if (code === 'auth/user-not-found' || code === 'auth/wrong-password' || code === 'auth/invalid-credential') {
@@ -546,6 +549,7 @@ main {
 
   // ── Google sign-in ────────────────────────────────────────────────────────────
   document.getElementById('googleBtn').addEventListener('click', async () => {
+    isSigningIn = true;
     try {
       const cred = await signInWithPopup(auth, provider);
       if (!cred.user.email.endsWith('@' + ALLOWED_DOMAIN)) {
@@ -563,6 +567,7 @@ main {
       }
       window.location.href = MAIL_APP_URL;
     } catch (err) {
+      isSigningIn = false;
       if (err.code !== 'auth/popup-closed-by-user') {
         showToast('Google sign-in failed. Try again.', true);
       }

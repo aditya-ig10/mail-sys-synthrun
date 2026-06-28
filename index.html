@@ -20,6 +20,7 @@ window.SYNTHRUN_UPDATE_LOADING = function(i) {
   if (!window.__loadingReady) { window.__loadingQueue.push(i); return; }
   window.__setPhase(i);
 };
+if (sessionStorage.getItem('synthrun-booted')) window.__skipLoader = true;
 </script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;1,9..144,300;1,9..144,400&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
@@ -1720,6 +1721,11 @@ document.getElementById('mailHomeBtn')?.addEventListener('click', async (event) 
    DYNAMIC LOADING ANIMATION
    ══════════════════════════════════════════════════════════════ */
 (function () {
+  if (window.__skipLoader) {
+    const el = document.getElementById('appLoadingOverlay');
+    if (el) { el.classList.add('hidden'); el.setAttribute('aria-busy', 'false'); }
+    return;
+  }
   const overlay = document.getElementById('appLoadingOverlay');
   const canvas = document.getElementById('loadingCanvas');
   const ctx = canvas.getContext('2d');

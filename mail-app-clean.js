@@ -1049,6 +1049,7 @@ function setAppLoading(isLoading) {
     window.SYNTHRUN_UPDATE_LOADING?.(5);
     setTimeout(() => {
       window.__hideLoader?.();
+      sessionStorage.setItem('synthrun-booted', 'true');
     }, 600);
   } else {
     loadingOverlay.classList.remove('hidden');
