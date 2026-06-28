@@ -157,7 +157,7 @@ onAuthStateChanged(auth, async (user) => {
   window.SYNTHRUN_PROFILE_DATA = {
     email: user.email,
     name: formatSenderName(user.email),
-    slug: sanitizeEmail(user.email).split('@')[0],
+    slug: user.uid,
     initials: user.email.split('@')[0].slice(0, 2).toUpperCase(),
   };
   document.getElementById('userAvatar').textContent = user.email.split('@')[0].slice(0, 2).toUpperCase();
@@ -191,7 +191,7 @@ function bootDebugUser(email) {
   window.SYNTHRUN_PROFILE_DATA = {
     email,
     name: formatSenderName(email),
-    slug: sanitizeEmail(email).split('@')[0],
+    slug: 'debug-user',
     initials: email.split('@')[0].slice(0, 2).toUpperCase(),
   };
 

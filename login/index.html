@@ -207,6 +207,10 @@ main {
 .security-note svg { width: 14px; height: 14px; stroke: var(--ink3); fill: none; stroke-width: 1.5; flex-shrink: 0; margin-top: 1px; }
 .security-note p { font-size: 0.6rem; line-height: 1.7; color: var(--ink3); }
 
+.tfa-step { margin-top: 2rem; }
+.back-row { text-align: center; }
+.back-row .forgot-link { font-weight: 300; }
+
 .toast {
   position: fixed; bottom: 1.5rem; right: 1.5rem; z-index: 999;
   background: var(--ink); color: var(--white);
@@ -307,6 +311,27 @@ main {
       <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="1.5"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
       <p>This is a restricted internal system. Only authorised @synthrun.site employees may access it. All activity is logged.</p>
     </div>
+
+    <!-- 2FA Step -->
+    <div class="tfa-step" id="tfaStep" style="display:none;">
+      <div class="form-header">
+        <h2 class="form-title">Two-factor auth</h2>
+        <p class="form-sub">Enter the code from your authenticator app.</p>
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="tfaCode">Authentication code</label>
+        <input type="text" id="tfaCode" class="form-input" placeholder="000000" maxlength="6" inputmode="numeric" pattern="[0-9]*" autocomplete="one-time-code">
+        <p class="form-hint error-msg" id="tfaError">Invalid code. Try again.</p>
+      </div>
+      <button type="button" class="login-btn" id="tfaVerifyBtn">
+        <div class="btn-spinner" aria-hidden="true"></div>
+        <span class="btn-text">Verify</span>
+        <svg class="btn-arrow" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13.5 5.5 20 12l-6.5 6.5"/></svg>
+      </button>
+      <div class="back-row" style="margin-top:1.2rem;">
+        <a href="#" class="forgot-link" id="tfaBackBtn">Back to sign in</a>
+      </div>
+    </div>
   </div>
 </main>
 
@@ -323,21 +348,73 @@ main {
     GoogleAuthProvider,
     onAuthStateChanged
   } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
+  import {
+    getFirestore,
+    doc,
+    getDoc,
+  } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 
   const ALLOWED_DOMAIN = 'synthrun.site';
-  const MAIL_APP_URL   = '../'; // path to index.html
+  const MAIL_APP_URL   = '../';
 
   const app      = initializeApp(firebaseConfig);
   const auth     = getAuth(app);
+  const db       = getFirestore(app);
   const provider = new GoogleAuthProvider();
   provider.setCustomParameters({ hd: ALLOWED_DOMAIN });
+
+  let pendingUser = null;
 
   // Redirect if already signed in
   onAuthStateChanged(auth, (user) => {
     if (user) window.location.href = MAIL_APP_URL;
   });
 
-  // ── Helpers ──────────────────────────────────────────────────────────────────
+  // ── TOTP (standalone, no Firebase MFA) ─────────────────────────────────────
+
+  const BASE32 = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+
+  function base32Decode(s) {
+    const cleaned = s.replace(/[^A-Za-z2-7]/g, '').toUpperCase();
+    const bytes = []; let bits = 0, buf = 0;
+    for (const c of cleaned) {
+      const idx = BASE32.indexOf(c); if (idx === -1) continue;
+      buf = (buf << 5) | idx; bits += 5;
+      if (bits >= 8) { bytes.push((buf >>> (bits - 8)) & 255); bits -= 8; }
+    }
+    return new Uint8Array(bytes);
+  }
+
+  async function totpCode(secret, ts = Date.now()) {
+    const counter = BigInt(Math.floor(ts / 1000 / 30));
+    const cBuf = new ArrayBuffer(8);
+    new DataView(cBuf).setBigUint64(0, counter, false);
+    const key = await crypto.subtle.importKey('raw', base32Decode(secret), { name: 'HMAC', hash: 'SHA-1' }, false, ['sign']);
+    const hmac = new Uint8Array(await crypto.subtle.sign('HMAC', key, cBuf));
+    const off = hmac[hmac.length - 1] & 15;
+    const code = ((hmac[off] & 127) << 24 | hmac[off + 1] << 16 | hmac[off + 2] << 8 | hmac[off + 3]) % 1000000;
+    return String(code).padStart(6, '0');
+  }
+
+  async function verifyTotp(secret, code) {
+    if (await totpCode(secret) === code) return true;
+    if (await totpCode(secret, Date.now() - 30000) === code) return true;
+    if (await totpCode(secret, Date.now() + 30000) === code) return true;
+    return false;
+  }
+
+  async function checkTotpRequired(user) {
+    try {
+      const snap = await getDoc(doc(db, 'user_settings', user.uid));
+      if (snap.exists() && snap.data().totpEnabled && snap.data().totpSecret) {
+        return snap.data().totpSecret;
+      }
+    } catch { /* ignore */ }
+    return null;
+  }
+
+  // ── UI helpers ───────────────────────────────────────────────────────────────
+
   function showToast(msg, isError = false) {
     const t = document.getElementById('toast');
     t.textContent = msg;
@@ -347,6 +424,12 @@ main {
 
   function setLoading(loading) {
     const btn = document.getElementById('loginBtn');
+    btn.disabled = loading;
+    btn.classList.toggle('loading', loading);
+  }
+
+  function setTfaLoading(loading) {
+    const btn = document.getElementById('tfaVerifyBtn');
     btn.disabled = loading;
     btn.classList.toggle('loading', loading);
   }
@@ -361,7 +444,26 @@ main {
     document.getElementById(msgId).classList.add('show');
   }
 
+  function showLoginForm() {
+    document.getElementById('loginForm').style.display = '';
+    document.getElementById('googleBtn').style.display = '';
+    document.querySelector('.divider').style.display = '';
+    document.querySelector('.security-note').style.display = '';
+    document.getElementById('tfaStep').style.display = 'none';
+  }
+
+  function showTfaStep() {
+    document.getElementById('loginForm').style.display = 'none';
+    document.getElementById('googleBtn').style.display = 'none';
+    document.querySelector('.divider').style.display = 'none';
+    document.querySelector('.security-note').style.display = 'none';
+    document.getElementById('tfaStep').style.display = 'block';
+    document.getElementById('tfaCode').value = '';
+    document.getElementById('tfaCode').focus();
+  }
+
   // ── Email sign-in ─────────────────────────────────────────────────────────────
+
   document.getElementById('loginForm').addEventListener('submit', async (e) => {
     e.preventDefault();
     clearErrors();
@@ -379,11 +481,19 @@ main {
     setLoading(true);
     try {
       const cred = await signInWithEmailAndPassword(auth, email, password);
-      // Check domain
       if (!cred.user.email.endsWith('@' + ALLOWED_DOMAIN)) {
         await auth.signOut();
         showToast('Only @' + ALLOWED_DOMAIN + ' accounts are allowed.', true);
         setLoading(false);
+        return;
+      }
+      // Check for TOTP 2FA
+      const totpSecret = await checkTotpRequired(cred.user);
+      if (totpSecret) {
+        pendingUser = cred.user;
+        window._pendingTotpSecret = totpSecret;
+        setLoading(false);
+        showTfaStep();
         return;
       }
       window.location.href = MAIL_APP_URL;
@@ -402,6 +512,33 @@ main {
     }
   });
 
+  // ── TOTP verification ─────────────────────────────────────────────────────────
+
+  document.getElementById('tfaVerifyBtn').addEventListener('click', async () => {
+    const code = document.getElementById('tfaCode').value.trim();
+    if (!code || code.length < 6) { fieldError('tfaCode', 'tfaError'); return; }
+    clearErrors();
+    setTfaLoading(true);
+    try {
+      const secret = window._pendingTotpSecret;
+      if (!secret) { showToast('Session expired. Please sign in again.', true); setTfaLoading(false); showLoginForm(); return; }
+      const valid = await verifyTotp(secret, code);
+      if (!valid) { fieldError('tfaCode', 'tfaError'); setTfaLoading(false); return; }
+      window.location.href = MAIL_APP_URL;
+    } catch { showToast('Verification failed. Try again.', true); setTfaLoading(false); }
+  });
+
+  document.getElementById('tfaCode').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') document.getElementById('tfaVerifyBtn').click();
+  });
+
+  document.getElementById('tfaBackBtn').addEventListener('click', async (e) => {
+    e.preventDefault();
+    if (pendingUser) { await auth.signOut(); pendingUser = null; }
+    window._pendingTotpSecret = null;
+    showLoginForm();
+  });
+
   // ── Google sign-in ────────────────────────────────────────────────────────────
   document.getElementById('googleBtn').addEventListener('click', async () => {
     try {
@@ -409,6 +546,14 @@ main {
       if (!cred.user.email.endsWith('@' + ALLOWED_DOMAIN)) {
         await auth.signOut();
         showToast('Only @' + ALLOWED_DOMAIN + ' Google accounts are allowed.', true);
+        return;
+      }
+      // Check for TOTP 2FA (same flow as email sign-in)
+      const totpSecret = await checkTotpRequired(cred.user);
+      if (totpSecret) {
+        pendingUser = cred.user;
+        window._pendingTotpSecret = totpSecret;
+        showTfaStep();
         return;
       }
       window.location.href = MAIL_APP_URL;

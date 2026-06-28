@@ -604,8 +604,6 @@ main.content {
     deleteUser,
     reauthenticateWithCredential,
     EmailAuthProvider,
-    multiFactor,
-    TOTPMultiFactorGenerator,
   } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
   import {
     getFirestore,
@@ -682,13 +680,65 @@ main.content {
         email,
         displayName: formatName(email),
         backupEmail: '',
-        twoFactorEnabled: false,
+        totpEnabled: false,
+        totpSecret: '',
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       });
-      return { uid, email, displayName: formatName(email), backupEmail: '', twoFactorEnabled: false };
+      return { uid, email, displayName: formatName(email), backupEmail: '', totpEnabled: false, totpSecret: '' };
     }
     return snap.data();
+  }
+
+  // ─── TOTP (Standalone — no Firebase MFA) ─────────────────
+
+  const BASE32 = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+
+  function base32Encode(buf) {
+    const bytes = new Uint8Array(buf);
+    let bits = 0, val = 0, r = '';
+    for (const b of bytes) {
+      val = (val << 8) | b; bits += 8;
+      while (bits >= 5) { r += BASE32[(val >>> (bits - 5)) & 31]; bits -= 5; }
+    }
+    if (bits > 0) r += BASE32[(val << (5 - bits)) & 31];
+    return r;
+  }
+
+  function base32Decode(s) {
+    const cleaned = s.replace(/[^A-Za-z2-7]/g, '').toUpperCase();
+    const bytes = []; let bits = 0, buf = 0;
+    for (const c of cleaned) {
+      const idx = BASE32.indexOf(c); if (idx === -1) continue;
+      buf = (buf << 5) | idx; bits += 5;
+      if (bits >= 8) { bytes.push((buf >>> (bits - 8)) & 255); bits -= 8; }
+    }
+    return new Uint8Array(bytes);
+  }
+
+  async function totpCode(secret, ts = Date.now()) {
+    const counter = BigInt(Math.floor(ts / 1000 / 30));
+    const cBuf = new ArrayBuffer(8);
+    new DataView(cBuf).setBigUint64(0, counter, false);
+    const key = await crypto.subtle.importKey('raw', base32Decode(secret), { name: 'HMAC', hash: 'SHA-1' }, false, ['sign']);
+    const hmac = new Uint8Array(await crypto.subtle.sign('HMAC', key, cBuf));
+    const off = hmac[hmac.length - 1] & 15;
+    const code = ((hmac[off] & 127) << 24 | hmac[off + 1] << 16 | hmac[off + 2] << 8 | hmac[off + 3]) % 1000000;
+    return String(code).padStart(6, '0');
+  }
+
+  async function verifyTotp(secret, code) {
+    const c = await totpCode(secret);
+    if (c === code) return true;
+    if (await totpCode(secret, Date.now() - 30000) === code) return true;
+    if (await totpCode(secret, Date.now() + 30000) === code) return true;
+    return false;
+  }
+
+  function generateTotpSecret() {
+    const bytes = new Uint8Array(20);
+    crypto.getRandomValues(bytes);
+    return base32Encode(bytes).replace(/=/g, '');
   }
 
   // ─── SESSION TRACKING ────────────────────────────────────
@@ -771,20 +821,19 @@ main.content {
     } catch { container.innerHTML = '<div class="empty-state">Could not load sessions.</div>'; }
   }
 
-  // ─── 2FA ─────────────────────────────────────────────────
+  // ─── 2FA (Standalone TOTP) ───────────────────────────────
 
   async function updateTfaUI() {
     if (!currentUser) return;
     try {
-      const mfaUser = multiFactor(currentUser);
-      const factors = mfaUser.enrolledFactors;
-      const enabled = factors.length > 0;
+      const snap = await getDoc(doc(db, 'user_settings', currentUser.uid));
+      const enabled = snap.exists() && snap.data().totpEnabled;
       const statusDot = document.querySelector('#tfaStatus .status-dot');
       const label = document.getElementById('tfaLabel');
       const btn = document.getElementById('tfaBtn');
       if (enabled) {
         statusDot.className = 'status-dot on';
-        label.textContent = `Enabled (${factors[0].displayName || 'Authenticator'})`;
+        label.textContent = 'Enabled (Authenticator)';
         btn.textContent = 'Remove';
         btn.className = 'btn btn-danger';
       } else {
@@ -794,7 +843,6 @@ main.content {
         btn.className = 'btn';
       }
     } catch {
-      // Firebase MFA not available or user not eligible
       document.getElementById('tfaBtn').style.display = 'none';
       document.querySelector('#tfaStatus .status-dot').className = 'status-dot off';
       document.getElementById('tfaLabel').textContent = 'Unavailable';
@@ -804,74 +852,42 @@ main.content {
   async function setupTfa() {
     if (!currentUser) return;
     try {
-      const mfaUser = multiFactor(currentUser);
-      const totpSecret = await TOTPMultiFactorGenerator.generateSecret();
-      const otpauthUrl = totpSecret.generateQrCodeUrl('Synthrun Mail', currentUser.email);
-      const qrImgUrl = `https://chart.googleapis.com/chart?chs=200x200&cht=qr&chl=${encodeURIComponent(otpauthUrl)}`;
-
-      document.getElementById('qrImage').src = qrImgUrl;
-      document.getElementById('qrSecret').textContent = `Secret: ${totpSecret.secretKey}`;
+      const secret = generateTotpSecret();
+      const otpauth = `otpauth://totp/Synthrun%20Mail:${encodeURIComponent(currentUser.email)}?secret=${secret}&issuer=Synthrun%20Mail&algorithm=SHA1&digits=6&period=30`;
+      const qrUrl = `https://chart.googleapis.com/chart?chs=200x200&cht=qr&chl=${encodeURIComponent(otpauth)}`;
+      document.getElementById('qrImage').src = qrUrl;
+      document.getElementById('qrSecret').textContent = `Secret: ${secret}`;
       document.getElementById('tfaCodeInput').value = '';
-
-      // Store secret for verification
-      window._pendingTotpSecret = totpSecret;
+      window._pendingTotpSecret = secret;
       openModal('tfaModal');
     } catch (err) {
-      if (err.code === 'auth/requires-recent-login') {
-        pendingReauthAction = 'tfaEnroll';
-        openModal('reauthModal');
-      } else {
-        showToast('Could not start 2FA setup: ' + (err.message || err.code), true);
-      }
+      showToast('Could not start 2FA setup: ' + (err.message || err.code), true);
     }
   }
 
   async function enrollTfa() {
     const code = document.getElementById('tfaCodeInput').value.trim();
-    if (!code || code.length < 6) {
-      showToast('Enter a valid 6-digit verification code from your authenticator app.', true);
-      return;
-    }
+    if (!code || code.length < 6) { showToast('Enter a valid 6-digit verification code.', true); return; }
     const secret = window._pendingTotpSecret;
     if (!secret) { showToast('Session expired. Please restart 2FA setup.', true); return; }
     try {
-      const mfaUser = multiFactor(currentUser);
-      const assertion = TOTPMultiFactorGenerator.assertionForEnrollment(secret, code);
-      await mfaUser.enroll(assertion, 'Authenticator');
+      const valid = await verifyTotp(secret, code);
+      if (!valid) { showToast('Invalid verification code. Try again.', true); return; }
       closeModal('tfaModal');
       window._pendingTotpSecret = null;
+      await updateDoc(doc(db, 'user_settings', currentUser.uid), { totpSecret: secret, totpEnabled: true, updatedAt: serverTimestamp() });
       showToast('Two-factor authentication enabled.');
       await updateTfaUI();
-      // Update Firestore
-      await updateDoc(doc(db, 'user_settings', currentUser.uid), { twoFactorEnabled: true, updatedAt: serverTimestamp() });
-    } catch (err) {
-      if (err.code === 'auth/invalid-verification-code') {
-        showToast('Invalid verification code. Try again.', true);
-      } else {
-        showToast('2FA setup failed: ' + (err.message || err.code), true);
-      }
-    }
+    } catch { showToast('2FA setup failed.', true); }
   }
 
   async function removeTfa() {
     if (!currentUser) return;
     try {
-      const mfaUser = multiFactor(currentUser);
-      const factors = mfaUser.enrolledFactors;
-      if (factors.length) {
-        await mfaUser.unenroll(factors[0].uid);
-        await updateDoc(doc(db, 'user_settings', currentUser.uid), { twoFactorEnabled: false, updatedAt: serverTimestamp() });
-        showToast('Two-factor authentication disabled.');
-        await updateTfaUI();
-      }
-    } catch (err) {
-      if (err.code === 'auth/requires-recent-login') {
-        pendingReauthAction = 'tfaRemove';
-        openModal('reauthModal');
-      } else {
-        showToast('Failed to disable 2FA: ' + (err.message || err.code), true);
-      }
-    }
+      await updateDoc(doc(db, 'user_settings', currentUser.uid), { totpSecret: '', totpEnabled: false, updatedAt: serverTimestamp() });
+      showToast('Two-factor authentication disabled.');
+      await updateTfaUI();
+    } catch { showToast('Failed to disable 2FA.', true); }
   }
 
   // ─── REAUTH ──────────────────────────────────────────────
@@ -1117,8 +1133,9 @@ main.content {
   // 2FA
   document.getElementById('tfaBtn').addEventListener('click', async () => {
     if (!currentUser) return;
-    const mfaUser = multiFactor(currentUser);
-    if (mfaUser.enrolledFactors.length > 0) {
+    const snap = await getDoc(doc(db, 'user_settings', currentUser.uid));
+    const enabled = snap.exists() && snap.data().totpEnabled;
+    if (enabled) {
       openModal('tfaRemoveModal');
     } else {
       await setupTfa();
