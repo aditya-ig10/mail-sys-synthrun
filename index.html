@@ -305,6 +305,70 @@ body[data-theme="dark"] .side-link.active { background: rgba(255,255,255,0.07); 
   grid-template-columns: var(--thread-w) 1fr;
   min-height: 0;
 }
+body.layout-gmail .mail-panel {
+  grid-template-columns: 1fr;
+  position: relative;
+  overflow: hidden;
+}
+body.layout-gmail .mail-view {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  background: var(--panel-strong);
+  transform: translateX(100%);
+  transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+  will-change: transform;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+body.layout-gmail .mail-panel.message-open .mail-view {
+  transform: translateX(0);
+}
+body.layout-gmail .mail-panel.message-open .thread-list {
+  transform: translateX(-30%);
+  transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+}
+body.layout-gmail .thread-list {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  z-index: 1;
+  background: var(--panel-strong);
+  transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+}
+body.layout-gmail #messageView {
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+body.layout-gmail #messageView[style*="flex"] {
+  display: flex !important;
+}
+body.layout-gmail .mail-view-empty {
+  display: none;
+}
+body.layout-gmail #splitResize {
+  display: none;
+}
+body.layout-gmail .mobile-back-btn {
+  display: grid !important;
+  place-items: center;
+  width: 30px; height: 30px;
+  border: 1px solid var(--line);
+  background: transparent;
+  cursor: pointer;
+  color: var(--muted);
+  padding: 0;
+  flex-shrink: 0;
+}
+body.layout-gmail .mobile-back-btn svg {
+  width: 14px; height: 14px;
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 1.6;
+}
 
 /* ─── Thread List ────────────────────────────────────────────── */
 .thread-list {
@@ -356,6 +420,14 @@ body[data-theme="dark"] .thread-item.selected { background: rgba(255,255,255,0.0
   background: var(--unread-dot);
 }
 .thread-item.unread .thread-subject { font-weight: 500; }
+body.density-compact .thread-item { padding: 8px 12px; gap: 8px; }
+body.density-compact .thread-subject { font-size: 11px; }
+body.density-compact .thread-preview { font-size: 10px; -webkit-line-clamp: 1; }
+body.density-compact .thread-from { font-size: 10px; margin-bottom: 2px; }
+body.density-compact .thread-time { font-size: 9px; }
+body.density-compact .thread-tags { margin-top: 4px; }
+body.density-compact .thread-tag { font-size: 8px; padding: 1px 4px; }
+body.density-compact .thread-avatar { width: 28px; height: 28px; }
 .thread-meta { min-width: 0; }
 .thread-item > div { min-width: 0; }
 .thread-body { overflow: hidden; }
@@ -364,8 +436,7 @@ body[data-theme="dark"] .thread-item.selected { background: rgba(255,255,255,0.0
 .thread-preview { font-size: 11px; color: var(--subtle); line-height: 1.55; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
 .thread-aside { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; padding-top: 2px; }
 .thread-time { font-size: 10px; color: var(--subtle); white-space: nowrap; line-height: 1.4; }
-.thread-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--unread-dot); display: none; flex-shrink: 0; }
-.thread-item.unread .thread-dot { display: block; }
+.thread-dot { display: none; }
 
 /* ─── Thread Avatar ─────────────────────────────────────*/
 .thread-avatar {

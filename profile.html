@@ -444,6 +444,32 @@ main.content {
             <button class="btn btn-sm" data-theme-opt="dark" type="button">Dark</button>
           </div>
         </div>
+        <div class="card-pad card-row">
+          <div class="card-left">
+            <div class="card-info">
+              <div class="card-label">Layout</div>
+              <div class="card-value" id="layoutDisplay">Synthrun</div>
+              <div class="card-hint">Choose how your mailbox is arranged.</div>
+            </div>
+          </div>
+          <div style="display:flex;gap:0.35rem;">
+            <button class="btn btn-sm" data-layout-opt="synthrun" type="button">Synthrun</button>
+            <button class="btn btn-sm" data-layout-opt="gmail" type="button">Gmail</button>
+          </div>
+        </div>
+        <div class="card-pad card-row">
+          <div class="card-left">
+            <div class="card-info">
+              <div class="card-label">Density</div>
+              <div class="card-value" id="densityDisplay">Comfortable</div>
+              <div class="card-hint">Control the spacing of your message list.</div>
+            </div>
+          </div>
+          <div style="display:flex;gap:0.35rem;">
+            <button class="btn btn-sm" data-density-opt="comfortable" type="button">Comfortable</button>
+            <button class="btn btn-sm" data-density-opt="compact" type="button">Compact</button>
+          </div>
+        </div>
       </div>
     </section>
 
@@ -726,10 +752,12 @@ main.content {
         backupEmail: '',
         totpEnabled: false,
         totpSecret: '',
+        layout: 'synthrun',
+        density: 'comfortable',
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       });
-      return { uid, email, displayName: formatName(email), backupEmail: '', totpEnabled: false, totpSecret: '' };
+      return { uid, email, displayName: formatName(email), backupEmail: '', totpEnabled: false, totpSecret: '', layout: 'synthrun', density: 'comfortable' };
     }
     return snap.data();
   }
@@ -1027,6 +1055,20 @@ main.content {
     } catch { /* ignore */ }
   }
 
+  async function updateLayoutUI() {
+    try {
+      const snap = await getDoc(doc(db, 'user_settings', currentUser.uid));
+      if (!snap.exists()) return;
+      const d = snap.data();
+      const layout = d.layout || 'synthrun';
+      const density = d.density || 'comfortable';
+      document.getElementById('layoutDisplay').textContent = layout === 'gmail' ? 'Gmail' : 'Synthrun';
+      document.getElementById('densityDisplay').textContent = density === 'compact' ? 'Compact' : 'Comfortable';
+      document.querySelectorAll('[data-layout-opt]').forEach(b => b.classList.toggle('active', b.dataset.layoutOpt === layout));
+      document.querySelectorAll('[data-density-opt]').forEach(b => b.classList.toggle('active', b.dataset.densityOpt === density));
+    } catch { /* ignore */ }
+  }
+
   async function openBackupEmailModal() {
     if (!currentUser) return;
     document.getElementById('backupStep1').style.display = 'block';
@@ -1194,6 +1236,7 @@ main.content {
     await loadSessions();
     await updateTfaUI();
     await updateBackupEmailUI();
+    await updateLayoutUI();
   });
 
   // ─── EVENTS ──────────────────────────────────────────────
@@ -1244,6 +1287,30 @@ main.content {
 
   document.querySelectorAll('[data-theme-opt]').forEach(btn => {
     btn.addEventListener('click', () => setTheme(btn.dataset.themeOpt));
+  });
+
+  document.querySelectorAll('[data-layout-opt]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      if (!currentUser) return;
+      const val = btn.dataset.layoutOpt;
+      try {
+        await updateDoc(doc(db, 'user_settings', currentUser.uid), { layout: val, updatedAt: serverTimestamp() });
+        await updateLayoutUI();
+        showToast('Layout saved. Refresh the mail app to see changes.');
+      } catch { showToast('Failed to save layout.', true); }
+    });
+  });
+
+  document.querySelectorAll('[data-density-opt]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      if (!currentUser) return;
+      const val = btn.dataset.densityOpt;
+      try {
+        await updateDoc(doc(db, 'user_settings', currentUser.uid), { density: val, updatedAt: serverTimestamp() });
+        await updateLayoutUI();
+        showToast('Density saved. Refresh the mail app to see changes.');
+      } catch { showToast('Failed to save density.', true); }
+    });
   });
 
   // Sign out

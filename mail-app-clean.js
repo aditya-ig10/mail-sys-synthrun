@@ -6,6 +6,7 @@ import {
   collection,
   deleteDoc,
   doc,
+  getDoc,
   getDocs,
   getFirestore,
   query,
@@ -171,6 +172,16 @@ onAuthStateChanged(auth, async (user) => {
   }
 
   window._getIdToken = async () => (currentUser ? await currentUser.getIdToken() : null);
+
+  // Apply user settings (layout, density)
+  try {
+    const settingsSnap = await getDoc(doc(db, 'user_settings', user.uid));
+    if (settingsSnap.exists()) {
+      const s = settingsSnap.data();
+      document.body.classList.toggle('layout-gmail', s.layout === 'gmail');
+      document.body.classList.toggle('density-compact', s.density === 'compact');
+    }
+  } catch { /* ignore */ }
 
   window.SYNTHRUN_UPDATE_LOADING?.(2);
   await loadMessages();
@@ -546,13 +557,14 @@ function renderList() {
     });
   }
 
+  const inboxTotal = allMessages.filter((message) => message.folder !== 'sent' && message.folder !== 'draft' && message.folder !== 'trash' && message.folder !== 'outbox' && message.folder !== 'spam').length;
   const inboxUnread = allMessages.filter((message) => message.unread && message.folder !== 'sent' && message.folder !== 'draft' && message.folder !== 'trash' && message.folder !== 'outbox' && message.folder !== 'spam').length;
   const draftCount = allMessages.filter((message) => message.folder === 'draft').length;
   const trashCount = allMessages.filter((message) => message.folder === 'trash').length;
   const importantCount = allMessages.filter((message) => message.important).length;
   const outboxCount = allMessages.filter((message) => message.folder === 'outbox').length;
   const spamCount = allMessages.filter((message) => message.folder === 'spam').length;
-  document.getElementById('badge-inbox').textContent = String(inboxUnread || 0);
+  document.getElementById('badge-inbox').textContent = String(inboxTotal || 0);
   document.getElementById('badge-unread').textContent = String(inboxUnread || 0);
   document.getElementById('badge-archived').textContent = String(allMessages.filter((message) => message.folder === 'archived').length || 0);
   document.getElementById('badge-sent').textContent = String(allMessages.filter((message) => message.folder === 'sent').length || '—');
@@ -600,10 +612,7 @@ function renderList() {
         ${attachmentCount ? `<div class="thread-tags"><span class="thread-tag">📎 ${attachmentCount} attachment${attachmentCount === 1 ? '' : 's'}</span></div>` : ''}
         ${Array.isArray(message.labels) && message.labels.length ? `<div class="thread-tags">${message.labels.map((label) => `<span class="thread-tag">${escapeHtml(label)}</span>`).join('')}</div>` : ''}
       </div>
-      <div>
-        <div class="thread-time">${formatTime(timestamp)}</div>
-        <div class="thread-dot" aria-hidden="true"></div>
-      </div>`;
+      <div class="thread-time">${formatTime(timestamp)}</div>`;
 
     const avatarEl = item.querySelector('.thread-avatar');
     avatarEl.addEventListener('click', (e) => {
@@ -713,6 +722,9 @@ async function openMessage(id, { updateRoute = true, replaceRoute = false } = {}
     } catch (error) {
       console.warn('Could not clear unread flag:', error);
     }
+    document.querySelectorAll(`.thread-item[data-id="${id}"]`).forEach(el => el.classList.remove('unread'));
+    const unreadCount = allMessages.filter(m => m.unread && m.folder !== 'sent' && m.folder !== 'draft' && m.folder !== 'trash' && m.folder !== 'outbox' && m.folder !== 'spam').length;
+    document.getElementById('badge-unread').textContent = String(unreadCount || 0);
   }
 
   document.querySelectorAll('.thread-item').forEach((item) => {
