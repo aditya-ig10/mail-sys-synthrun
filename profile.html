@@ -13,6 +13,7 @@
   --white: #fafaf8; --off: #f2f1ee; --ink: #111110; --ink2: #3a3a38;
   --ink3: #888884; --ink4: #c4c4be; --rule: #e0dfd9;
   --surface: rgba(255,255,255,0.75); --nav-bg: rgba(250,250,248,0.94);
+  --overlay: rgba(0,0,0,0.45);
   --green: #2b7a4b; --red: #c04a3a; --amber: #b8860b;
 }
 @media (prefers-color-scheme: dark) {
@@ -20,6 +21,7 @@
     --white: #101114; --off: #181a1f; --ink: #eceae2; --ink2: #c4c0b5;
     --ink3: #989388; --ink4: #646055; --rule: #2b2e35;
     --surface: rgba(24,26,31,0.82); --nav-bg: rgba(16,17,20,0.9);
+    --overlay: rgba(0,0,0,0.65);
     --green: #4caf7a; --red: #e06050; --amber: #d4a030;
   }
 }
@@ -27,12 +29,14 @@ body[data-theme="light"] {
   --white: #fafaf8; --off: #f2f1ee; --ink: #111110; --ink2: #3a3a38;
   --ink3: #888884; --ink4: #c4c4be; --rule: #e0dfd9;
   --surface: rgba(255,255,255,0.75); --nav-bg: rgba(250,250,248,0.94);
+  --overlay: rgba(0,0,0,0.45);
   --green: #2b7a4b; --red: #c04a3a; --amber: #b8860b;
 }
 body[data-theme="dark"] {
   --white: #101114; --off: #181a1f; --ink: #eceae2; --ink2: #c4c0b5;
   --ink3: #989388; --ink4: #646055; --rule: #2b2e35;
   --surface: rgba(24,26,31,0.82); --nav-bg: rgba(16,17,20,0.9);
+  --overlay: rgba(0,0,0,0.65);
   --green: #4caf7a; --red: #e06050; --amber: #d4a030;
 }
 html { font-size: 16px; scroll-behavior: smooth; }
@@ -217,7 +221,7 @@ main.content {
 
 .modal-overlay {
   position: fixed; inset: 0; z-index: 200;
-  background: rgba(0,0,0,0.45); backdrop-filter: blur(4px);
+  background: var(--overlay); backdrop-filter: blur(4px);
   display: none; align-items: center; justify-content: center;
   padding: 1rem;
 }
@@ -556,7 +560,7 @@ main.content {
       <div class="qr-box" id="qrContainer">
         <img id="qrImage" src="" alt="QR Code" width="200" height="200">
         <div id="qrManualFallback" style="display:none;text-align:center;padding:1rem;">
-          <p style="margin-bottom:0.5rem;color:var(--text-muted);">QR code unavailable. Enter the secret manually:</p>
+          <p style="margin-bottom:0.5rem;color:var(--ink3);">QR code unavailable. Enter the secret manually:</p>
         </div>
         <div class="qr-secret" id="qrSecret"></div>
       </div>
@@ -1136,6 +1140,13 @@ main.content {
 
   const media = window.matchMedia('(prefers-color-scheme: dark)');
 
+  function getCookie(name) {
+    return document.cookie.split('; ').find(r => r.startsWith(name + '='))?.split('=')[1];
+  }
+  function setCookie(name, value) {
+    document.cookie = `${name}=${encodeURIComponent(value)};path=/;max-age=31536000;SameSite=Lax`;
+  }
+
   function applyTheme(t) {
     const effective = t === 'system' ? (media.matches ? 'dark' : 'light') : t;
     if (effective === 'dark') {
@@ -1149,6 +1160,7 @@ main.content {
 
   function setTheme(t) {
     localStorage.setItem('synthrun-theme', t);
+    setCookie('synthrun-theme', t);
     applyTheme(t);
     const label = t === 'system' ? 'Auto' : t.charAt(0).toUpperCase() + t.slice(1);
     document.getElementById('themeLabel').textContent = label;
@@ -1222,8 +1234,7 @@ main.content {
   document.querySelectorAll('.section').forEach(s => observer.observe(s));
 
   // Theme buttons
-  if (!localStorage.getItem('synthrun-theme')) localStorage.setItem('synthrun-theme', 'system');
-  setTheme(localStorage.getItem('synthrun-theme'));
+  setTheme(localStorage.getItem('synthrun-theme') || decodeURIComponent(getCookie('synthrun-theme') || '') || 'system');
 
   document.getElementById('themeBtn').addEventListener('click', () => {
     const c = localStorage.getItem('synthrun-theme') || 'system';
@@ -1305,7 +1316,9 @@ main.content {
 <script nomodule>
   // Fallback theme for non-module browsers
   (function() {
-    var t = localStorage.getItem('synthrun-theme') || 'system';
+    var c = document.cookie.split('; ').find(function(r) { return r.startsWith('synthrun-theme='); });
+    var cookieVal = c ? c.split('=')[1] : '';
+    var t = localStorage.getItem('synthrun-theme') || cookieVal || 'system';
     var dark = window.matchMedia('(prefers-color-scheme: dark)').matches;
     var effective = t === 'system' ? (dark ? 'dark' : 'light') : t;
     if (effective === 'dark') { document.documentElement.setAttribute('data-theme', 'dark'); document.body.setAttribute('data-theme', 'dark'); }
