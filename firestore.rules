@@ -30,5 +30,14 @@ service cloud.firestore {
 
       allow read, update, delete: if resource != null && ownsMessage(resource.data);
     }
+
+    // User settings — each user can only read/write their own document
+    match /user_settings/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+
+      match /sessions/{sessionId} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
+    }
   }
 }

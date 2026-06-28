@@ -892,6 +892,84 @@ app.get('/templates.js', (_req, res) => {
   res.sendFile(path.join(__dirname, 'templates.js'));
 });
 
+app.post('/send-custom-reset', async (req, res) => {
+  cors(req, res);
+  try {
+    const { email } = req.body || {};
+    if (!email) return sendJson(res, 400, { error: 'Missing email' });
+
+    const sanitizedEmail = sanitizeEmail(email);
+    let userRecord;
+    try {
+      initFirebase();
+      userRecord = await admin.auth().getUserByEmail(sanitizedEmail);
+    } catch {
+      // Don't reveal whether the account exists
+      return sendJson(res, 200, { ok: true });
+    }
+
+    const resetLink = await admin.auth().generatePasswordResetLink(sanitizedEmail);
+
+    // Look up backup email from Firestore
+    let backupEmail = '';
+    try {
+      const db = admin.firestore();
+      const settingsSnap = await db.collection('user_settings').doc(userRecord.uid).get();
+      if (settingsSnap.exists) {
+        backupEmail = settingsSnap.data().backupEmail || '';
+      }
+    } catch { /* ignore */ }
+
+    const recipients = [sanitizedEmail];
+    if (backupEmail) recipients.push(sanitizeEmail(backupEmail));
+
+    const safeLink = htmlEscape(resetLink);
+    const htmlTemplate = `
+      <div style="font-family:'DM Mono',monospace;max-width:480px;margin:0 auto;padding:24px;color:#111110;">
+        <div style="border:1px solid #e0dfd9;padding:32px;background:#fafaf8;">
+          <p style="font-size:10px;letter-spacing:0.12em;text-transform:uppercase;color:#888884;margin-bottom:24px;">Synthrun Mail — Password Reset</p>
+          <h1 style="font-family:'Fraunces',serif;font-weight:300;font-size:24px;letter-spacing:-0.02em;margin:0 0 16px;">Reset your password</h1>
+          <p style="font-size:13px;line-height:1.7;color:#3a3a38;margin-bottom:20px;">Click the button below to reset your Synthrun Mail password. This link expires in 1 hour.</p>
+          <a href="${safeLink}" style="display:inline-block;padding:12px 24px;background:#111110;color:#fafaf8;text-decoration:none;font-size:11px;letter-spacing:0.12em;text-transform:uppercase;">Reset password</a>
+          <p style="font-size:11px;color:#888884;margin-top:20px;">If you didn't request this, you can safely ignore this email.</p>
+        </div>
+      </div>`;
+
+    const plainText = `Reset your Synthrun Mail password: ${resetLink}\n\nIf you didn't request this, ignore this email.`;
+
+    const brevoApiKey = getBrevoApiKey();
+    const uniqueRecipients = [...new Set(recipients)];
+
+    for (const to of uniqueRecipients) {
+      if (brevoApiKey) {
+        await sendViaBrevoApi({
+          senderAddress: process.env.FROM_EMAIL || 'mail@synthrun.site',
+          fromName: process.env.FROM_NAME || 'Synthrun Mail',
+          userEmail: process.env.FROM_EMAIL || 'mail@synthrun.site',
+          to,
+          subject: 'Reset your Synthrun Mail password',
+          text: plainText,
+          htmlContent: htmlTemplate,
+          attachments: [],
+        });
+      } else {
+        const transporter = createTransport();
+        await transporter.sendMail({
+          from: `"${process.env.FROM_NAME || 'Synthrun Mail'}" <${process.env.FROM_EMAIL || 'mail@synthrun.site'}>`,
+          to,
+          subject: 'Reset your Synthrun Mail password',
+          text: plainText,
+          html: htmlTemplate,
+        });
+      }
+    }
+
+    return sendJson(res, 200, { ok: true });
+  } catch {
+    return sendJson(res, 200, { ok: true });
+  }
+});
+
 app.get('/health', (_req, res) => {
   res.json({ ok: true });
 });

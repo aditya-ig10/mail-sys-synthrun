@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="robots" content="noindex, nofollow">
-<title>Synthrun Mail — Sign In</title>
+<title>Synthrun Mail — Reset Password</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;1,9..144,300;1,9..144,400&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
 <style>
@@ -19,23 +19,27 @@
   --rule: #e0dfd9;
   --surface: rgba(255,255,255,0.75);
   --nav-bg: rgba(250,250,248,0.94);
+  --green: #2b7a4b;
 }
 @media (prefers-color-scheme: dark) {
   :root {
     --white: #101114; --off: #181a1f; --ink: #eceae2; --ink2: #c4c0b5;
     --ink3: #989388; --ink4: #646055; --rule: #2b2e35;
     --surface: rgba(24,26,31,0.82); --nav-bg: rgba(16,17,20,0.9);
+    --green: #4caf7a;
   }
 }
 body[data-theme="light"] {
   --white: #fafaf8; --off: #f2f1ee; --ink: #111110; --ink2: #3a3a38;
   --ink3: #888884; --ink4: #c4c4be; --rule: #e0dfd9;
   --surface: rgba(255,255,255,0.75); --nav-bg: rgba(250,250,248,0.94);
+  --green: #2b7a4b;
 }
 body[data-theme="dark"] {
   --white: #101114; --off: #181a1f; --ink: #eceae2; --ink2: #c4c0b5;
   --ink3: #989388; --ink4: #646055; --rule: #2b2e35;
   --surface: rgba(24,26,31,0.82); --nav-bg: rgba(16,17,20,0.9);
+  --green: #4caf7a;
 }
 html { font-size: 16px; }
 body {
@@ -50,7 +54,6 @@ body {
   transition: background 0.4s ease, color 0.4s ease;
 }
 
-/* NAV */
 nav {
   border-bottom: 1px solid var(--rule);
   background: var(--nav-bg);
@@ -76,13 +79,12 @@ nav {
 .theme-btn svg { width: 12px; height: 12px; stroke: currentColor; fill: none; }
 .theme-btn:hover { color: var(--ink); border-color: var(--ink3); }
 
-/* MAIN LAYOUT */
 main {
   display: grid;
   grid-template-columns: 1fr 1fr;
   min-height: calc(100vh - 52px);
 }
-.login-left {
+.reset-left {
   border-right: 1px solid var(--rule);
   padding: 4rem 3rem;
   display: flex;
@@ -90,31 +92,34 @@ main {
   justify-content: space-between;
   background: var(--off);
 }
-.login-eyebrow {
+.reset-eyebrow {
   font-size: 0.6rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink3);
 }
-.login-headline {
+.reset-headline {
   font-family: 'Fraunces', serif; font-weight: 300; font-style: italic;
   font-size: clamp(2.5rem, 4vw, 3.8rem); line-height: 1; letter-spacing: -0.03em;
   color: var(--ink); margin-top: 2rem;
 }
-.login-headline strong { font-style: normal; font-weight: 400; }
-.login-desc {
+.reset-headline strong { font-style: normal; font-weight: 400; }
+.reset-desc {
   font-size: 0.75rem; line-height: 1.8; color: var(--ink2); max-width: 320px; margin-top: 1.5rem;
 }
-.login-stats {
-  display: grid; grid-template-columns: 1fr 1fr; gap: 0; border-top: 1px solid var(--rule);
+.reset-steps {
+  padding: 1.5rem 0;
+  border-top: 1px solid var(--rule);
 }
-.stat { padding: 1.5rem 0; border-right: 1px solid var(--rule); }
-.stat:last-child { border-right: none; padding-left: 1.5rem; }
-.stat-val {
-  font-family: 'Fraunces', serif; font-size: 1.6rem; font-weight: 300;
-  letter-spacing: -0.03em; color: var(--ink);
+.step {
+  display: flex; align-items: center; gap: 1rem;
+  padding: 0.75rem 0;
 }
-.stat-label { font-size: 0.55rem; letter-spacing: 0.07em; text-transform: uppercase; color: var(--ink3); margin-top: 0.2rem; }
+.step-num {
+  width: 22px; height: 22px; border: 1px solid var(--ink3); border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 0.55rem; color: var(--ink3); flex-shrink: 0;
+}
+.step-text { font-size: 0.65rem; color: var(--ink2); line-height: 1.5; }
 
-/* FORM SIDE */
-.login-right {
+.reset-right {
   padding: 4rem 3rem;
   display: flex; flex-direction: column; justify-content: center;
 }
@@ -148,64 +153,59 @@ main {
 .form-hint.error-msg { color: #c04a3a; display: none; }
 .form-hint.error-msg.show { display: flex; }
 
-.forgot-row {
-  display: flex; justify-content: flex-end; margin-bottom: 1.8rem;
-}
-.forgot-link {
-  font-size: 0.58rem; letter-spacing: 0.06em; text-transform: uppercase;
-  color: var(--ink3); text-decoration: none; border-bottom: 1px solid var(--rule);
-  padding-bottom: 1px; transition: color 0.2s, border-color 0.2s;
-}
-.forgot-link:hover { color: var(--ink); border-color: var(--ink3); }
-
-.login-btn {
-  width: 100%; padding: 1rem 1.5rem; background: var(--ink); color: var(--white);
+.reset-btn {
+  width: 100%; padding: 1rem 1.5rem; margin-top: 0.5rem;
+  background: var(--ink); color: var(--white);
   border: 1px solid var(--ink); font-family: 'DM Mono', monospace; font-size: 0.68rem;
   letter-spacing: 0.12em; text-transform: uppercase; font-weight: 300;
   cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 0.8rem;
   transition: opacity 0.2s ease, transform 0.2s ease;
   position: relative; overflow: hidden;
 }
-.login-btn:hover { opacity: 0.88; transform: translateY(-1px); }
-.login-btn:active { transform: translateY(0); }
-.login-btn:disabled { opacity: 0.45; cursor: not-allowed; transform: none; }
-.login-btn svg { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+.reset-btn:hover { opacity: 0.88; transform: translateY(-1px); }
+.reset-btn:active { transform: translateY(0); }
+.reset-btn:disabled { opacity: 0.45; cursor: not-allowed; transform: none; }
+.reset-btn svg { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
 
 .btn-spinner {
   width: 14px; height: 14px; border: 1.5px solid rgba(255,255,255,0.3);
   border-top-color: rgba(255,255,255,0.9); border-radius: 50%;
   animation: spin 0.8s linear infinite; display: none;
 }
-.login-btn.loading .btn-spinner { display: block; }
-.login-btn.loading .btn-text { display: none; }
-.login-btn.loading .btn-arrow { display: none; }
+.reset-btn.loading .btn-spinner { display: block; }
+.reset-btn.loading .btn-text { display: none; }
+.reset-btn.loading .btn-arrow { display: none; }
 @keyframes spin { to { transform: rotate(360deg); } }
 
-.divider {
-  display: flex; align-items: center; gap: 1rem;
-  margin: 1.8rem 0; font-size: 0.56rem; letter-spacing: 0.1em;
-  text-transform: uppercase; color: var(--ink4);
+.back-row {
+  text-align: center; margin-top: 1.8rem;
 }
-.divider::before, .divider::after {
-  content: ""; flex: 1; height: 1px; background: var(--rule);
+.back-link {
+  font-size: 0.58rem; letter-spacing: 0.06em; text-transform: uppercase;
+  color: var(--ink3); text-decoration: none; border-bottom: 1px solid var(--rule);
+  padding-bottom: 1px; transition: color 0.2s, border-color 0.2s;
 }
+.back-link:hover { color: var(--ink); border-color: var(--ink3); }
 
-.google-btn {
-  width: 100%; padding: 0.8rem 1.5rem; background: transparent; color: var(--ink);
-  border: 1px solid var(--rule); font-family: 'DM Mono', monospace; font-size: 0.66rem;
-  letter-spacing: 0.08em; text-transform: uppercase; font-weight: 300;
-  cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 0.8rem;
-  transition: border-color 0.2s, background 0.2s;
-}
-.google-btn:hover { border-color: var(--ink3); background: var(--surface); }
-.google-btn svg { width: 16px; height: 16px; }
+/* Success state */
+.success-state { display: none; }
+.success-state.show { display: block; }
+.reset-form.hidden { display: none; }
 
-.security-note {
-  margin-top: 2rem; padding: 1rem; border: 1px solid var(--rule);
-  display: flex; align-items: flex-start; gap: 0.8rem;
+.success-icon {
+  width: 48px; height: 48px; border-radius: 50%;
+  background: var(--green); color: var(--white);
+  display: flex; align-items: center; justify-content: center;
+  margin-bottom: 1.5rem;
 }
-.security-note svg { width: 14px; height: 14px; stroke: var(--ink3); fill: none; stroke-width: 1.5; flex-shrink: 0; margin-top: 1px; }
-.security-note p { font-size: 0.6rem; line-height: 1.7; color: var(--ink3); }
+.success-icon svg { width: 20px; height: 20px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.success-title {
+  font-family: 'Fraunces', serif; font-weight: 300;
+  font-size: 1.4rem; letter-spacing: -0.02em; color: var(--ink); margin-bottom: 0.75rem;
+}
+.success-desc {
+  font-size: 0.68rem; color: var(--ink3); line-height: 1.8; max-width: 380px; margin-bottom: 2rem;
+}
 
 .toast {
   position: fixed; bottom: 1.5rem; right: 1.5rem; z-index: 999;
@@ -219,8 +219,8 @@ main {
 
 @media (max-width: 768px) {
   main { grid-template-columns: 1fr; }
-  .login-left { display: none; }
-  .login-right { padding: 2.5rem 1.5rem; }
+  .reset-left { display: none; }
+  .reset-right { padding: 2.5rem 1.5rem; }
 }
 </style>
 </head>
@@ -241,103 +241,81 @@ main {
 </nav>
 
 <main>
-  <div class="login-left">
+  <div class="reset-left">
     <div>
-      <p class="login-eyebrow">Internal Mail System — Employees Only</p>
-      <h1 class="login-headline">
-        <strong>Synthrun</strong><br>
-        <em>Mail.</em>
+      <p class="reset-eyebrow">Password Recovery</p>
+      <h1 class="reset-headline">
+        <strong>Forgot your</strong><br>
+        <em>password?</em>
       </h1>
-      <p class="login-desc">
-        Send, receive, and manage all Synthrun communications from a single secure workspace. Architecture-first. Always.
+      <p class="reset-desc">
+        No worries. Enter your email and we'll send you a link to reset your password — it only takes a minute.
       </p>
     </div>
-    <div class="login-stats">
-      <div class="stat">
-        <div class="stat-val">24h</div>
-        <div class="stat-label">Response SLA</div>
+    <div class="reset-steps">
+      <div class="step">
+        <div class="step-num">1</div>
+        <p class="step-text">Enter your registered @synthrun.site email address</p>
       </div>
-      <div class="stat">
-        <div class="stat-val">TLS</div>
-        <div class="stat-label">All mail in transit</div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <p class="step-text">Check your inbox for a password reset link</p>
+      </div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <p class="step-text">Follow the link to create a new password</p>
       </div>
     </div>
   </div>
 
-  <div class="login-right">
+  <div class="reset-right">
     <div class="form-header">
-      <h2 class="form-title">Sign in</h2>
-      <p class="form-sub">Use your @synthrun.site credentials to continue.</p>
+      <h2 class="form-title">Reset password</h2>
+      <p class="form-sub">Enter the email address associated with your account.</p>
     </div>
 
-    <form id="loginForm" novalidate>
-      <div class="form-group">
-        <label class="form-label" for="email">Email address</label>
-        <input type="email" id="email" class="form-input" placeholder="you@synthrun.site" autocomplete="email" spellcheck="false">
-        <p class="form-hint error-msg" id="emailError">Please enter a valid email address.</p>
+    <div class="reset-form" id="resetForm">
+      <form id="resetFormEl" novalidate>
+        <div class="form-group">
+          <label class="form-label" for="email">Email address</label>
+          <input type="email" id="email" class="form-input" placeholder="you@synthrun.site" autocomplete="email" spellcheck="false">
+          <p class="form-hint error-msg" id="emailError">Please enter a valid email address.</p>
+        </div>
+        <button type="submit" class="reset-btn" id="resetBtn">
+          <div class="btn-spinner" aria-hidden="true"></div>
+          <span class="btn-text">Send reset link</span>
+          <svg class="btn-arrow" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13.5 5.5 20 12l-6.5 6.5"/></svg>
+        </button>
+      </form>
+      <div class="back-row">
+        <a href="/login/" class="back-link">Back to sign in</a>
       </div>
-      <div class="form-group">
-        <label class="form-label" for="password">Password</label>
-        <input type="password" id="password" class="form-input" placeholder="••••••••••" autocomplete="current-password">
-        <p class="form-hint error-msg" id="passwordError">Incorrect password. Try again.</p>
+    </div>
+
+    <div class="success-state" id="successState">
+      <div class="success-icon">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg>
       </div>
-      <div class="forgot-row">
-        <a href="/reset-password/" class="forgot-link">Reset password</a>
-      </div>
-      <button type="submit" class="login-btn" id="loginBtn">
-        <div class="btn-spinner" aria-hidden="true"></div>
-        <span class="btn-text">Sign in</span>
-        <svg class="btn-arrow" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13.5 5.5 20 12l-6.5 6.5"/></svg>
-      </button>
-    </form>
-
-    <div class="divider">or</div>
-
-    <button type="button" class="google-btn" id="googleBtn">
-      <svg viewBox="0 0 24 24" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
-        <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
-        <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
-        <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05"/>
-        <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
-      </svg>
-      Continue with Google
-    </button>
-
-    <div class="security-note" role="note">
-      <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="1.5"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
-      <p>This is a restricted internal system. Only authorised @synthrun.site employees may access it. All activity is logged.</p>
+      <h2 class="success-title">Email sent</h2>
+      <p class="success-desc" id="successDesc">If an account exists for this email, you'll receive a password reset link shortly. Check your spam folder if you don't see it.</p>
+      <a href="/login/" class="reset-btn" style="text-decoration:none;">Back to sign in</a>
     </div>
   </div>
 </main>
 
 <div class="toast" id="toast" role="alert" aria-live="polite"></div>
 
-<!-- Firebase SDK -->
 <script type="module">
   import { firebaseConfig } from '/firebase-config.js';
   import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
   import {
     getAuth,
-    signInWithEmailAndPassword,
-    signInWithPopup,
-    GoogleAuthProvider,
-    onAuthStateChanged
+    sendPasswordResetEmail
   } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
 
-  const ALLOWED_DOMAIN = 'synthrun.site';
-  const MAIL_APP_URL   = '../'; // path to index.html
+  const app  = initializeApp(firebaseConfig);
+  const auth = getAuth(app);
 
-  const app      = initializeApp(firebaseConfig);
-  const auth     = getAuth(app);
-  const provider = new GoogleAuthProvider();
-  provider.setCustomParameters({ hd: ALLOWED_DOMAIN });
-
-  // Redirect if already signed in
-  onAuthStateChanged(auth, (user) => {
-    if (user) window.location.href = MAIL_APP_URL;
-  });
-
-  // ── Helpers ──────────────────────────────────────────────────────────────────
   function showToast(msg, isError = false) {
     const t = document.getElementById('toast');
     t.textContent = msg;
@@ -346,7 +324,7 @@ main {
   }
 
   function setLoading(loading) {
-    const btn = document.getElementById('loginBtn');
+    const btn = document.getElementById('resetBtn');
     btn.disabled = loading;
     btn.classList.toggle('loading', loading);
   }
@@ -361,65 +339,58 @@ main {
     document.getElementById(msgId).classList.add('show');
   }
 
-  // ── Email sign-in ─────────────────────────────────────────────────────────────
-  document.getElementById('loginForm').addEventListener('submit', async (e) => {
+  function showSuccess(email) {
+    document.getElementById('resetForm').classList.add('hidden');
+    document.getElementById('successState').classList.add('show');
+    document.getElementById('successDesc').textContent =
+      `If an account exists for ${email}, you will receive a password reset link shortly. Check your spam folder if you don't see it.`;
+  }
+
+  document.getElementById('resetFormEl').addEventListener('submit', async (e) => {
     e.preventDefault();
     clearErrors();
 
-    const email    = document.getElementById('email').value.trim();
-    const password = document.getElementById('password').value;
+    const email = document.getElementById('email').value.trim();
 
     if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       return fieldError('email', 'emailError');
     }
-    if (!password) {
-      return fieldError('password', 'passwordError');
-    }
 
     setLoading(true);
+
+    // Try custom endpoint first (sends to backup email too)
     try {
-      const cred = await signInWithEmailAndPassword(auth, email, password);
-      // Check domain
-      if (!cred.user.email.endsWith('@' + ALLOWED_DOMAIN)) {
-        await auth.signOut();
-        showToast('Only @' + ALLOWED_DOMAIN + ' accounts are allowed.', true);
+      const resp = await fetch('/send-custom-reset', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      });
+      if (resp.ok) {
         setLoading(false);
+        showSuccess(email);
         return;
       }
-      window.location.href = MAIL_APP_URL;
+    } catch { /* fall through to Firebase */ }
+
+    // Fallback: Firebase sendPasswordResetEmail
+    try {
+      await sendPasswordResetEmail(auth, email);
+      setLoading(false);
+      showSuccess(email);
     } catch (err) {
       setLoading(false);
       const code = err.code;
-      if (code === 'auth/user-not-found' || code === 'auth/wrong-password' || code === 'auth/invalid-credential') {
-        fieldError('password', 'passwordError');
-      } else if (code === 'auth/invalid-email') {
+      if (code === 'auth/invalid-email') {
         fieldError('email', 'emailError');
+      } else if (code === 'auth/user-not-found') {
+        showSuccess(email);
       } else if (code === 'auth/too-many-requests') {
-        showToast('Too many attempts. Wait a few minutes and try again.', true);
+        showToast('Too many requests. Please wait a few minutes.', true);
       } else {
-        showToast('Sign-in failed. Please try again.', true);
+        showToast('Could not send reset email. Check the address and try again.', true);
       }
     }
   });
-
-  // ── Google sign-in ────────────────────────────────────────────────────────────
-  document.getElementById('googleBtn').addEventListener('click', async () => {
-    try {
-      const cred = await signInWithPopup(auth, provider);
-      if (!cred.user.email.endsWith('@' + ALLOWED_DOMAIN)) {
-        await auth.signOut();
-        showToast('Only @' + ALLOWED_DOMAIN + ' Google accounts are allowed.', true);
-        return;
-      }
-      window.location.href = MAIL_APP_URL;
-    } catch (err) {
-      if (err.code !== 'auth/popup-closed-by-user') {
-        showToast('Google sign-in failed. Try again.', true);
-      }
-    }
-  });
-
-  // ── Password reset moved to /reset-password/ ──────────────────────────────────
 </script>
 
 <script>
