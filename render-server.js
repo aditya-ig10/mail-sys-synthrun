@@ -246,6 +246,14 @@ async function authenticate(req) {
   return decoded.email.toLowerCase();
 }
 
+async function authenticateFull(req) {
+  const authHeader = req.headers.authorization || '';
+  const idToken = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : '';
+  if (!idToken) throw new Error('Missing Authorization header');
+  initFirebase();
+  return admin.auth().verifyIdToken(idToken);
+}
+
 function sanitizeEmail(value) {
   return String(value || '').trim().toLowerCase();
 }
@@ -492,17 +500,30 @@ app.post('/upload', async (req, res) => {
   }
 });
 
+const AUTH_PREFIX = (process.env.AUTH_PATH_PREFIX || '').replace(/^\/+|\/+$/g, '');
+
 app.get('/firebase-config.js', (_req, res) => {
   try {
     const firebaseConfig = buildFirebaseConfig();
     res.setHeader('Content-Type', 'application/javascript; charset=utf-8');
     res.setHeader('Cache-Control', 'no-store');
-    res.send(`export const firebaseConfig = ${JSON.stringify(firebaseConfig, null, 2)};`);
+    res.send(`
+export const firebaseConfig = ${JSON.stringify(firebaseConfig, null, 2)};
+export const AUTH_BASE = ${JSON.stringify(AUTH_PREFIX)};
+`);
   } catch (error) {
     res.status(error.statusCode || 500).setHeader('Content-Type', 'application/javascript; charset=utf-8');
     res.send(`throw new Error(${JSON.stringify(error.message)});`);
   }
 });
+
+// Auth path guard — block direct /login/ and /reset-password/ when prefix is set
+if (AUTH_PREFIX) {
+  const authPaths = ['/login', '/login/', '/login/index.html', '/reset-password', '/reset-password/', '/reset-password/index.html'];
+  authPaths.forEach((p) => {
+    app.get(p, (_req, res) => res.status(404).send('Not found'));
+  });
+}
 
 app.post('/send', async (req, res) => {
   cors(req, res);
@@ -904,17 +925,15 @@ app.post('/send-custom-reset', async (req, res) => {
       initFirebase();
       userRecord = await admin.auth().getUserByEmail(sanitizedEmail);
     } catch {
-      // Don't reveal whether the account exists
       return sendJson(res, 200, { ok: true });
     }
 
     const resetLink = await admin.auth().generatePasswordResetLink(sanitizedEmail);
 
-    // Look up backup email from Firestore
     let backupEmail = '';
     try {
-      const db = admin.firestore();
-      const settingsSnap = await db.collection('user_settings').doc(userRecord.uid).get();
+      const fdb = admin.firestore();
+      const settingsSnap = await fdb.collection('user_settings').doc(userRecord.uid).get();
       if (settingsSnap.exists) {
         backupEmail = settingsSnap.data().backupEmail || '';
       }
@@ -970,9 +989,120 @@ app.post('/send-custom-reset', async (req, res) => {
   }
 });
 
+app.options('/send-backup-code', (req, res) => { cors(req, res); res.status(204).end(); });
+
+app.post('/send-backup-code', async (req, res) => {
+  cors(req, res);
+  try {
+    const decoded = await authenticateFull(req);
+    const { backupEmail } = req.body || {};
+    if (!backupEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(backupEmail)) {
+      return sendJson(res, 400, { error: 'Invalid email' });
+    }
+
+    const code = String(Math.floor(100000 + Math.random() * 900000));
+    const fdb = admin.firestore();
+    await fdb.collection('user_settings').doc(decoded.uid).set({
+      pendingBackup: { code, email: sanitizeEmail(backupEmail), expiresAt: admin.firestore.FieldValue.serverTimestamp() },
+    }, { merge: true });
+
+    const brevoApiKey = getBrevoApiKey();
+    const to = sanitizeEmail(backupEmail);
+    const subject = 'Your Synthrun Mail verification code';
+    const text = `Your verification code is: ${code}\n\nEnter this code on the Synthrun Mail settings page to verify your backup email.\n\nThis code expires in 10 minutes.`;
+    const html = `<div style="font-family:'DM Mono',monospace;max-width:480px;margin:0 auto;padding:24px;"><div style="border:1px solid #e0dfd9;padding:32px;background:#fafaf8;"><p style="font-size:10px;letter-spacing:0.12em;text-transform:uppercase;color:#888884;margin-bottom:24px;">Synthrun Mail — Email Verification</p><p style="font-size:13px;color:#3a3a38;margin-bottom:16px;">Your verification code is:</p><p style="font-family:'Fraunces',serif;font-size:36px;font-weight:300;letter-spacing:0.08em;color:#111110;margin:0 0 20px;">${htmlEscape(code)}</p><p style="font-size:11px;color:#888884;">Enter this code on the settings page. It expires in 10 minutes.</p></div></div>`;
+
+    if (brevoApiKey) {
+      await sendViaBrevoApi({
+        senderAddress: process.env.FROM_EMAIL || 'mail@synthrun.site',
+        fromName: process.env.FROM_NAME || 'Synthrun Mail',
+        userEmail: process.env.FROM_EMAIL || 'mail@synthrun.site',
+        to,
+        subject,
+        text,
+        htmlContent: html,
+        attachments: [],
+      });
+    } else {
+      const transporter = createTransport();
+      await transporter.sendMail({
+        from: `"${process.env.FROM_NAME || 'Synthrun Mail'}" <${process.env.FROM_EMAIL || 'mail@synthrun.site'}>`,
+        to,
+        subject,
+        text,
+        html,
+      });
+    }
+
+    return sendJson(res, 200, { ok: true });
+  } catch (err) {
+    return sendJson(res, err.message === 'Missing Authorization header' ? 401 : 400, { error: err.message });
+  }
+});
+
+app.options('/verify-backup-code', (req, res) => { cors(req, res); res.status(204).end(); });
+
+app.post('/verify-backup-code', async (req, res) => {
+  cors(req, res);
+  try {
+    const decoded = await authenticateFull(req);
+    const { code } = req.body || {};
+    if (!code) return sendJson(res, 400, { error: 'Missing code' });
+
+    const fdb = admin.firestore();
+    const settingsSnap = await fdb.collection('user_settings').doc(decoded.uid).get();
+
+    // Special code "remove" — delete backup email without verification
+    if (code === 'remove') {
+      await fdb.collection('user_settings').doc(decoded.uid).set({
+        backupEmail: '',
+        pendingBackup: admin.firestore.FieldValue.delete(),
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      }, { merge: true });
+      return sendJson(res, 200, { ok: true, email: '' });
+    }
+
+    if (!settingsSnap.exists) return sendJson(res, 400, { error: 'No pending verification' });
+
+    const data = settingsSnap.data();
+    const pending = data.pendingBackup;
+    if (!pending) return sendJson(res, 400, { error: 'No pending verification' });
+
+    if (pending.code !== code) return sendJson(res, 400, { error: 'Invalid code' });
+
+    const email = pending.email;
+    await fdb.collection('user_settings').doc(decoded.uid).set({
+      backupEmail: email,
+      pendingBackup: admin.firestore.FieldValue.delete(),
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    }, { merge: true });
+
+    return sendJson(res, 200, { ok: true, email });
+  } catch (err) {
+    return sendJson(res, err.message === 'Missing Authorization header' ? 401 : 400, { error: err.message });
+  }
+});
+
 app.get('/health', (_req, res) => {
   res.json({ ok: true });
 });
+
+// Auth-prefixed routes (when AUTH_PATH_PREFIX is set)
+if (AUTH_PREFIX) {
+  const prefix = '/' + AUTH_PREFIX;
+  app.get(prefix + '/login', (_req, res) => {
+    res.setHeader('Cache-Control', 'no-store');
+    res.sendFile(path.join(__dirname, 'login', 'index.html'));
+  });
+  app.get(prefix + '/reset', (_req, res) => {
+    res.setHeader('Cache-Control', 'no-store');
+    res.sendFile(path.join(__dirname, 'reset-password', 'index.html'));
+  });
+  app.get(prefix + '/settings', (_req, res) => {
+    res.setHeader('Cache-Control', 'no-store');
+    res.sendFile(path.join(__dirname, 'profile.html'));
+  });
+}
 
 app.get(/^\/[^/]+\.html$/, (_req, res) => {
   res.setHeader('Cache-Control', 'no-store');

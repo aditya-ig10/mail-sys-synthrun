@@ -1,4 +1,4 @@
-import { firebaseConfig } from './firebase-config.js';
+import { firebaseConfig, AUTH_BASE } from './firebase-config.js';
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
 import { getAuth, onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
 import {
@@ -16,7 +16,7 @@ import {
 import { getDownloadURL, getStorage, ref as storageRef, uploadBytes } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js';
 
 const SEND_ENDPOINT = getSendEndpoint();
-const LOGIN_URL = '/login/';
+const LOGIN_URL = AUTH_BASE ? '/' + AUTH_BASE + '/login' : '/login/';
 const ALLOWED_DOMAIN = 'synthrun.site';
 const BOUNCE_ADDRESS_PATTERN = /^bounces-[^@]+@gw\.d\.sender-sib\.com$/i;
 const FOLDER_LABELS = { inbox: 'Inbox', unread: 'Unread', sent: 'Sent', outbox: 'Outbox', archived: 'Archived', flagged: 'Flagged', important: 'Important', drafts: 'Drafts', trash: 'Trash', clients: 'Clients', spam: 'Spam' };
@@ -277,9 +277,14 @@ function bindUi() {
   });
 
   document.getElementById('accountBtn').addEventListener('click', () => {
+    const base = AUTH_BASE ? '/' + AUTH_BASE : '';
     const profile = window.SYNTHRUN_PROFILE_DATA || {};
-    const slug = profile.slug || 'profile';
-    window.location.href = `/${encodeURIComponent(slug)}.html`;
+    if (AUTH_BASE) {
+      window.location.href = base + '/settings';
+    } else {
+      const slug = profile.slug || 'profile';
+      window.location.href = `/${encodeURIComponent(slug)}.html`;
+    }
   });
 
   document.querySelectorAll('.side-link[data-folder]').forEach((link) => {

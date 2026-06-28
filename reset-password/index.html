@@ -306,7 +306,7 @@ main {
 <div class="toast" id="toast" role="alert" aria-live="polite"></div>
 
 <script type="module">
-  import { firebaseConfig } from '/firebase-config.js';
+  import { firebaseConfig, AUTH_BASE } from '/firebase-config.js';
   import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
   import {
     getAuth,
@@ -344,6 +344,12 @@ main {
     document.getElementById('successState').classList.add('show');
     document.getElementById('successDesc').textContent =
       `If an account exists for ${email}, you will receive a password reset link shortly. Check your spam folder if you don't see it.`;
+  }
+
+  if (AUTH_BASE) {
+    const pfx = '/' + AUTH_BASE;
+    document.querySelectorAll('a[href="/login/"]').forEach(el => { el.href = pfx + '/login'; });
+    document.querySelectorAll('a[href="/reset-password/"]').forEach(el => { el.href = pfx + '/reset'; });
   }
 
   document.getElementById('resetFormEl').addEventListener('submit', async (e) => {

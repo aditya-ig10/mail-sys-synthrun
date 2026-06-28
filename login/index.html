@@ -339,7 +339,7 @@ main {
 
 <!-- Firebase SDK -->
 <script type="module">
-  import { firebaseConfig } from '/firebase-config.js';
+  import { firebaseConfig, AUTH_BASE } from '/firebase-config.js';
   import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
   import {
     getAuth,
@@ -355,7 +355,8 @@ main {
   } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 
   const ALLOWED_DOMAIN = 'synthrun.site';
-  const MAIL_APP_URL   = '../';
+  const AUTH_BASE_PATH = AUTH_BASE ? '/' + AUTH_BASE : '';
+  const MAIL_APP_URL   = AUTH_BASE ? '/' : '../';
 
   const app      = initializeApp(firebaseConfig);
   const auth     = getAuth(app);
@@ -563,6 +564,12 @@ main {
       }
     }
   });
+
+  // ── Update auth links with prefix ────────────────────────────────────────────
+  if (AUTH_BASE) {
+    document.querySelectorAll('a[href="/login/"]').forEach(el => { el.href = AUTH_BASE_PATH + '/login'; });
+    document.querySelectorAll('a[href="/reset-password/"]').forEach(el => { el.href = AUTH_BASE_PATH + '/reset'; });
+  }
 
   // ── Password reset moved to /reset-password/ ──────────────────────────────────
 </script>

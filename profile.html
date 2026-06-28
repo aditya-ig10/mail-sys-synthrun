@@ -165,11 +165,26 @@ main.content {
 .btn:disabled { opacity: 0.4; cursor: not-allowed; }
 .btn-primary { background: var(--ink); color: var(--white); border-color: var(--ink); }
 .btn-primary:hover { opacity: 0.88; color: var(--white); }
+.btn.active { background: var(--ink); color: var(--white); border-color: var(--ink); }
 .btn-danger { color: var(--red); border-color: var(--red); }
 .btn-danger:hover { background: var(--red); color: var(--white); }
 .btn-sm { padding: 0.35rem 0.65rem; font-size: 0.52rem; }
 .btn-success { color: var(--green); border-color: var(--green); }
 .btn-success:hover { background: var(--green); color: var(--white); }
+
+.toggle { position: relative; display: inline-block; width: 40px; height: 22px; flex-shrink: 0; cursor: pointer; }
+.toggle input { opacity: 0; width: 0; height: 0; }
+.toggle-slider {
+  position: absolute; inset: 0; background: var(--ink4); border-radius: 22px;
+  transition: background 0.25s;
+}
+.toggle-slider::before {
+  content: ''; position: absolute; left: 2px; bottom: 2px;
+  width: 18px; height: 18px; border-radius: 50%; background: var(--white);
+  transition: transform 0.25s;
+}
+.toggle input:checked + .toggle-slider { background: var(--green); }
+.toggle input:checked + .toggle-slider::before { transform: translateX(18px); }
 
 .badge {
   display: inline-flex; align-items: center; gap: 0.3rem;
@@ -363,7 +378,10 @@ main.content {
               <div class="card-hint">Password reset links will be sent to this address too.</div>
             </div>
           </div>
-          <button class="btn" type="button" id="backupEmailBtn">Edit</button>
+          <div style="display:flex;gap:0.35rem;">
+            <button class="btn btn-danger" type="button" id="removeBackupEmailBtn" style="display:none;">Remove</button>
+            <button class="btn" type="button" id="backupEmailBtn">Edit</button>
+          </div>
         </div>
       </div>
 
@@ -380,7 +398,10 @@ main.content {
               <div class="card-hint">Add an extra layer of security with an authenticator app.</div>
             </div>
           </div>
-          <button class="btn" type="button" id="tfaBtn">Set up</button>
+          <label class="toggle" id="tfaToggle">
+            <input type="checkbox" id="tfaCheckbox">
+            <span class="toggle-slider"></span>
+          </label>
         </div>
       </div>
     </section>
@@ -465,16 +486,32 @@ main.content {
       <span class="modal-title">Backup Email</span>
       <button class="modal-close" data-close="backupEmailModal" type="button"><svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
     </div>
-    <div class="modal-body">
-      <div class="form-group">
-        <label class="form-label-sm" for="backupEmailInput">Email address</label>
-        <input type="email" id="backupEmailInput" class="form-input" placeholder="backup@example.com" autocomplete="email" spellcheck="false">
-        <p class="card-hint" style="margin-top:0.35rem;">Password reset links will be sent to both your primary and backup email.</p>
+    <div class="modal-body" id="backupModalBody">
+      <!-- Step 1: Enter email -->
+      <div id="backupStep1">
+        <div class="form-group">
+          <label class="form-label-sm" for="backupEmailInput">Email address</label>
+          <input type="email" id="backupEmailInput" class="form-input" placeholder="backup@example.com" autocomplete="email" spellcheck="false">
+          <p class="card-hint" style="margin-top:0.35rem;">A verification code will be sent to this address.</p>
+        </div>
+      </div>
+      <!-- Step 2: Verify code -->
+      <div id="backupStep2" style="display:none;">
+        <div class="form-group">
+          <label class="form-label-sm">Email address</label>
+          <div class="card-value" id="backupEmailDisplayPending" style="font-size:0.72rem;padding:0.55rem 0.8rem;border:1px solid var(--rule);background:var(--off);"></div>
+        </div>
+        <div class="form-group">
+          <label class="form-label-sm" for="backupCodeInput">Verification code</label>
+          <input type="text" id="backupCodeInput" class="form-input" placeholder="000000" maxlength="6" inputmode="numeric" pattern="[0-9]*" autocomplete="one-time-code">
+          <p class="card-hint" style="margin-top:0.35rem;">Enter the 6-digit code sent to your backup email.</p>
+        </div>
       </div>
     </div>
-    <div class="modal-foot">
+    <div class="modal-foot" id="backupModalFoot">
       <button class="btn" data-close="backupEmailModal" type="button">Cancel</button>
-      <button class="btn btn-primary" id="saveBackupEmailBtn" type="button">Save</button>
+      <button class="btn btn-primary" id="sendBackupCodeBtn" type="button">Send verification</button>
+      <button class="btn btn-success" id="verifyBackupCodeBtn" type="button" style="display:none;">Verify</button>
     </div>
   </div>
 </div>
@@ -594,7 +631,7 @@ main.content {
 <div class="toast" id="toast" role="alert" aria-live="polite"></div>
 
 <script type="module">
-  import { firebaseConfig } from './firebase-config.js';
+  import { firebaseConfig, AUTH_BASE } from './firebase-config.js';
   import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
   import {
     getAuth,
@@ -620,7 +657,7 @@ main.content {
     serverTimestamp,
   } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 
-  const LOGIN_URL = '/login/';
+  const LOGIN_URL = AUTH_BASE ? '/' + AUTH_BASE + '/login' : '/login/';
   const app = initializeApp(firebaseConfig);
   const auth = getAuth(app);
   const db = getFirestore(app);
@@ -830,20 +867,18 @@ main.content {
       const enabled = snap.exists() && snap.data().totpEnabled;
       const statusDot = document.querySelector('#tfaStatus .status-dot');
       const label = document.getElementById('tfaLabel');
-      const btn = document.getElementById('tfaBtn');
+      const checkbox = document.getElementById('tfaCheckbox');
       if (enabled) {
         statusDot.className = 'status-dot on';
         label.textContent = 'Enabled (Authenticator)';
-        btn.textContent = 'Remove';
-        btn.className = 'btn btn-danger';
+        checkbox.checked = true;
       } else {
         statusDot.className = 'status-dot off';
         label.textContent = 'Not enabled';
-        btn.textContent = 'Set up';
-        btn.className = 'btn';
+        checkbox.checked = false;
       }
     } catch {
-      document.getElementById('tfaBtn').style.display = 'none';
+      document.getElementById('tfaToggle').style.display = 'none';
       document.querySelector('#tfaStatus .status-dot').className = 'status-dot off';
       document.getElementById('tfaLabel').textContent = 'Unavailable';
     }
@@ -853,7 +888,7 @@ main.content {
     if (!currentUser) return;
     try {
       const secret = generateTotpSecret();
-      const otpauth = `otpauth://totp/Synthrun%20Mail:${encodeURIComponent(currentUser.email)}?secret=${secret}&issuer=Synthrun%20Mail&algorithm=SHA1&digits=6&period=30`;
+      const otpauth = `otpauth://totp/Synthrun Mail:${currentUser.email}?secret=${secret}&issuer=Synthrun Mail&algorithm=SHA1&digits=6&period=30`;
       const qrUrl = `https://chart.googleapis.com/chart?chs=200x200&cht=qr&chl=${encodeURIComponent(otpauth)}`;
       document.getElementById('qrImage').src = qrUrl;
       document.getElementById('qrSecret').textContent = `Secret: ${secret}`;
@@ -887,7 +922,10 @@ main.content {
       await updateDoc(doc(db, 'user_settings', currentUser.uid), { totpSecret: '', totpEnabled: false, updatedAt: serverTimestamp() });
       showToast('Two-factor authentication disabled.');
       await updateTfaUI();
-    } catch { showToast('Failed to disable 2FA.', true); }
+    } catch {
+      document.getElementById('tfaCheckbox').checked = false;
+      showToast('Failed to disable 2FA.', true);
+    }
   }
 
   // ─── REAUTH ──────────────────────────────────────────────
@@ -951,10 +989,24 @@ main.content {
     }
   }
 
-  // ─── BACKUP EMAIL ────────────────────────────────────────
+  // ─── BACKUP EMAIL (with verification) ─────────────────────
+
+  async function updateBackupEmailUI() {
+    try {
+      const snap = await getDoc(doc(db, 'user_settings', currentUser.uid));
+      const email = snap.exists() ? (snap.data().backupEmail || '') : '';
+      document.getElementById('backupEmailDisplay').textContent = email || 'Not set';
+      document.getElementById('removeBackupEmailBtn').style.display = email ? '' : 'none';
+    } catch { /* ignore */ }
+  }
 
   async function openBackupEmailModal() {
     if (!currentUser) return;
+    document.getElementById('backupStep1').style.display = 'block';
+    document.getElementById('backupStep2').style.display = 'none';
+    document.getElementById('sendBackupCodeBtn').style.display = '';
+    document.getElementById('verifyBackupCodeBtn').style.display = 'none';
+    document.getElementById('backupCodeInput').value = '';
     try {
       const settings = await getDoc(doc(db, 'user_settings', currentUser.uid));
       document.getElementById('backupEmailInput').value = settings.data()?.backupEmail || '';
@@ -962,21 +1014,64 @@ main.content {
     openModal('backupEmailModal');
   }
 
-  async function saveBackupEmail() {
+  async function sendBackupVerification() {
     const email = document.getElementById('backupEmailInput').value.trim();
-    if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       showToast('Please enter a valid email address.', true);
       return;
     }
+    document.getElementById('sendBackupCodeBtn').disabled = true;
+    document.getElementById('sendBackupCodeBtn').textContent = 'Sending...';
     try {
-      await updateDoc(doc(db, 'user_settings', currentUser.uid), {
-        backupEmail: email,
-        updatedAt: serverTimestamp(),
+      const token = await currentUser.getIdToken();
+      const resp = await fetch('/send-backup-code', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+        body: JSON.stringify({ backupEmail: email }),
       });
+      if (!resp.ok) throw new Error();
+      document.getElementById('backupEmailDisplayPending').textContent = email;
+      document.getElementById('backupStep1').style.display = 'none';
+      document.getElementById('backupStep2').style.display = 'block';
+      document.getElementById('sendBackupCodeBtn').style.display = 'none';
+      document.getElementById('verifyBackupCodeBtn').style.display = '';
+      document.getElementById('backupCodeInput').focus();
+      showToast('Verification code sent to ' + email);
+    } catch {
+      showToast('Could not send verification code. Try again.', true);
+    }
+    document.getElementById('sendBackupCodeBtn').disabled = false;
+    document.getElementById('sendBackupCodeBtn').textContent = 'Send verification';
+  }
+
+  async function verifyBackupCode() {
+    const code = document.getElementById('backupCodeInput').value.trim();
+    if (!code || code.length < 6) { showToast('Enter the 6-digit verification code.', true); return; }
+    document.getElementById('verifyBackupCodeBtn').disabled = true;
+    document.getElementById('verifyBackupCodeBtn').textContent = 'Verifying...';
+    try {
+      const token = await currentUser.getIdToken();
+      const resp = await fetch('/verify-backup-code', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+        body: JSON.stringify({ code }),
+      });
+      if (!resp.ok) { showToast('Invalid verification code. Try again.', true); return; }
+      const data = await resp.json();
       closeModal('backupEmailModal');
-      document.getElementById('backupEmailDisplay').textContent = email || 'Not set';
-      showToast(email ? 'Backup email saved.' : 'Backup email removed.');
-    } catch { showToast('Could not save backup email.', true); }
+      await updateBackupEmailUI();
+      showToast('Backup email verified and saved.');
+      // Reset modal for next time
+      document.getElementById('backupStep1').style.display = 'block';
+      document.getElementById('backupStep2').style.display = 'none';
+      document.getElementById('sendBackupCodeBtn').style.display = '';
+      document.getElementById('verifyBackupCodeBtn').style.display = 'none';
+      document.getElementById('backupCodeInput').value = '';
+    } catch {
+      showToast('Verification failed. Try again.', true);
+    }
+    document.getElementById('verifyBackupCodeBtn').disabled = false;
+    document.getElementById('verifyBackupCodeBtn').textContent = 'Verify';
   }
 
   // ─── DELETE ACCOUNT ──────────────────────────────────────
@@ -1035,6 +1130,7 @@ main.content {
     const label = t === 'system' ? 'Auto' : t.charAt(0).toUpperCase() + t.slice(1);
     document.getElementById('themeLabel').textContent = label;
     document.getElementById('themeDisplay').textContent = label;
+    document.querySelectorAll('[data-theme-opt]').forEach(b => b.classList.toggle('active', b.dataset.themeOpt === t));
   }
 
   // ─── INIT ────────────────────────────────────────────────
@@ -1057,12 +1153,12 @@ main.content {
       : '—';
 
     // Settings doc
-    const settings = await ensureSettingsDoc(user.uid, user.email);
-    document.getElementById('backupEmailDisplay').textContent = settings.backupEmail || 'Not set';
+    await ensureSettingsDoc(user.uid, user.email);
 
     await trackSession();
     await loadSessions();
     await updateTfaUI();
+    await updateBackupEmailUI();
   });
 
   // ─── EVENTS ──────────────────────────────────────────────
@@ -1128,16 +1224,40 @@ main.content {
 
   // Backup email
   document.getElementById('backupEmailBtn').addEventListener('click', openBackupEmailModal);
-  document.getElementById('saveBackupEmailBtn').addEventListener('click', saveBackupEmail);
+  document.getElementById('sendBackupCodeBtn').addEventListener('click', sendBackupVerification);
+  document.getElementById('verifyBackupCodeBtn').addEventListener('click', verifyBackupCode);
+  document.getElementById('backupEmailInput').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') sendBackupVerification();
+  });
+  document.getElementById('backupCodeInput').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') verifyBackupCode();
+  });
+  document.getElementById('removeBackupEmailBtn').addEventListener('click', async () => {
+    if (!currentUser) return;
+    try {
+      const token = await currentUser.getIdToken();
+      const resp = await fetch('/verify-backup-code', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+        body: JSON.stringify({ code: 'remove' }),
+      });
+      if (!resp.ok) throw new Error();
+      await updateBackupEmailUI();
+      showToast('Backup email removed.');
+    } catch { showToast('Failed to remove backup email.', true); }
+  });
 
-  // 2FA
-  document.getElementById('tfaBtn').addEventListener('click', async () => {
+  // 2FA toggle
+  document.getElementById('tfaCheckbox').addEventListener('change', async () => {
     if (!currentUser) return;
     const snap = await getDoc(doc(db, 'user_settings', currentUser.uid));
     const enabled = snap.exists() && snap.data().totpEnabled;
     if (enabled) {
+      // Turning off
+      document.getElementById('tfaCheckbox').checked = true; // revert until confirmed
       openModal('tfaRemoveModal');
     } else {
+      // Turning on
       await setupTfa();
     }
   });
