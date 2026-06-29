@@ -1582,21 +1582,13 @@ function getCookie(name) {
   return document.cookie.split('; ').find((r) => r.startsWith(name + '='))?.split('=')[1];
 }
 
-function getEffectiveTheme(theme = localStorage.getItem('synthrun-theme') || 'system') {
-  if (theme === 'system') {
-    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-  }
-  return theme;
-}
-
 function applyTheme(theme) {
-  const effective = getEffectiveTheme(theme);
-  if (effective === 'dark') {
-    document.documentElement.setAttribute('data-theme', 'dark');
-    document.body.setAttribute('data-theme', 'dark');
-  } else {
+  if (theme === 'system') {
     document.documentElement.removeAttribute('data-theme');
     document.body.removeAttribute('data-theme');
+  } else {
+    document.documentElement.setAttribute('data-theme', theme);
+    document.body.setAttribute('data-theme', theme);
   }
 }
 

@@ -1066,7 +1066,7 @@ main.content {
       document.getElementById('densityDisplay').textContent = density === 'compact' ? 'Compact' : 'Comfortable';
       document.querySelectorAll('[data-layout-opt]').forEach(b => b.classList.toggle('active', b.dataset.layoutOpt === layout));
       document.querySelectorAll('[data-density-opt]').forEach(b => b.classList.toggle('active', b.dataset.densityOpt === density));
-      try { localStorage.setItem('synthrun-settings', JSON.stringify({ layout, density })); } catch {}
+      try { cacheSettingsUpdate({ layout, density }); } catch {}
     } catch { /* ignore */ }
   }
 
@@ -1191,13 +1191,12 @@ main.content {
   }
 
   function applyTheme(t) {
-    const effective = t === 'system' ? (media.matches ? 'dark' : 'light') : t;
-    if (effective === 'dark') {
-      document.documentElement.setAttribute('data-theme', 'dark');
-      document.body.setAttribute('data-theme', 'dark');
-    } else {
+    if (t === 'system') {
       document.documentElement.removeAttribute('data-theme');
       document.body.removeAttribute('data-theme');
+    } else {
+      document.documentElement.setAttribute('data-theme', t);
+      document.body.setAttribute('data-theme', t);
     }
   }
 
@@ -1289,6 +1288,25 @@ main.content {
   document.querySelectorAll('[data-theme-opt]').forEach(btn => {
     btn.addEventListener('click', () => setTheme(btn.dataset.themeOpt));
   });
+
+  function loadCachedSettings() {
+    try {
+      const raw = localStorage.getItem('synthrun-settings');
+      return raw ? JSON.parse(raw) : {};
+    } catch { return {}; }
+  }
+
+  function applyCachedLayoutUI() {
+    const s = loadCachedSettings();
+    const layout = s.layout || 'synthrun';
+    const density = s.density || 'comfortable';
+    document.getElementById('layoutDisplay').textContent = layout === 'gmail' ? 'Gmail' : 'Synthrun';
+    document.getElementById('densityDisplay').textContent = density === 'compact' ? 'Compact' : 'Comfortable';
+    document.querySelectorAll('[data-layout-opt]').forEach(b => b.classList.toggle('active', b.dataset.layoutOpt === layout));
+    document.querySelectorAll('[data-density-opt]').forEach(b => b.classList.toggle('active', b.dataset.densityOpt === density));
+  }
+
+  applyCachedLayoutUI();
 
   function cacheSettingsUpdate(partial) {
     try {

@@ -589,15 +589,12 @@ main {
   const media      = window.matchMedia('(prefers-color-scheme: dark)');
 
   function applyTheme(t) {
-    const effective = t === 'system'
-      ? (media.matches ? 'dark' : 'light')
-      : t;
-    if (effective === 'dark') {
-      document.documentElement.setAttribute('data-theme', 'dark');
-      document.body.setAttribute('data-theme', 'dark');
-    } else {
+    if (t === 'system') {
       document.documentElement.removeAttribute('data-theme');
       document.body.removeAttribute('data-theme');
+    } else {
+      document.documentElement.setAttribute('data-theme', t);
+      document.body.setAttribute('data-theme', t);
     }
   }
 
