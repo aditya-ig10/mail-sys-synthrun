@@ -1066,6 +1066,7 @@ main.content {
       document.getElementById('densityDisplay').textContent = density === 'compact' ? 'Compact' : 'Comfortable';
       document.querySelectorAll('[data-layout-opt]').forEach(b => b.classList.toggle('active', b.dataset.layoutOpt === layout));
       document.querySelectorAll('[data-density-opt]').forEach(b => b.classList.toggle('active', b.dataset.densityOpt === density));
+      try { localStorage.setItem('synthrun-settings', JSON.stringify({ layout, density })); } catch {}
     } catch { /* ignore */ }
   }
 
@@ -1289,14 +1290,23 @@ main.content {
     btn.addEventListener('click', () => setTheme(btn.dataset.themeOpt));
   });
 
+  function cacheSettingsUpdate(partial) {
+    try {
+      const key = 'synthrun-settings';
+      const existing = JSON.parse(localStorage.getItem(key) || '{}');
+      localStorage.setItem(key, JSON.stringify({ ...existing, ...partial }));
+    } catch { /* ignore */ }
+  }
+
   document.querySelectorAll('[data-layout-opt]').forEach(btn => {
     btn.addEventListener('click', async () => {
       if (!currentUser) return;
       const val = btn.dataset.layoutOpt;
+      cacheSettingsUpdate({ layout: val });
       try {
         await updateDoc(doc(db, 'user_settings', currentUser.uid), { layout: val, updatedAt: serverTimestamp() });
         await updateLayoutUI();
-        showToast('Layout saved. Refresh the mail app to see changes.');
+        showToast('Layout saved.');
       } catch { showToast('Failed to save layout.', true); }
     });
   });
@@ -1305,10 +1315,11 @@ main.content {
     btn.addEventListener('click', async () => {
       if (!currentUser) return;
       const val = btn.dataset.densityOpt;
+      cacheSettingsUpdate({ density: val });
       try {
         await updateDoc(doc(db, 'user_settings', currentUser.uid), { density: val, updatedAt: serverTimestamp() });
         await updateLayoutUI();
-        showToast('Density saved. Refresh the mail app to see changes.');
+        showToast('Density saved.');
       } catch { showToast('Failed to save density.', true); }
     });
   });

@@ -34,6 +34,7 @@ window.SYNTHRUN_UPDATE_LOADING?.(1);
 
 let currentUser = null;
 let allMessages = [];
+let messageMap = new Map();
 let currentFolder = initialRouteState.folder;
 let activeMessageId = null;
 let selectedIds = new Set();
@@ -47,7 +48,8 @@ function updateSelectedCount() {
   const el = document.getElementById('selectedCount');
   const bulk = document.getElementById('bulkActions');
   if (selectedIds.size) {
-    el.textContent = `${selectedIds.size} selected`;
+    el.textContent = `$
+    {selectedIds.size} selected`;
     el.style.display = '';
     if (bulk) bulk.style.display = 'flex';
   } else {
@@ -71,6 +73,37 @@ function toggleSelected(id) {
   updateSelectedCount();
 }
 const DEBUG_USER = globalThis.SYNTHRUN_DEBUG_USER || localStorage.getItem('synthrun-debug-user') || '';
+const SETTINGS_CACHE_KEY = 'synthrun-settings';
+
+function loadCachedSettings() {
+  try {
+    const raw = localStorage.getItem(SETTINGS_CACHE_KEY);
+    return raw ? JSON.parse(raw) : {};
+  } catch { return {}; }
+}
+
+function saveCachedSettings(settings) {
+  try {
+    localStorage.setItem(SETTINGS_CACHE_KEY, JSON.stringify(settings));
+  } catch { /* quota exceeded — ignore */ }
+}
+
+function applySettings(s) {
+  if (!s) return;
+  document.body.classList.toggle('layout-gmail', s.layout === 'gmail');
+  document.body.classList.toggle('density-compact', s.density === 'compact');
+}
+
+async function fetchSettingsFromFirebase(uid) {
+  try {
+    const snap = await getDoc(doc(db, 'user_settings', uid));
+    if (snap.exists()) {
+      const s = snap.data();
+      saveCachedSettings(s);
+      applySettings(s);
+    }
+  } catch { /* ignore */ }
+}
 
 function getRouteStateFromLocation() {
   const segments = window.location.pathname
@@ -173,15 +206,11 @@ onAuthStateChanged(auth, async (user) => {
 
   window._getIdToken = async () => (currentUser ? await currentUser.getIdToken() : null);
 
-  // Apply user settings (layout, density)
-  try {
-    const settingsSnap = await getDoc(doc(db, 'user_settings', user.uid));
-    if (settingsSnap.exists()) {
-      const s = settingsSnap.data();
-      document.body.classList.toggle('layout-gmail', s.layout === 'gmail');
-      document.body.classList.toggle('density-compact', s.density === 'compact');
-    }
-  } catch { /* ignore */ }
+  // Apply user settings (layout, density) — cache in localStorage for instant load
+  const cached = loadCachedSettings();
+  applySettings(cached);
+  // Fetch latest from Firebase in background, update cache
+  fetchSettingsFromFirebase(user.uid).catch(() => {});
 
   window.SYNTHRUN_UPDATE_LOADING?.(2);
   await loadMessages();
@@ -247,7 +276,11 @@ function bindUi() {
   });
 
   document.getElementById('sendBtn').addEventListener('click', sendMessage);
-  document.getElementById('searchInput').addEventListener('input', renderList);
+  let searchTimer;
+  document.getElementById('searchInput').addEventListener('input', () => {
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(renderList, 200);
+  });
   document.getElementById('refreshBtn').addEventListener('click', async () => {
     showToast('Refreshing...');
     await loadMessages();
@@ -321,26 +354,26 @@ function bindUi() {
   }
 
   document.getElementById('bulkTrashBtn').addEventListener('click', bulkAction((id) => updateDoc(doc(db, 'mail', id), { folder: 'trash' }).then(() => {
-    const msg = allMessages.find((m) => m.id === id);
+    const msg = messageMap.get(id);
     if (msg) msg.folder = 'trash';
   })));
   document.getElementById('bulkArchiveBtn').addEventListener('click', bulkAction((id) => updateDoc(doc(db, 'mail', id), { folder: 'archived' }).then(() => {
-    const msg = allMessages.find((m) => m.id === id);
+    const msg = messageMap.get(id);
     if (msg) msg.folder = 'archived';
   })));
   document.getElementById('bulkFlagBtn').addEventListener('click', bulkAction((id) => {
-    const msg = allMessages.find((m) => m.id === id);
+    const msg = messageMap.get(id);
     const next = !msg?.flagged;
     if (msg) msg.flagged = next;
     return updateDoc(doc(db, 'mail', id), { flagged: next });
   }));
   document.getElementById('bulkReadBtn').addEventListener('click', bulkAction((id) => {
-    const msg = allMessages.find((m) => m.id === id);
+    const msg = messageMap.get(id);
     if (msg) msg.unread = false;
     return updateDoc(doc(db, 'mail', id), { unread: false });
   }));
   document.getElementById('bulkUnreadBtn').addEventListener('click', bulkAction((id) => {
-    const msg = allMessages.find((m) => m.id === id);
+    const msg = messageMap.get(id);
     if (msg) msg.unread = true;
     return updateDoc(doc(db, 'mail', id), { unread: true });
   }));
@@ -355,6 +388,7 @@ async function loadMessages() {
     allMessages = snap.docs
       .map((entry) => ({ id: entry.id, ...entry.data() }))
       .sort((left, right) => toMillis(right.receivedAt) - toMillis(left.receivedAt));
+    messageMap = new Map(allMessages.map(m => [m.id, m]));
     window.SYNTHRUN_UPDATE_LOADING?.(4);
     renderList();
   } catch (error) {
@@ -430,7 +464,7 @@ async function updateOutboxStatus(id, updates) {
 }
 
 async function retryOutboxMessage(id) {
-  const message = allMessages.find((m) => m.id === id);
+  const message = messageMap.get(id);
   if (!message || message.folder !== 'outbox') return;
   try {
     await updateOutboxStatus(id, { status: 'sending' });
@@ -462,13 +496,17 @@ async function retryOutboxMessage(id) {
       throw new Error(err.error || `Worker returned ${response.status}`);
     }
     await updateOutboxStatus(id, { folder: 'sent', status: 'sent' });
-    await loadMessages();
+    const retried = messageMap.get(id);
+    if (retried) retried.folder = 'sent';
+    renderList();
     showToast('Message sent.');
   } catch (error) {
     console.error('retryOutboxMessage:', error);
     await updateOutboxStatus(id, { status: 'failed' });
+    const failed = messageMap.get(id);
+    if (failed) failed.status = 'failed';
+    renderList();
     showToast(`Send failed: ${error.message}`, true);
-    await loadMessages();
   }
 }
 window.SYNTHRUN_RETRY_OUTBOX = retryOutboxMessage;
@@ -557,17 +595,21 @@ function renderList() {
     });
   }
 
-  const inboxTotal = allMessages.filter((message) => message.folder !== 'sent' && message.folder !== 'draft' && message.folder !== 'trash' && message.folder !== 'outbox' && message.folder !== 'spam').length;
-  const inboxUnread = allMessages.filter((message) => message.unread && message.folder !== 'sent' && message.folder !== 'draft' && message.folder !== 'trash' && message.folder !== 'outbox' && message.folder !== 'spam').length;
-  const draftCount = allMessages.filter((message) => message.folder === 'draft').length;
-  const trashCount = allMessages.filter((message) => message.folder === 'trash').length;
-  const importantCount = allMessages.filter((message) => message.important).length;
-  const outboxCount = allMessages.filter((message) => message.folder === 'outbox').length;
-  const spamCount = allMessages.filter((message) => message.folder === 'spam').length;
+  let inboxTotal = 0, inboxUnread = 0, draftCount = 0, trashCount = 0, importantCount = 0, outboxCount = 0, spamCount = 0, archivedCount = 0, sentCount = 0;
+  for (const m of allMessages) {
+    if (m.folder === 'draft') draftCount++;
+    else if (m.folder === 'trash') trashCount++;
+    else if (m.folder === 'outbox') outboxCount++;
+    else if (m.folder === 'spam') spamCount++;
+    else if (m.folder === 'archived') archivedCount++;
+    else if (m.folder === 'sent') sentCount++;
+    else { inboxTotal++; if (m.unread) inboxUnread++; }
+    if (m.important) importantCount++;
+  }
   document.getElementById('badge-inbox').textContent = String(inboxTotal || 0);
   document.getElementById('badge-unread').textContent = String(inboxUnread || 0);
-  document.getElementById('badge-archived').textContent = String(allMessages.filter((message) => message.folder === 'archived').length || 0);
-  document.getElementById('badge-sent').textContent = String(allMessages.filter((message) => message.folder === 'sent').length || '—');
+  document.getElementById('badge-archived').textContent = String(archivedCount || 0);
+  document.getElementById('badge-sent').textContent = String(sentCount || '—');
   document.getElementById('badge-important').textContent = String(importantCount || 0);
   document.getElementById('badge-drafts').textContent = String(draftCount || '—');
   document.getElementById('badge-trash').textContent = String(trashCount || 0);
@@ -710,7 +752,7 @@ function scheduleDraftSave() {
 }
 
 async function openMessage(id, { updateRoute = true, replaceRoute = false } = {}) {
-  const message = allMessages.find((entry) => entry.id === id);
+  const message = messageMap.get(id);
   if (!message) return;
   activeMessageId = id;
   setMessageOpenState(true);
@@ -727,9 +769,7 @@ async function openMessage(id, { updateRoute = true, replaceRoute = false } = {}
     document.getElementById('badge-unread').textContent = String(unreadCount || 0);
   }
 
-  document.querySelectorAll('.thread-item').forEach((item) => {
-    item.classList.toggle('active', item.dataset.id === id);
-  });
+  document.querySelector(`.thread-item[data-id="${id}"]`)?.classList.add('active');
 
   const timestamp = toDate(message.receivedAt);
   document.getElementById('viewSubject').textContent = message.subject || '(no subject)';
@@ -858,7 +898,7 @@ async function deleteMessage(id) {
 }
 
 async function toggleArchive(id) {
-  const message = allMessages.find((entry) => entry.id === id);
+  const message = messageMap.get(id);
   if (!message) return;
   if (message.folder === 'archived') {
     await unarchiveMessage(id);
@@ -878,7 +918,7 @@ async function unarchiveMessage(id) {
 async function moveMessageFolder(id, folder, successToast, failureToast) {
   try {
     await updateDoc(doc(db, 'mail', id), { folder });
-    const movedMessage = allMessages.find((message) => message.id === id);
+    const movedMessage = messageMap.get(id);
     if (movedMessage) {
       movedMessage.folder = folder;
     }
@@ -893,7 +933,7 @@ async function moveMessageFolder(id, folder, successToast, failureToast) {
 }
 
 async function toggleFlag(id) {
-  const message = allMessages.find((entry) => entry.id === id);
+  const message = messageMap.get(id);
   if (!message) return;
   const nextValue = !message.flagged;
   message.flagged = nextValue;
@@ -910,7 +950,7 @@ async function toggleFlag(id) {
 }
 
 async function markUnread(id) {
-  const message = allMessages.find((entry) => entry.id === id);
+  const message = messageMap.get(id);
   if (!message) return;
   message.unread = true;
 
@@ -925,7 +965,7 @@ async function markUnread(id) {
 }
 
 async function toggleImportant(id) {
-  const message = allMessages.find((entry) => entry.id === id);
+  const message = messageMap.get(id);
   if (!message) return;
   const nextValue = !message.important;
   message.important = nextValue;
@@ -950,7 +990,7 @@ function syncImportantButtonState(isImportant) {
 async function trashMessage(id) {
   try {
     await updateDoc(doc(db, 'mail', id), { folder: 'trash' });
-    const moved = allMessages.find((m) => m.id === id);
+    const moved = messageMap.get(id);
     if (moved) moved.folder = 'trash';
     closeMessageView({ replaceRoute: true });
     renderList();
@@ -964,7 +1004,7 @@ async function trashMessage(id) {
 async function restoreMessage(id) {
   try {
     await updateDoc(doc(db, 'mail', id), { folder: 'inbox' });
-    const restored = allMessages.find((m) => m.id === id);
+    const restored = messageMap.get(id);
     if (restored) restored.folder = 'inbox';
     closeMessageView({ replaceRoute: true });
     renderList();
@@ -978,7 +1018,7 @@ async function restoreMessage(id) {
 async function markAsNotSpam(id) {
   try {
     await updateDoc(doc(db, 'mail', id), { folder: 'inbox' });
-    const msg = allMessages.find((m) => m.id === id);
+    const msg = messageMap.get(id);
     if (msg) msg.folder = 'inbox';
     closeMessageView({ replaceRoute: true });
     renderList();
@@ -1334,6 +1374,11 @@ async function sendMessage() {
     }
     setComposeStatus('Saving to outbox...');
     outboxId = await saveOutboxMessage(to, cc, bcc, subject, body, htmlBody);
+    if (outboxId) {
+      const outboxEntry = { id: outboxId, folder: 'outbox', status: 'sending', from: currentUser.email, to, cc, bcc, subject, body, htmlBody, attachments: [], senderUid: currentUser.uid, recipientEmail: currentUser.email, unread: false, flagged: false, important: false };
+      allMessages.unshift(outboxEntry);
+      messageMap.set(outboxId, outboxEntry);
+    }
     setComposeStatus(draftAttachments.length ? 'Preparing attachments...' : 'Sending...');
     uploadedAttachments = await uploadDraftAttachments();
     const bodyWithLinks = `${body}${buildAttachmentText(uploadedAttachments)}`;
@@ -1360,9 +1405,11 @@ async function sendMessage() {
     await clearDraft();
     if (draftSaveTimer) clearTimeout(draftSaveTimer);
     draftSaveTimer = null;
-    await loadMessages();
     composeBusy = false;
     closeCompose();
+    const msg = messageMap.get(outboxId);
+    if (msg) { msg.folder = 'sent'; msg.status = 'sent'; }
+    renderList();
     showToast('Message sent.');
   } catch (error) {
     console.error('sendMessage:', error);
@@ -1371,8 +1418,10 @@ async function sendMessage() {
     showToast(`Send failed: ${error.message}`, true);
     if (outboxId) {
       await updateOutboxStatus(outboxId, { status: 'failed', attachments: draftAttachments.length ? uploadedAttachments : [] });
+      const msg = messageMap.get(outboxId);
+      if (msg) msg.status = 'failed';
     }
-    await loadMessages();
+    renderList();
   } finally {
     button.disabled = false;
     button.classList.remove('loading');

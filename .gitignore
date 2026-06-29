@@ -1,5 +1,6 @@
 node_modules/
 .env
+.cicada/
 *.secret.json
 synthrun-site-firebase-adminsdk-*.json
 /.env.local
@@ -10,3 +11,6 @@ yarn-error.log*
 .DS_Store
 extension/
 mailfwds_index.js
+# Cicada audit reports
+cicada/*.md
+!cicada/.gitkeep
