@@ -215,8 +215,14 @@ async function sendAutoReplies({ fromEmail, fromName, subject, text, html, recip
       const settingsSnap = await db.collection('user_settings').where('email', '==', recipientEmail).limit(1).get();
       if (settingsSnap.empty) continue;
       const uid = settingsSnap.docs[0].id;
-      const ar = settingsSnap.docs[0].data().autoReply;
+      const settings = settingsSnap.docs[0].data();
+      const ar = settings.autoReply;
       if (!ar || !ar.enabled || !ar.message) continue;
+
+      // Check date range
+      const now = new Date();
+      if (ar.startDate && new Date(ar.startDate + 'T00:00:00') > now) continue;
+      if (ar.endDate && new Date(ar.endDate + 'T23:59:59') < now) continue;
 
       // Check if already replied to this sender recently
       const repliedRef = db.collection('user_settings').doc(uid).collection('autoReplied').doc(fromEmail.replace(/[^a-zA-Z0-9]/g, '_'));
