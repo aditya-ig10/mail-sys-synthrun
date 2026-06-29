@@ -205,6 +205,63 @@ function sendJson(res, status, body) {
   res.status(status).json(body);
 }
 
+async function sendAutoReplies({ fromEmail, fromName, subject, text, html, recipients }) {
+  const db = admin.firestore();
+  const autoReplyCutoff = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000); // 7 days
+
+  for (const recipientEmail of recipients) {
+    try {
+      // Look up user settings by email
+      const settingsSnap = await db.collection('user_settings').where('email', '==', recipientEmail).limit(1).get();
+      if (settingsSnap.empty) continue;
+      const uid = settingsSnap.docs[0].id;
+      const ar = settingsSnap.docs[0].data().autoReply;
+      if (!ar || !ar.enabled || !ar.message) continue;
+
+      // Check if already replied to this sender recently
+      const repliedRef = db.collection('user_settings').doc(uid).collection('autoReplied').doc(fromEmail.replace(/[^a-zA-Z0-9]/g, '_'));
+      const repliedSnap = await repliedRef.get();
+      if (repliedSnap.exists) {
+        const repliedAt = repliedSnap.data().repliedAt?.toDate?.() || new Date(repliedSnap.data().repliedAt);
+        if (repliedAt > autoReplyCutoff) continue;
+      }
+
+      // Send the auto-reply
+      const replySubject = ar.subject || `Re: ${subject || ''}`;
+      const replyText = `${ar.message}\n\n---\nOn ${new Date().toLocaleString('en-US', { dateStyle: 'long', timeStyle: 'short' })}, ${fromName || fromEmail} wrote:\n\n${text || '(no text)'}`;
+
+      const brevoApiKey = getBrevoApiKey();
+      const senderAddress = recipientEmail;
+      const senderName = formatSenderName(recipientEmail);
+
+      if (brevoApiKey) {
+        await sendViaBrevoApi({
+          senderAddress,
+          fromName: senderName,
+          userEmail: recipientEmail,
+          to: fromEmail,
+          subject: replySubject,
+          text: replyText,
+        });
+      } else {
+        const transporter = createTransport();
+        await transporter.sendMail({
+          from: `"${senderName}" <${senderAddress}>`,
+          replyTo: recipientEmail,
+          to: fromEmail,
+          subject: replySubject,
+          text: replyText,
+        });
+      }
+
+      // Track that we replied
+      await repliedRef.set({ repliedAt: admin.firestore.FieldValue.serverTimestamp(), to: fromEmail });
+    } catch (err) {
+      console.error(`sendAutoReplies: failed for ${recipientEmail}:`, err.message);
+    }
+  }
+}
+
 function buildFirebaseConfig() {
   const config = {
     apiKey: process.env.FIREBASE_API_KEY,
@@ -895,7 +952,17 @@ app.post('/receive', async (req, res) => {
     // 2. Respond to Brevo immediately — the webhook can timeout while we upload.
     res.status(200).json({ ok: true });
 
-    // 3. Process attachments (Telegram upload) in the background and patch docs.
+    // 3. Auto-reply (background) — for internal recipients who have auto-reply enabled
+    if (docIds.length) {
+      const allRecipients = [...new Set([to, cc, bcc].map(sanitizeEmail).filter(Boolean).filter(isInternalMailbox))];
+      if (allRecipients.length && parsedFrom.email) {
+        sendAutoReplies({ fromEmail: parsedFrom.email, fromName: parsedFrom.name, subject, text: cleanText, html: cleanHtml, recipients: allRecipients }).catch((err) => {
+          console.error('/receive: auto-reply error:', err);
+        });
+      }
+    }
+
+    // 4. Process attachments (Telegram upload) in the background and patch docs.
     if (docIds.length && rawAttachments.length) {
       const caption = `📧 From: ${fromName || from}  Subject: ${subject || '(no subject)'}`;
       processBrevoAttachments(rawAttachments, caption).then((processed) => {

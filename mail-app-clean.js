@@ -38,6 +38,7 @@ let messageMap = new Map();
 let currentFolder = initialRouteState.folder;
 let activeMessageId = null;
 let selectedIds = new Set();
+let userLabels = [];
 let draftAttachments = [];
 let uiBound = false;
 let composeBusy = false;
@@ -105,6 +106,48 @@ async function fetchSettingsFromFirebase(uid) {
   } catch { /* ignore */ }
 }
 
+async function loadUserLabels() {
+  if (!currentUser) return;
+  try {
+    const snap = await getDocs(collection(db, 'user_settings', currentUser.uid, 'labels'));
+    userLabels = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    renderSidebarLabels();
+  } catch { userLabels = []; }
+}
+
+function renderSidebarLabels() {
+  const container = document.getElementById('sidebarCustomLabels');
+  if (!container) return;
+  if (!userLabels.length) { container.innerHTML = ''; return; }
+  container.innerHTML = userLabels.map(l =>
+    `<button class="side-link" data-folder="label:${l.name}" type="button">
+      <span class="side-link-left"><span class="label-swatch" style="background:${l.color || '#888'};display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px;vertical-align:middle;"></span>${escapeHtml(l.name)}</span>
+    </button>`
+  ).join('');
+}
+
+async function assignLabel(messageId, labelName) {
+  if (!currentUser) return;
+  try {
+    const ref = doc(db, 'mail', messageId);
+    const snap = await getDoc(ref);
+    if (!snap.exists()) return;
+    const labels = snap.data().labels || [];
+    const idx = labels.indexOf(labelName);
+    if (idx > -1) labels.splice(idx, 1);
+    else labels.push(labelName);
+    await updateDoc(ref, { labels });
+    const msg = messageMap.get(messageId);
+    if (msg) msg.labels = labels;
+    renderList();
+  } catch { showToast('Failed to update label.', true); }
+}
+
+function getMessageLabels(messageId) {
+  const msg = messageMap.get(messageId);
+  return (msg && Array.isArray(msg.labels)) ? msg.labels : [];
+}
+
 function getRouteStateFromLocation() {
   const segments = window.location.pathname
     .split('/')
@@ -139,7 +182,7 @@ function syncRouteToLocation({ folder = currentFolder, messageId = activeMessage
 
 function updateFolderSelection(folder) {
   currentFolder = folder;
-  document.getElementById('folderLabel').textContent = FOLDER_LABELS[folder] || folder;
+  document.getElementById('folderLabel').textContent = folder.startsWith('label:') ? folder.slice(6) : (FOLDER_LABELS[folder] || folder);
   document.querySelectorAll('.side-link').forEach((item) => item.classList.remove('active'));
   document.querySelectorAll(`[data-folder="${folder}"]`).forEach((item) => item.classList.add('active'));
 }
@@ -217,6 +260,7 @@ onAuthStateChanged(auth, async (user) => {
   await restoreRouteState();
   window.SYNTHRUN_UPDATE_LOADING?.(5);
   setAppLoading(false);
+  loadUserLabels().catch(() => {});
 });
 
 function bootDebugUser(email) {
@@ -377,6 +421,14 @@ function bindUi() {
     if (msg) msg.unread = true;
     return updateDoc(doc(db, 'mail', id), { unread: true });
   }));
+
+  // Label dropdown
+  document.getElementById('labelBtn').addEventListener('click', (e) => {
+    e.stopPropagation();
+    document.getElementById('labelDropdown').classList.toggle('open');
+  });
+  document.addEventListener('click', () => document.getElementById('labelDropdown').classList.remove('open'));
+  document.getElementById('labelDropdown').addEventListener('click', (e) => e.stopPropagation());
 }
 
 async function loadMessages() {
@@ -584,6 +636,10 @@ function renderList() {
   else if (currentFolder === 'trash') messages = messages.filter((message) => message.folder === 'trash');
   else if (currentFolder === 'clients') messages = messages.filter((message) => Array.isArray(message.labels) && message.labels.includes('clients'));
   else if (currentFolder === 'spam') messages = messages.filter((message) => message.folder === 'spam');
+  else if (currentFolder.startsWith('label:')) {
+    const labelName = currentFolder.slice(6);
+    messages = messages.filter((message) => Array.isArray(message.labels) && message.labels.includes(labelName));
+  }
   else messages = messages.filter((message) => message.folder !== 'sent' && message.folder !== 'draft' && message.folder !== 'trash' && message.folder !== 'outbox' && message.folder !== 'spam');
 
   if (queryText) {
@@ -875,6 +931,29 @@ async function openMessage(id, { updateRoute = true, replaceRoute = false } = {}
   }
   syncFlagButtonState(message.flagged);
   syncImportantButtonState(message.important);
+
+  // Populate label dropdown
+  const msgLabels = getMessageLabels(id);
+  const labelDropdown = document.getElementById('labelDropdown');
+  if (userLabels.length) {
+    labelDropdown.innerHTML = userLabels.map(l => {
+      const active = msgLabels.includes(l.name);
+      return `<div class="label-dropdown-item${active ? ' active' : ''}" data-label="${escapeHtml(l.name)}">
+        <span class="label-dot" style="background:${l.color || '#888'}"></span>
+        <span>${escapeHtml(l.name)}</span>
+        <span class="label-check">✓</span>
+      </div>`;
+    }).join('');
+    labelDropdown.querySelectorAll('.label-dropdown-item').forEach(el => {
+      el.addEventListener('click', (e) => {
+        e.stopPropagation();
+        assignLabel(id, el.dataset.label);
+        el.classList.toggle('active');
+      });
+    });
+  } else {
+    labelDropdown.innerHTML = '<div class="label-dropdown-item" style="cursor:default;color:var(--muted);">No labels — create in Settings</div>';
+  }
 
   document.getElementById('replyBtn').style.display = isTrash || isOutbox || isSpam ? 'none' : '';
   document.getElementById('forwardBtn').style.display = isTrash || isOutbox || isSpam ? 'none' : '';

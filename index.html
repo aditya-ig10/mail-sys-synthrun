@@ -1114,6 +1114,22 @@ header, .app-body, .compose-modal { animation: pageRise 0.32s ease both; }
 :focus-visible { outline: 2px solid var(--text); outline-offset: 2px; }
 button:focus:not(:focus-visible), input:focus:not(:focus-visible) { outline: none; }
 .mobile-back-btn { display: none; }
+.label-dropdown-wrap { position: relative; }
+.label-dropdown {
+  position: absolute; right: 0; top: 100%; margin-top: 4px;
+  background: var(--panel-strong); border: 1px solid var(--line);
+  border-radius: 4px; min-width: 160px; max-height: 200px; overflow-y: auto;
+  display: none; z-index: 50; box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+.label-dropdown.open { display: block; }
+.label-dropdown-item {
+  display: flex; align-items: center; gap: 8px; padding: 8px 12px;
+  cursor: pointer; font-size: 0.75rem; transition: background 0.1s;
+}
+.label-dropdown-item:hover { background: rgba(0,0,0,0.03); }
+.label-dropdown-item .label-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+.label-dropdown-item .label-check { margin-left: auto; opacity: 0; }
+.label-dropdown-item.active .label-check { opacity: 1; }
 </style>
 </head>
 <body id="top">
@@ -1293,6 +1309,7 @@ button:focus:not(:focus-visible), input:focus:not(:focus-visible) { outline: non
         <span class="side-link-left"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2L2 7v5c0 8 4 12 10 14 6-2 10-6 10-14V7l-10-5z"></path><path d="M12 8v4M12 16h0"></path></svg>Spam</span>
         <span class="side-badge" id="badge-spam">0</span>
       </button>
+      <div id="sidebarCustomLabels"></div>
     </div>
     <hr>
     <div class="side-section">
@@ -1382,6 +1399,12 @@ button:focus:not(:focus-visible), input:focus:not(:focus-visible) { outline: non
             <button class="icon-btn" id="deleteBtn" title="Delete" aria-label="Delete message" type="button">
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"></path></svg>
             </button>
+            <div class="label-dropdown-wrap" id="labelDropdownWrap">
+              <button class="icon-btn" id="labelBtn" title="Labels" aria-label="Labels" type="button">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.6 12.6l-7 7a2 2 0 0 1-2.8 0L3 12V3h9l8.6 8.6a2 2 0 0 1 0 2.8z"></path><circle cx="7.5" cy="7.5" r="1.5" fill="currentColor"></circle></svg>
+              </button>
+              <div class="label-dropdown" id="labelDropdown"></div>
+            </div>
           </div>
         </div>
         <div class="mail-body-scroll" id="mailBodyScroll"></div>

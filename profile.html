@@ -328,6 +328,35 @@ main.content {
   .sk-body { grid-template-columns: 1fr; }
   .sk-sidebar { display: none; }
 }
+
+/* ── Labels ──────────────────────────────────────────── */
+.label-swatch {
+  display: inline-block; width: 12px; height: 12px;
+  border-radius: 50%; margin-right: 8px; vertical-align: middle;
+  flex-shrink: 0;
+}
+.label-list { display: flex; flex-direction: column; gap: 6px; }
+.label-row {
+  display: flex; align-items: center; gap: 8px;
+  padding: 0.5rem 0; border-bottom: 1px solid var(--rule);
+}
+.label-row:last-child { border-bottom: none; }
+.label-row-name { flex: 1; font-size: 0.75rem; }
+.label-color-picker { display: flex; gap: 4px; flex-wrap: wrap; }
+.label-color-opt {
+  width: 20px; height: 20px; border-radius: 50%;
+  border: 2px solid transparent; cursor: pointer;
+  transition: border-color 0.15s;
+}
+.label-color-opt:hover { border-color: var(--ink); }
+.label-color-opt.active { border-color: var(--ink); box-shadow: 0 0 0 1px var(--ink); }
+/* ── Auto-Reply ──────────────────────────────────────── */
+.reply-preview {
+  background: var(--surface); padding: 0.75rem 1rem;
+  border-radius: 4px; font-size: 0.75rem; line-height: 1.5;
+  white-space: pre-wrap; margin-top: 0.5rem;
+  border-left: 3px solid var(--ink2);
+}
 </style>
 </head>
 <body id="top">
@@ -373,6 +402,8 @@ main.content {
     <a href="#section-security" class="side-link" data-section="security">Security</a>
     <a href="#section-sessions" class="side-link" data-section="sessions">Sessions</a>
     <a href="#section-preferences" class="side-link" data-section="preferences">Preferences</a>
+    <a href="#section-labels" class="side-link" data-section="labels">Labels</a>
+    <a href="#section-autoreply" class="side-link" data-section="autoreply">Auto-Reply</a>
     <a href="#section-danger" class="side-link" data-section="danger">Danger Zone</a>
   </aside>
 
@@ -525,6 +556,64 @@ main.content {
             <button class="btn btn-sm" data-density-opt="comfortable" type="button">Comfortable</button>
             <button class="btn btn-sm" data-density-opt="compact" type="button">Compact</button>
           </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ─── LABELS ──────────────────────────────────────────── -->
+    <section class="section" id="section-labels">
+      <div class="section-header">
+        <h2 class="section-title">Labels</h2>
+        <p class="section-desc">Create and manage custom labels to organise your mail.</p>
+      </div>
+      <div class="card">
+        <div class="card-pad">
+          <div class="form-group" style="margin-bottom:0.5rem;">
+            <label class="form-label" for="newLabelInput">New label name</label>
+            <div style="display:flex; gap:6px; align-items:center; flex-wrap:wrap;">
+              <input type="text" id="newLabelInput" class="form-input" placeholder="e.g. Invoices" style="flex:1;min-width:140px;" maxlength="40">
+              <div class="label-color-picker" id="labelColorPicker"></div>
+              <button class="btn" id="createLabelBtn" type="button">Add</button>
+            </div>
+          </div>
+          <div class="hint" style="margin-bottom:0.25rem;">Click a label to delete it.</div>
+          <div id="labelList" class="label-list"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ─── AUTO-REPLY ──────────────────────────────────────── -->
+    <section class="section" id="section-autoreply">
+      <div class="section-header">
+        <h2 class="section-title">Auto-Reply</h2>
+        <p class="section-desc">Automatically reply to incoming messages when you are away.</p>
+      </div>
+      <div class="card">
+        <div class="card-pad card-row">
+          <div class="card-left">
+            <div class="card-info">
+              <div class="card-label">Vacation responder</div>
+              <div class="card-value" id="autoReplyStatus">Off</div>
+            </div>
+          </div>
+          <label class="toggle" id="autoReplyToggleWrap">
+            <input type="checkbox" id="autoReplyToggle">
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+      </div>
+      <div class="card" id="autoReplyConfig" style="display:none;">
+        <div class="card-pad">
+          <div class="form-group" style="margin-bottom:0.75rem;">
+            <label class="form-label" for="autoReplySubject">Subject (optional)</label>
+            <input type="text" id="autoReplySubject" class="form-input" placeholder="e.g. Out of office" maxlength="200">
+          </div>
+          <div class="form-group" style="margin-bottom:0.75rem;">
+            <label class="form-label" for="autoReplyMessage">Message</label>
+            <textarea id="autoReplyMessage" class="form-input" rows="4" placeholder="I'm currently away and will respond when I return." maxlength="2000"></textarea>
+          </div>
+          <div id="autoReplyPreview" class="reply-preview" style="display:none;"></div>
+          <button class="btn" id="saveAutoReplyBtn" type="button">Save</button>
         </div>
       </div>
     </section>
@@ -1458,6 +1547,137 @@ main.content {
     if (!pw) { showToast('Enter your password.', true); return; }
     reauth(pw);
   });
+
+  // ─── LABELS ────────────────────────────────────────────────
+
+  const LABEL_COLORS = ['#4a9c6d','#2b7ecf','#e67e22','#9b59b6','#e74c3c','#1abc9c','#f39c12','#3498db','#95a5a6','#d35400'];
+
+  function initLabelColorPicker() {
+    const container = document.getElementById('labelColorPicker');
+    container.innerHTML = LABEL_COLORS.map((c, i) =>
+      `<div class="label-color-opt${i === 0 ? ' active' : ''}" data-color="${c}" style="background:${c};" title="${c}"></div>`
+    ).join('');
+    container.querySelectorAll('.label-color-opt').forEach(el => {
+      el.addEventListener('click', () => {
+        container.querySelectorAll('.label-color-opt').forEach(o => o.classList.remove('active'));
+        el.classList.add('active');
+      });
+    });
+  }
+  initLabelColorPicker();
+
+  async function loadLabels() {
+    if (!currentUser) return;
+    try {
+      const snap = await getDocs(collection(db, 'user_settings', currentUser.uid, 'labels'));
+      const labels = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      renderLabels(labels);
+    } catch { /* ignore */ }
+  }
+
+  function renderLabels(labels) {
+    const container = document.getElementById('labelList');
+    if (!labels.length) {
+      container.innerHTML = '<div class="hint">No labels yet. Create one above.</div>';
+      return;
+    }
+    container.innerHTML = labels.map(l =>
+      `<div class="label-row" data-id="${l.id}">
+        <span class="label-swatch" style="background:${l.color || '#888'}"></span>
+        <span class="label-row-name">${escapeHtml(l.name)}</span>
+        <button class="btn btn-sm" data-delete-label="${l.id}" type="button" title="Delete label">✕</button>
+      </div>`
+    ).join('');
+    container.querySelectorAll('[data-delete-label]').forEach(btn => {
+      btn.addEventListener('click', () => deleteLabel(btn.dataset.deleteLabel));
+    });
+  }
+
+  document.getElementById('createLabelBtn').addEventListener('click', async () => {
+    if (!currentUser) return;
+    const input = document.getElementById('newLabelInput');
+    const name = input.value.trim();
+    if (!name) { showToast('Enter a label name.', true); return; }
+    const activeColor = document.querySelector('#labelColorPicker .label-color-opt.active');
+    const color = activeColor ? activeColor.dataset.color : LABEL_COLORS[0];
+    try {
+      await addDoc(collection(db, 'user_settings', currentUser.uid, 'labels'), { name, color, createdAt: serverTimestamp() });
+      input.value = '';
+      await loadLabels();
+      showToast(`Label "${name}" created.`);
+    } catch { showToast('Failed to create label.', true); }
+  });
+
+  document.getElementById('newLabelInput').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') document.getElementById('createLabelBtn').click();
+  });
+
+  async function deleteLabel(id) {
+    if (!currentUser || !id) return;
+    try {
+      await deleteDoc(doc(db, 'user_settings', currentUser.uid, 'labels', id));
+      await loadLabels();
+      showToast('Label deleted.');
+    } catch { showToast('Failed to delete label.', true); }
+  }
+
+  // ─── AUTO-REPLY ────────────────────────────────────────────
+
+  async function loadAutoReply() {
+    if (!currentUser) return;
+    try {
+      const snap = await getDoc(doc(db, 'user_settings', currentUser.uid));
+      const ar = snap.exists() ? (snap.data().autoReply || {}) : {};
+      const enabled = !!ar.enabled;
+      document.getElementById('autoReplyToggle').checked = enabled;
+      document.getElementById('autoReplyStatus').textContent = enabled ? 'On' : 'Off';
+      document.getElementById('autoReplyConfig').style.display = enabled ? '' : 'none';
+      document.getElementById('autoReplySubject').value = ar.subject || '';
+      document.getElementById('autoReplyMessage').value = ar.message || '';
+      updateAutoReplyPreview();
+    } catch { /* ignore */ }
+  }
+
+  function updateAutoReplyPreview() {
+    const subject = document.getElementById('autoReplySubject').value.trim();
+    const message = document.getElementById('autoReplyMessage').value.trim();
+    const preview = document.getElementById('autoReplyPreview');
+    if (subject || message) {
+      preview.textContent = subject ? `Subject: ${subject}\n\n${message}` : message;
+      preview.style.display = '';
+    } else {
+      preview.style.display = 'none';
+    }
+  }
+
+  document.getElementById('autoReplySubject').addEventListener('input', updateAutoReplyPreview);
+  document.getElementById('autoReplyMessage').addEventListener('input', updateAutoReplyPreview);
+
+  document.getElementById('autoReplyToggle').addEventListener('change', () => {
+    const on = document.getElementById('autoReplyToggle').checked;
+    document.getElementById('autoReplyStatus').textContent = on ? 'On' : 'Off';
+    document.getElementById('autoReplyConfig').style.display = on ? '' : 'none';
+    saveAutoReply();
+  });
+
+  document.getElementById('saveAutoReplyBtn').addEventListener('click', saveAutoReply);
+
+  async function saveAutoReply() {
+    if (!currentUser) return;
+    const enabled = document.getElementById('autoReplyToggle').checked;
+    const subject = document.getElementById('autoReplySubject').value.trim();
+    const message = document.getElementById('autoReplyMessage').value.trim();
+    try {
+      await updateDoc(doc(db, 'user_settings', currentUser.uid), {
+        autoReply: { enabled, subject, message },
+        updatedAt: serverTimestamp(),
+      });
+      showToast('Auto-reply saved.');
+    } catch { showToast('Failed to save auto-reply.', true); }
+  }
+
+  // Load labels & auto-reply after init
+  setTimeout(() => { loadLabels(); loadAutoReply(); }, 0);
 </script>
 
 <script nomodule>
