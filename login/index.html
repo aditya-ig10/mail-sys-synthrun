@@ -5,6 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="robots" content="noindex, nofollow">
 <title>Synthrun Mail — Sign In</title>
+<script>(function(){var t=localStorage.getItem('synthrun-theme');if(!t){try{t=(document.cookie.match(/(?:^|;\s*)synthrun-theme=([^;]*)/)||[])[1]||''}catch(e){}}
+var d=t==='dark'?t:t==='light'?t:(window.matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light');
+document.documentElement.setAttribute('data-theme',d);})();</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;1,9..144,300;1,9..144,400&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
 <style>
@@ -27,12 +30,12 @@
     --surface: rgba(24,26,31,0.82); --nav-bg: rgba(16,17,20,0.9);
   }
 }
-body[data-theme="light"] {
+html[data-theme="light"], body[data-theme="light"] {
   --white: #fafaf8; --off: #f2f1ee; --ink: #111110; --ink2: #3a3a38;
   --ink3: #888884; --ink4: #c4c4be; --rule: #e0dfd9;
   --surface: rgba(255,255,255,0.75); --nav-bg: rgba(250,250,248,0.94);
 }
-body[data-theme="dark"] {
+html[data-theme="dark"], body[data-theme="dark"] {
   --white: #101114; --off: #181a1f; --ink: #eceae2; --ink2: #c4c0b5;
   --ink3: #989388; --ink4: #646055; --rule: #2b2e35;
   --surface: rgba(24,26,31,0.82); --nav-bg: rgba(16,17,20,0.9);
@@ -226,10 +229,65 @@ main {
   .login-left { display: none; }
   .login-right { padding: 2.5rem 1.5rem; }
 }
+/* ── Skeleton Loading ──────────────────────────────────────── */
+.skeleton-overlay {
+  position: fixed; inset: 0; z-index: 200;
+  background: var(--white);
+  display: flex; flex-direction: column;
+  transition: opacity 0.4s ease, visibility 0.4s ease;
+}
+.skeleton-overlay.hidden { opacity: 0; visibility: hidden; pointer-events: none; }
+@keyframes shimmer {
+  0% { background-position: -400px 0; }
+  100% { background-position: 400px 0; }
+}
+.sk {
+  background: linear-gradient(90deg, var(--rule) 25%, var(--white) 50%, var(--rule) 75%);
+  background-size: 800px 100%;
+  animation: shimmer 1.8s ease-in-out infinite;
+  border-radius: 2px;
+}
+.sk-nav { height: 52px; border-bottom: 1px solid var(--rule); display: flex; align-items: center; justify-content: space-between; padding: 0 1.5rem; }
+.sk-nav .sk { height: 11px; width: 80px; }
+.sk-nav .sk:last-child { width: 60px; height: 26px; }
+.sk-body { flex: 1; display: grid; grid-template-columns: 1fr 1fr; min-height: 0; }
+.sk-left { display: flex; align-items: center; justify-content: center; }
+.sk-left-inner { display: flex; flex-direction: column; gap: 14px; width: 280px; }
+.sk-left-inner .sk { height: 10px; }
+.sk-left-inner .sk:nth-child(1) { width: 120px; height: 14px; }
+.sk-left-inner .sk:nth-child(2) { width: 200px; height: 28px; }
+.sk-left-inner .sk:nth-child(3) { width: 180px; }
+.sk-left-inner .sk:nth-child(4) { width: 100%; height: 42px; }
+.sk-left-inner .sk:nth-child(5) { width: 140px; }
+.sk-right { display: flex; align-items: center; justify-content: center; background: var(--off); }
+.sk-right-inner { display: flex; flex-direction: column; gap: 12px; width: 260px; }
+.sk-right-inner .sk { height: 10px; }
+.sk-right-inner .sk:nth-child(1) { width: 80px; height: 80px; border-radius: 50%; }
+.sk-right-inner .sk:nth-child(2) { width: 160px; height: 18px; }
+.sk-right-inner .sk:nth-child(3) { width: 120px; }
+.sk-right-inner .sk:nth-child(4) { width: 200px; }
+@media (max-width: 640px) {
+  .sk-body { grid-template-columns: 1fr; }
+  .sk-left { padding: 2.5rem 1.5rem; }
+  .sk-right { display: none; }
+}
 </style>
 </head>
 <body id="top">
 
+<div class="skeleton-overlay" id="skeletonOverlay">
+  <div class="sk-nav"><div class="sk"></div><div class="sk"></div></div>
+  <div class="sk-body">
+    <div class="sk-left"><div class="sk-left-inner">
+      <div class="sk"></div><div class="sk"></div><div class="sk"></div><div class="sk"></div><div class="sk"></div>
+    </div></div>
+    <div class="sk-right"><div class="sk-right-inner">
+      <div class="sk"></div><div class="sk"></div><div class="sk"></div><div class="sk"></div>
+    </div></div>
+  </div>
+</div>
+
+<script>document.getElementById('skeletonOverlay')?.classList.remove('hidden');</script>
 <nav>
   <a href="/" class="nav-logo">
     <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"></circle><path d="M7 14c1.4-2.6 3.1-4 5.1-4s3.8 1.4 5.2 4"></path></svg>
@@ -610,6 +668,7 @@ main {
     setTheme(c === 'system' ? 'light' : c === 'light' ? 'dark' : 'system');
   });
   media.addEventListener('change', () => applyTheme(localStorage.getItem('synthrun-theme') || 'system'));
+  document.getElementById('skeletonOverlay')?.classList.add('hidden');
 </script>
 </body>
 </html>

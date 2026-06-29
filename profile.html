@@ -5,6 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="robots" content="noindex, nofollow">
 <title>Synthrun — Settings</title>
+<script>(function(){var t=localStorage.getItem('synthrun-theme');if(!t){try{t=(document.cookie.match(/(?:^|;\s*)synthrun-theme=([^;]*)/)||[])[1]||''}catch(e){}}
+var d=t==='dark'?t:t==='light'?t:(window.matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light');
+document.documentElement.setAttribute('data-theme',d);})();</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;1,9..144,300;1,9..144,400&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
 <style>
@@ -25,14 +28,14 @@
     --green: #4caf7a; --red: #e06050; --amber: #d4a030;
   }
 }
-body[data-theme="light"] {
+html[data-theme="light"], body[data-theme="light"] {
   --white: #fafaf8; --off: #f2f1ee; --ink: #111110; --ink2: #3a3a38;
   --ink3: #888884; --ink4: #c4c4be; --rule: #e0dfd9;
   --surface: rgba(255,255,255,0.75); --nav-bg: rgba(250,250,248,0.94);
   --overlay: rgba(0,0,0,0.45);
   --green: #2b7a4b; --red: #c04a3a; --amber: #b8860b;
 }
-body[data-theme="dark"] {
+html[data-theme="dark"], body[data-theme="dark"] {
   --white: #101114; --off: #181a1f; --ink: #eceae2; --ink2: #c4c0b5;
   --ink3: #989388; --ink4: #646055; --rule: #2b2e35;
   --surface: rgba(24,26,31,0.82); --nav-bg: rgba(16,17,20,0.9);
@@ -286,10 +289,63 @@ main.content {
   .card-row { flex-direction: column; align-items: flex-start; }
   .modal { max-width: 100%; margin: 0.5rem; }
 }
+/* ── Skeleton Loading ──────────────────────────────────────── */
+.skeleton-overlay {
+  position: fixed; inset: 0; z-index: 200;
+  background: var(--white);
+  display: flex; flex-direction: column;
+  transition: opacity 0.4s ease, visibility 0.4s ease;
+}
+.skeleton-overlay.hidden { opacity: 0; visibility: hidden; pointer-events: none; }
+@keyframes shimmer {
+  0% { background-position: -400px 0; }
+  100% { background-position: 400px 0; }
+}
+.sk {
+  background: linear-gradient(90deg, var(--rule) 25%, var(--white) 50%, var(--rule) 75%);
+  background-size: 800px 100%;
+  animation: shimmer 1.8s ease-in-out infinite;
+  border-radius: 2px;
+}
+.sk-nav { height: 52px; border-bottom: 1px solid var(--rule); display: flex; align-items: center; padding: 0 1.5rem; gap: 12px; }
+.sk-nav .sk { height: 11px; width: 80px; }
+.sk-nav .sk:last-child { margin-left: auto; width: 60px; height: 26px; }
+.sk-body { flex: 1; display: grid; grid-template-columns: 200px 1fr; min-height: 0; }
+.sk-sidebar { border-right: 1px solid var(--rule); padding: 1rem; display: flex; flex-direction: column; gap: 8px; }
+.sk-sidebar .sk { height: 10px; }
+.sk-sidebar .sk:first-child { width: 60%; height: 12px; }
+.sk-sidebar .sk:nth-child(3) { width: 40%; }
+.sk-main { padding: 2rem; display: flex; flex-direction: column; gap: 16px; max-width: 720px; }
+.sk-main .sk { height: 10px; }
+.sk-main .sk:first-child { width: 160px; height: 22px; }
+.sk-main .sk:nth-child(2) { width: 100%; height: 1px; }
+.sk-main .sk:nth-child(3) { width: 40%; }
+.sk-main .sk:nth-child(4) { width: 60%; }
+.sk-main .sk:nth-child(5) { width: 100%; height: 120px; }
+.sk-main .sk:nth-child(6) { width: 50%; }
+.sk-main .sk:nth-child(7) { width: 30%; }
+@media (max-width: 640px) {
+  .sk-body { grid-template-columns: 1fr; }
+  .sk-sidebar { display: none; }
+}
 </style>
 </head>
 <body id="top">
 
+<div class="skeleton-overlay" id="skeletonOverlay">
+  <div class="sk-nav"><div class="sk"></div><div class="sk"></div></div>
+  <div class="sk-body">
+    <div class="sk-sidebar">
+      <div class="sk"></div><div class="sk"></div><div class="sk"></div><div class="sk"></div>
+    </div>
+    <div class="sk-main">
+      <div class="sk"></div><div class="sk"></div><div class="sk"></div>
+      <div class="sk"></div><div class="sk"></div><div class="sk"></div><div class="sk"></div>
+    </div>
+  </div>
+</div>
+
+<script>document.getElementById('skeletonOverlay')?.classList.remove('hidden');</script>
 <nav>
   <a href="/" class="nav-logo">
     <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"></circle><path d="M7 14c1.4-2.6 3.1-4 5.1-4s3.8 1.4 5.2 4"></path></svg>
@@ -1237,6 +1293,7 @@ main.content {
     await updateTfaUI();
     await updateBackupEmailUI();
     await updateLayoutUI();
+    document.getElementById('skeletonOverlay')?.classList.add('hidden');
   });
 
   // ─── EVENTS ──────────────────────────────────────────────

@@ -535,7 +535,7 @@ body[data-theme="dark"] .reply-btn:hover { background: rgba(255,255,255,0.04); }
 .reply-btn.primary:hover { opacity: 0.85; background: var(--accent); }
 
 /* ═══════════════════════════════════════════════════════════════
-   NEW: Dynamic Loading Overlay
+   Skeleton Loading Overlay
    ═══════════════════════════════════════════════════════════════ */
 .app-loading-overlay {
   position: fixed;
@@ -544,8 +544,6 @@ body[data-theme="dark"] .reply-btn:hover { background: rgba(255,255,255,0.04); }
   background: var(--bg);
   display: flex;
   flex-direction: column;
-  align-items: center;
-  justify-content: center;
   transition: opacity 0.4s ease, visibility 0.4s ease;
   overflow: hidden;
 }
@@ -555,142 +553,92 @@ body[data-theme="dark"] .reply-btn:hover { background: rgba(255,255,255,0.04); }
   pointer-events: none;
 }
 
-/* Canvas for particle animation */
-#loadingCanvas {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  pointer-events: none;
+@keyframes shimmer {
+  0% { background-position: -400px 0; }
+  100% { background-position: 400px 0; }
 }
 
-/* Loading card on top of canvas */
-.loading-card {
-  position: relative;
-  z-index: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 20px;
-  padding: 32px;
-  text-align: center;
+.skeleton-block {
+  background: linear-gradient(90deg, var(--line) 25%, var(--panel-strong) 50%, var(--line) 75%);
+  background-size: 800px 100%;
+  animation: shimmer 1.8s ease-in-out infinite;
+  border-radius: 2px;
 }
 
-/* Logo mark */
-.loading-logo-mark {
-  width: 52px;
-  height: 52px;
-  border: 1.5px solid var(--text);
-  border-radius: 50%;
+.skeleton-header {
+  height: var(--header-h);
   display: grid;
-  place-items: center;
-  position: relative;
-  animation: logoAppear 0.5s ease both;
-}
-.loading-logo-mark svg {
-  width: 22px;
-  height: 22px;
-  stroke: var(--text);
-  fill: none;
-  stroke-width: 1.4;
-}
-
-/* Scanning ring */
-.loading-logo-mark::after {
-  content: '';
-  position: absolute;
-  inset: -5px;
-  border-radius: 50%;
-  border: 1px solid transparent;
-  border-top-color: var(--text);
-  border-right-color: var(--text);
-  animation: ringRotate 1.2s cubic-bezier(0.4, 0, 0.2, 1) infinite;
-  opacity: 0.5;
-}
-
-/* Phase label */
-.loading-phase {
-  display: flex;
-  flex-direction: column;
+  grid-template-columns: var(--sidebar-w) 1fr auto;
+  gap: 12px;
+  padding: 0 16px 0 0;
   align-items: center;
-  gap: 8px;
+  border-bottom: 1px solid var(--line);
+  flex-shrink: 0;
 }
-.loading-title {
-  font-family: 'Fraunces', serif;
-  font-size: 1.3rem;
-  color: var(--text);
-  margin: 0;
-  font-weight: 300;
-  letter-spacing: 0.02em;
-  animation: logoAppear 0.5s 0.1s ease both;
-}
-.loading-phase-label {
-  font-size: 9px;
-  letter-spacing: 0.2em;
-  text-transform: uppercase;
-  color: var(--subtle);
-  min-height: 14px;
-  transition: opacity 0.3s ease;
-  animation: logoAppear 0.5s 0.15s ease both;
-}
+.skeleton-header .skeleton-block { height: 34px; }
+.skeleton-header-left { display: flex; align-items: center; height: 100%; border-right: 1px solid var(--line); padding: 0 18px; }
+.skeleton-header-left .skeleton-block { width: 60px; height: 11px; }
+.skeleton-header-center { max-width: 480px; }
+.skeleton-header-right { display: flex; align-items: center; gap: 8px; }
+.skeleton-header-right .skeleton-block { width: 34px; border-radius: 50%; }
+.skeleton-header-right .skeleton-block:last-child { width: 160px; height: 34px; border-radius: 2px; }
 
-/* Progress bar */
-.loading-progress-track {
-  width: 200px;
-  height: 1px;
-  background: var(--line);
-  position: relative;
-  overflow: visible;
-  animation: logoAppear 0.5s 0.2s ease both;
+.skeleton-body {
+  flex: 1;
+  display: grid;
+  grid-template-columns: var(--sidebar-w) 1fr;
+  min-height: 0;
+  overflow: hidden;
 }
-.loading-progress-bar {
-  height: 100%;
-  background: var(--text);
-  width: 0%;
-  transition: width 0.35s cubic-bezier(0.4, 0, 0.2, 1);
-  position: relative;
+.skeleton-sidebar {
+  border-right: 1px solid var(--line);
+  padding: 14px 12px;
+  display: flex; flex-direction: column; gap: 14px;
 }
-.loading-progress-bar::after {
-  content: '';
-  position: absolute;
-  right: 0;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 4px;
-  height: 4px;
-  border-radius: 50%;
-  background: var(--text);
-}
-.loading-progress-pct {
-  position: absolute;
-  right: 0;
-  top: -18px;
-  font-size: 9px;
-  color: var(--subtle);
-  letter-spacing: 0.08em;
-  transition: opacity 0.3s ease;
-}
+.skeleton-sidebar .skeleton-block { height: 44px; width: 100%; }
+.skeleton-sidebar-nav { display: flex; flex-direction: column; gap: 2px; }
+.skeleton-sidebar-nav .skeleton-block { height: 32px; }
 
-/* Step dots */
-.loading-steps {
-  display: flex;
+.skeleton-mail {
+  display: grid;
+  grid-template-columns: var(--thread-w) 1fr;
+  min-height: 0;
+}
+.skeleton-threads {
+  border-right: 1px solid var(--line);
+  display: flex; flex-direction: column;
+}
+.skeleton-thread-toolbar { height: 48px; flex-shrink: 0; border-bottom: 1px solid var(--line); display: flex; align-items: center; padding: 0 14px; }
+.skeleton-thread-toolbar .skeleton-block { height: 11px; width: 60px; }
+.skeleton-thread-items { flex: 1; overflow: hidden; }
+.skeleton-thread-item {
+  display: grid;
+  grid-template-columns: 32px 1fr auto;
   gap: 10px;
-  align-items: center;
-  animation: logoAppear 0.5s 0.25s ease both;
+  padding: 13px 14px;
+  border-bottom: 1px solid var(--line);
+  align-items: start;
 }
-.loading-step-dot {
-  width: 5px;
-  height: 5px;
-  border-radius: 50%;
-  background: var(--line);
-  transition: background 0.3s ease, transform 0.3s ease;
+.skeleton-thread-item .skeleton-block:first-child { width: 32px; height: 32px; border-radius: 50%; }
+.skeleton-thread-body { display: flex; flex-direction: column; gap: 6px; }
+.skeleton-thread-body .skeleton-block:nth-child(1) { height: 10px; width: 45%; }
+.skeleton-thread-body .skeleton-block:nth-child(2) { height: 12px; width: 70%; }
+.skeleton-thread-body .skeleton-block:nth-child(3) { height: 10px; width: 55%; }
+.skeleton-thread-item .skeleton-block:last-child { width: 40px; height: 10px; }
+
+.skeleton-view { display: flex; align-items: center; justify-content: center; }
+.skeleton-view-card { display: flex; flex-direction: column; align-items: center; gap: 12px; opacity: 0.5; }
+.skeleton-view-card .skeleton-block { width: 120px; height: 12px; }
+.skeleton-view-card .skeleton-block:first-child { width: 80px; height: 80px; border-radius: 50%; }
+.skeleton-view-card .skeleton-block:nth-child(3) { width: 200px; }
+
+@media (max-width: 900px) {
+  .skeleton-body { grid-template-columns: 1fr; }
+  .skeleton-sidebar { display: none; }
 }
-.loading-step-dot.done {
-  background: var(--unread-dot);
-}
-.loading-step-dot.active {
-  background: var(--text);
-  transform: scale(1.4);
+@media (max-width: 640px) {
+  .skeleton-mail { grid-template-columns: 1fr; }
+  .skeleton-view { display: none; }
 }
 
 /* ═══════════════════════════════════════════════════════════════
@@ -1171,32 +1119,87 @@ button:focus:not(:focus-visible), input:focus:not(:focus-visible) { outline: non
 <body id="top">
 
 <!-- ══════════════════════════════════════════════════════════════
-     NEW: Dynamic Loading Overlay
+     Skeleton Loading Overlay
      ══════════════════════════════════════════════════════════════ -->
-<div class="app-loading-overlay" id="appLoadingOverlay" aria-live="polite" aria-busy="true">
-  <canvas id="loadingCanvas" aria-hidden="true"></canvas>
-  <div class="loading-card">
-    <div class="loading-logo-mark" aria-hidden="true">
-      <svg viewBox="0 0 24 24">
-        <circle cx="12" cy="12" r="8.5"></circle>
-        <path d="M7 14c1.4-2.6 3.1-4 5.1-4s3.8 1.4 5.2 4"></path>
-      </svg>
+<div class="app-loading-overlay" id="appLoadingOverlay" aria-busy="true">
+  <div class="skeleton-header">
+    <div class="skeleton-header-left"><div class="skeleton-block"></div></div>
+    <div class="skeleton-header-center"><div class="skeleton-block"></div></div>
+    <div class="skeleton-header-right">
+      <div class="skeleton-block"></div>
+      <div class="skeleton-block"></div>
+      <div class="skeleton-block"></div>
     </div>
-    <div class="loading-phase">
-      <p class="loading-title">Synthrun Mail</p>
-      <span class="loading-phase-label" id="loadingPhaseLabel">Initialising…</span>
-    </div>
-    <div class="loading-progress-track">
-      <div class="loading-progress-bar" id="loadingBar">
-        <span class="loading-progress-pct" id="loadingPct">0%</span>
+  </div>
+  <div class="skeleton-body">
+    <div class="skeleton-sidebar">
+      <div class="skeleton-block"></div>
+      <div class="skeleton-sidebar-nav">
+        <div class="skeleton-block"></div>
+        <div class="skeleton-block"></div>
+        <div class="skeleton-block"></div>
+        <div class="skeleton-block"></div>
+        <div class="skeleton-block"></div>
       </div>
     </div>
-    <div class="loading-steps" id="loadingSteps" aria-hidden="true">
-      <div class="loading-step-dot active" id="step0"></div>
-      <div class="loading-step-dot" id="step1"></div>
-      <div class="loading-step-dot" id="step2"></div>
-      <div class="loading-step-dot" id="step3"></div>
-      <div class="loading-step-dot" id="step4"></div>
+    <div class="skeleton-mail">
+      <div class="skeleton-threads">
+        <div class="skeleton-thread-toolbar"><div class="skeleton-block"></div></div>
+        <div class="skeleton-thread-items">
+          <div class="skeleton-thread-item">
+            <div class="skeleton-block"></div>
+            <div class="skeleton-thread-body">
+              <div class="skeleton-block"></div>
+              <div class="skeleton-block"></div>
+              <div class="skeleton-block"></div>
+            </div>
+            <div class="skeleton-block"></div>
+          </div>
+          <div class="skeleton-thread-item">
+            <div class="skeleton-block"></div>
+            <div class="skeleton-thread-body">
+              <div class="skeleton-block"></div>
+              <div class="skeleton-block"></div>
+              <div class="skeleton-block"></div>
+            </div>
+            <div class="skeleton-block"></div>
+          </div>
+          <div class="skeleton-thread-item">
+            <div class="skeleton-block"></div>
+            <div class="skeleton-thread-body">
+              <div class="skeleton-block"></div>
+              <div class="skeleton-block"></div>
+              <div class="skeleton-block"></div>
+            </div>
+            <div class="skeleton-block"></div>
+          </div>
+          <div class="skeleton-thread-item">
+            <div class="skeleton-block"></div>
+            <div class="skeleton-thread-body">
+              <div class="skeleton-block"></div>
+              <div class="skeleton-block"></div>
+              <div class="skeleton-block"></div>
+            </div>
+            <div class="skeleton-block"></div>
+          </div>
+          <div class="skeleton-thread-item">
+            <div class="skeleton-block"></div>
+            <div class="skeleton-thread-body">
+              <div class="skeleton-block"></div>
+              <div class="skeleton-block"></div>
+              <div class="skeleton-block"></div>
+            </div>
+            <div class="skeleton-block"></div>
+          </div>
+        </div>
+      </div>
+      <div class="skeleton-view">
+        <div class="skeleton-view-card">
+          <div class="skeleton-block"></div>
+          <div class="skeleton-block"></div>
+          <div class="skeleton-block"></div>
+        </div>
+      </div>
     </div>
   </div>
 </div>
@@ -1736,7 +1739,7 @@ function initResize(handleId, cssVar, minPx, maxPx) {
 
   function onMouseMove(e) {
     const dx = e.clientX - startX;
-    const dir = handleId === 'splitResize' ? -1 : 1;
+    const dir = 1;
     let val = Math.round(startVal + dx * dir);
     if (val < minPx) val = minPx;
     if (val > maxPx) val = maxPx;
@@ -1784,7 +1787,7 @@ document.getElementById('mailHomeBtn')?.addEventListener('click', async (event) 
 });
 
 /* ══════════════════════════════════════════════════════════════
-   DYNAMIC LOADING ANIMATION
+   SKELETON LOADING
    ══════════════════════════════════════════════════════════════ */
 (function () {
   if (window.__skipLoader) {
@@ -1793,110 +1796,16 @@ document.getElementById('mailHomeBtn')?.addEventListener('click', async (event) 
     return;
   }
   const overlay = document.getElementById('appLoadingOverlay');
-  const canvas = document.getElementById('loadingCanvas');
-  const ctx = canvas.getContext('2d');
-  const bar = document.getElementById('loadingBar');
-  const pct = document.getElementById('loadingPct');
-  const phaseLabel = document.getElementById('loadingPhaseLabel');
-  const stepDots = document.querySelectorAll('.loading-step-dot');
 
-  const phases = window.__loadingPhases;
-
-  let animId = null;
-  let pctVal = 0;
-  let targetPct = 0;
-
-  function isDark() {
-    return document.body.getAttribute('data-theme') === 'dark' ||
-      (!document.body.getAttribute('data-theme') && window.matchMedia('(prefers-color-scheme: dark)').matches);
-  }
-
-  function resize() {
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
-  }
-
-  function spawnParticle() {
-    const dark = isDark();
-    return {
-      x: Math.random() * canvas.width,
-      y: Math.random() * canvas.height,
-      vx: (Math.random() - 0.5) * 0.4,
-      vy: (Math.random() - 0.5) * 0.4,
-      r: Math.random() * 1.2 + 0.3,
-      alpha: Math.random() * 0.35 + 0.05,
-      life: 1,
-      decay: Math.random() * 0.003 + 0.001,
-      color: dark ? '220,218,210' : '80,78,72',
-    };
-  }
-
-  function initParticles(count) {
-    const arr = [];
-    for (let i = 0; i < count; i++) {
-      const p = spawnParticle();
-      p.life = Math.random();
-      arr.push(p);
-    }
-    return arr;
-  }
-
-  let particles = initParticles(55);
-
-  function drawParticles() {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    particles.forEach((p, i) => {
-      p.x += p.vx;
-      p.y += p.vy;
-      p.life -= p.decay;
-      if (p.life <= 0) { particles[i] = spawnParticle(); return; }
-      const a = p.alpha * p.life;
-      ctx.beginPath();
-      ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
-      ctx.fillStyle = `rgba(${p.color},${a})`;
-      ctx.fill();
-    });
-  }
-
-  function tick() {
-    drawParticles();
-    if (pctVal < targetPct) {
-      pctVal = Math.min(pctVal + 0.8, targetPct);
-      bar.style.width = pctVal + '%';
-      pct.textContent = Math.round(pctVal) + '%';
-    }
-    animId = requestAnimationFrame(tick);
-  }
-
-  window.__setPhase = function(i) {
-    if (i >= phases.length) return;
-    const ph = phases[i];
-    phaseLabel.textContent = ph.label;
-    targetPct = ph.pct;
-    stepDots.forEach((dot, idx) => {
-      dot.classList.remove('active', 'done');
-      if (idx < i) dot.classList.add('done');
-      else if (idx === i) dot.classList.add('active');
-    });
-  };
+  window.__setPhase = function() {};
 
   window.__hideLoader = function() {
-    if (animId) cancelAnimationFrame(animId);
     overlay.classList.add('hidden');
     overlay.setAttribute('aria-busy', 'false');
   };
 
-  /* Flush buffered phase calls from early-loading code */
   window.__loadingReady = true;
-  for (const idx of window.__loadingQueue) {
-    window.__setPhase(idx);
-  }
   window.__loadingQueue = [];
-
-  resize();
-  tick();
-
-  window.addEventListener('resize', resize);
 })();
 
 /* ── Mobile back button ── */
