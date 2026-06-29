@@ -769,6 +769,7 @@ async function openMessage(id, { updateRoute = true, replaceRoute = false } = {}
     document.getElementById('badge-unread').textContent = String(unreadCount || 0);
   }
 
+  document.querySelectorAll('.thread-item.active').forEach(el => el.classList.remove('active'));
   document.querySelector(`.thread-item[data-id="${id}"]`)?.classList.add('active');
 
   const timestamp = toDate(message.receivedAt);

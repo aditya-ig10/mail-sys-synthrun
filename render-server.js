@@ -289,6 +289,17 @@ function formatFromName(email) {
   return `${name} from ${senderEmail}`;
 }
 
+function parseEmailAddress(raw) {
+  const str = String(raw || '').trim();
+  const angleMatch = str.match(/<([^>]+)>/);
+  const email = angleMatch ? sanitizeEmail(angleMatch[1]) : str.includes('@') ? sanitizeEmail(str) : '';
+  let name = '';
+  if (angleMatch) {
+    name = str.slice(0, angleMatch.index).replace(/^["'\s]+|["'\s]+$/g, '');
+  }
+  return { name, email };
+}
+
 function getAllowedDomain() {
   return String(process.env.ALLOWED_DOMAIN || 'synthrun.site').toLowerCase();
 }
@@ -867,9 +878,10 @@ app.post('/receive', async (req, res) => {
     // 1. Store message immediately with lightweight attachment metadata (name/size/type only).
     //    This ensures the message shows up in inbox even if Telegram uploads are slow.
     const rawAttachments = Array.isArray(attachments) ? attachments : [];
+    const parsedFrom = parseEmailAddress(from);
     const docIds = await storeMailboxMessages({
-      senderEmail: sanitizeEmail(from),
-      fromName: from.split('@')[0] || 'Unknown',
+      senderEmail: parsedFrom.email || sanitizeEmail(from),
+      fromName: parsedFrom.name,
       to: sanitizeEmail(to),
       cc: cc ? sanitizeEmail(cc) : '',
       bcc: bcc ? sanitizeEmail(bcc) : '',
