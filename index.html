@@ -1130,6 +1130,15 @@ button:focus:not(:focus-visible), input:focus:not(:focus-visible) { outline: non
 .label-dropdown-item .label-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
 .label-dropdown-item .label-check { margin-left: auto; opacity: 0; }
 .label-dropdown-item.active .label-check { opacity: 1; }
+.bulk-label-wrap { position: relative; display: inline-flex; }
+.bulk-label-dropdown {
+  position: absolute; left: 0; top: 100%; margin-top: 4px;
+  background: var(--panel-strong); border: 1px solid var(--line);
+  border-radius: 4px; min-width: 150px; max-height: 180px; overflow-y: auto;
+  display: none; z-index: 50; box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+.bulk-label-dropdown.open { display: block; }
+.bulk-label-dropdown .label-dropdown-item { padding: 6px 10px; }
 </style>
 </head>
 <body id="top">
@@ -1354,6 +1363,12 @@ button:focus:not(:focus-visible), input:focus:not(:focus-visible) { outline: non
           <button class="icon-btn" id="bulkTrashBtn" title="Trash" aria-label="Move selected to trash" type="button">
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"></path></svg>
           </button>
+          <div class="bulk-label-wrap">
+            <button class="icon-btn" id="bulkLabelBtn" title="Label" aria-label="Apply label" type="button">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.6 12.6l-7 7a2 2 0 0 1-2.8 0L3 12V3h9l8.6 8.6a2 2 0 0 1 0 2.8z"></path><circle cx="7.5" cy="7.5" r="1.5" fill="currentColor"></circle></svg>
+            </button>
+            <div class="bulk-label-dropdown" id="bulkLabelDropdown"></div>
+          </div>
         </div>
         <button class="icon-btn" id="selectAllBtn" title="Select all" aria-label="Select all" type="button">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6L9 17l-5-5"></path></svg>

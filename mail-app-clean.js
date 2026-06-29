@@ -126,7 +126,7 @@ function renderSidebarLabels() {
   ).join('');
 }
 
-async function assignLabel(messageId, labelName) {
+async function assignLabel(messageId, labelName, silent) {
   if (!currentUser) return;
   try {
     const ref = doc(db, 'mail', messageId);
@@ -139,7 +139,7 @@ async function assignLabel(messageId, labelName) {
     await updateDoc(ref, { labels });
     const msg = messageMap.get(messageId);
     if (msg) msg.labels = labels;
-    renderList();
+    if (!silent) renderList();
   } catch { showToast('Failed to update label.', true); }
 }
 
@@ -261,6 +261,7 @@ onAuthStateChanged(auth, async (user) => {
   window.SYNTHRUN_UPDATE_LOADING?.(5);
   setAppLoading(false);
   loadUserLabels().catch(() => {});
+  applyAutoLabels().catch(() => {});
 });
 
 function bootDebugUser(email) {
@@ -429,6 +430,68 @@ function bindUi() {
   });
   document.addEventListener('click', () => document.getElementById('labelDropdown').classList.remove('open'));
   document.getElementById('labelDropdown').addEventListener('click', (e) => e.stopPropagation());
+
+  // Bulk label dropdown
+  document.getElementById('bulkLabelBtn').addEventListener('click', (e) => {
+    e.stopPropagation();
+    document.getElementById('bulkLabelDropdown').classList.toggle('open');
+    if (userLabels.length) {
+      document.getElementById('bulkLabelDropdown').innerHTML = userLabels.map(l =>
+        `<div class="label-dropdown-item" data-bulk-label="${escapeHtml(l.name)}">
+          <span class="label-dot" style="background:${l.color || '#888'};width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:6px;"></span>
+          <span>${escapeHtml(l.name)}</span>
+        </div>`
+      ).join('');
+      document.getElementById('bulkLabelDropdown').querySelectorAll('[data-bulk-label]').forEach(el => {
+        el.addEventListener('click', (e) => {
+          e.stopPropagation();
+          document.getElementById('bulkLabelDropdown').classList.remove('open');
+          const labelName = el.dataset.bulkLabel;
+          Promise.all([...selectedIds].map(id => assignLabel(id, labelName, true))).then(() => {
+            selectedIds.clear();
+            renderList();
+            showToast(`Label "${labelName}" applied.`);
+          });
+        });
+      });
+    }
+  });
+  document.addEventListener('click', () => document.getElementById('bulkLabelDropdown').classList.remove('open'));
+  document.getElementById('bulkLabelDropdown').addEventListener('click', (e) => e.stopPropagation());
+}
+
+// ─── AUTO-LABEL ENGINE ──────────────────────────────────
+
+async function applyAutoLabels() {
+  if (!currentUser || !allMessages.length) return;
+  try {
+    const snap = await getDocs(collection(db, 'user_settings', currentUser.uid, 'autoLabelRules'));
+    const rules = snap.docs.map(d => ({ id: d.id, ...d.data() })).filter(r => r.enabled !== false && r.value);
+    if (!rules.length) return;
+    const updates = [];
+    for (const msg of allMessages) {
+      const existing = Array.isArray(msg.labels) ? msg.labels : [];
+      const senderEmail = (msg.senderEmail || msg.from || '').toLowerCase();
+      const body = (msg.body || msg.subject || '').toLowerCase();
+      const domain = senderEmail.split('@')[1] || '';
+      for (const rule of rules) {
+        if (existing.includes(rule.labelName)) continue;
+        let match = false;
+        if (rule.type === 'domain') {
+          match = domain === rule.value;
+        } else if (rule.type === 'keyword') {
+          match = body.includes(rule.value);
+        }
+        if (match) {
+          existing.push(rule.labelName);
+          updates.push(updateDoc(doc(db, 'mail', msg.id), { labels: existing.slice() }).catch(() => {}));
+          msg.labels = existing.slice();
+        }
+      }
+    }
+    if (updates.length) await Promise.all(updates);
+    if (updates.length) renderList();
+  } catch { /* ignore */ }
 }
 
 async function loadMessages() {
