@@ -839,9 +839,18 @@ async function openMessage(id, { updateRoute = true, replaceRoute = false } = {}
         </div>
         <div class="mail-bubble-time">${timestamp.toLocaleString([], { dateStyle: 'long', timeStyle: 'short' })}</div>
       </div>
-      <div class="mail-bubble-body${isBodyHtml ? ' is-html' : ''}">${bodyHtml}</div>
+      <div class="mail-bubble-body${isBodyHtml ? ' is-html' : ''}" id="mailBodyContent">${isBodyHtml ? '' : bodyHtml}</div>
       ${attachmentMarkup}
     </div>`;
+
+  // Encapsulate HTML email content in a shadow root to isolate its CSS
+  if (isBodyHtml) {
+    const host = document.getElementById('mailBodyContent');
+    if (host && !host.shadowRoot) {
+      const root = host.attachShadow({ mode: 'open' });
+      root.innerHTML = `<style>:host{all:initial;display:block;}</style><div>${bodyHtml}</div>`;
+    }
+  }
 
   document.getElementById('emptyView').style.display = 'none';
   document.getElementById('messageView').style.display = 'flex';
