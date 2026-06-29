@@ -797,27 +797,6 @@ main.content {
     return email.split('@')[0].slice(0, 2).toUpperCase();
   }
 
-  async function ensureSettingsDoc(uid, email) {
-    const ref = doc(db, 'user_settings', uid);
-    const snap = await getDoc(ref);
-    if (!snap.exists()) {
-      await setDoc(ref, {
-        uid,
-        email,
-        displayName: formatName(email),
-        backupEmail: '',
-        totpEnabled: false,
-        totpSecret: '',
-        layout: 'synthrun',
-        density: 'comfortable',
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-      });
-      return { uid, email, displayName: formatName(email), backupEmail: '', totpEnabled: false, totpSecret: '', layout: 'synthrun', density: 'comfortable' };
-    }
-    return snap.data();
-  }
-
   // ─── TOTP (Standalone — no Firebase MFA) ─────────────────
 
   const BASE32 = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
@@ -962,11 +941,11 @@ main.content {
 
   // ─── 2FA (Standalone TOTP) ───────────────────────────────
 
-  async function updateTfaUI() {
+  async function updateTfaUI(data) {
     if (!currentUser) return;
     try {
-      const snap = await getDoc(doc(db, 'user_settings', currentUser.uid));
-      const enabled = snap.exists() && snap.data().totpEnabled;
+      const d = data || (await getDoc(doc(db, 'user_settings', currentUser.uid))).data();
+      const enabled = d && d.totpEnabled;
       const statusDot = document.querySelector('#tfaStatus .status-dot');
       const label = document.getElementById('tfaLabel');
       const checkbox = document.getElementById('tfaCheckbox');
@@ -1102,20 +1081,20 @@ main.content {
 
   // ─── BACKUP EMAIL (with verification) ─────────────────────
 
-  async function updateBackupEmailUI() {
+  async function updateBackupEmailUI(data) {
     try {
-      const snap = await getDoc(doc(db, 'user_settings', currentUser.uid));
-      const email = snap.exists() ? (snap.data().backupEmail || '') : '';
+      const snap = data || await getDoc(doc(db, 'user_settings', currentUser.uid));
+      const d = data || snap.data();
+      const email = d.backupEmail || '';
       document.getElementById('backupEmailDisplay').textContent = email || 'Not set';
       document.getElementById('removeBackupEmailBtn').style.display = email ? '' : 'none';
     } catch { /* ignore */ }
   }
 
-  async function updateLayoutUI() {
+  async function updateLayoutUI(data) {
     try {
-      const snap = await getDoc(doc(db, 'user_settings', currentUser.uid));
-      if (!snap.exists()) return;
-      const d = snap.data();
+      const d = data || (await getDoc(doc(db, 'user_settings', currentUser.uid))).data();
+      if (!d) return;
       const layout = d.layout || 'synthrun';
       const density = d.density || 'comfortable';
       document.getElementById('layoutDisplay').textContent = layout === 'gmail' ? 'Gmail' : 'Synthrun';
@@ -1285,14 +1264,29 @@ main.content {
       ? new Date(user.metadata.creationTime).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
       : '—';
 
-    // Settings doc
-    await ensureSettingsDoc(user.uid, user.email);
+    // Settings doc — fetch once, pass to all consumers
+    const settingsRef = doc(db, 'user_settings', user.uid);
+    const settingsSnap = await getDoc(settingsRef);
+    let settings;
+    if (!settingsSnap.exists()) {
+      settings = {
+        uid: user.uid, email: user.email, displayName: formatName(user.email),
+        backupEmail: '', totpEnabled: false, totpSecret: '',
+        layout: 'synthrun', density: 'comfortable',
+      };
+      await setDoc(settingsRef, { ...settings, createdAt: serverTimestamp(), updatedAt: serverTimestamp() });
+    } else {
+      settings = settingsSnap.data();
+    }
 
-    await trackSession();
-    await loadSessions();
-    await updateTfaUI();
-    await updateBackupEmailUI();
-    await updateLayoutUI();
+    await Promise.all([
+      trackSession(),
+      loadSessions(),
+      updateTfaUI(settings),
+      updateBackupEmailUI(settings),
+      updateLayoutUI(settings),
+    ]);
+
     document.getElementById('skeletonOverlay')?.classList.add('hidden');
   });
 
@@ -1378,9 +1372,9 @@ main.content {
       if (!currentUser) return;
       const val = btn.dataset.layoutOpt;
       cacheSettingsUpdate({ layout: val });
+      applyCachedLayoutUI();
       try {
         await updateDoc(doc(db, 'user_settings', currentUser.uid), { layout: val, updatedAt: serverTimestamp() });
-        await updateLayoutUI();
         showToast('Layout saved.');
       } catch { showToast('Failed to save layout.', true); }
     });
@@ -1391,9 +1385,9 @@ main.content {
       if (!currentUser) return;
       const val = btn.dataset.densityOpt;
       cacheSettingsUpdate({ density: val });
+      applyCachedLayoutUI();
       try {
         await updateDoc(doc(db, 'user_settings', currentUser.uid), { density: val, updatedAt: serverTimestamp() });
-        await updateLayoutUI();
         showToast('Density saved.');
       } catch { showToast('Failed to save density.', true); }
     });
