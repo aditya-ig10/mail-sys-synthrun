@@ -376,6 +376,10 @@ function bindUi() {
     }
   });
 
+  document.getElementById('customizeMenuBtn')?.addEventListener('click', () => {
+    window.location.href = '/wvf052wc/';
+  });
+
   document.querySelectorAll('.side-link[data-folder]').forEach((link) => {
     link.addEventListener('click', () => {
       showFolderView({ folder: link.dataset.folder });
@@ -773,7 +777,7 @@ function renderList() {
         ${attachmentCount ? `<div class="thread-tags"><span class="thread-tag">📎 ${attachmentCount} attachment${attachmentCount === 1 ? '' : 's'}</span></div>` : ''}
         ${Array.isArray(message.labels) && message.labels.length ? `<div class="thread-tags">${message.labels.map((label) => `<span class="thread-tag">${escapeHtml(label)}</span>`).join('')}</div>` : ''}
       </div>
-      <div class="thread-time">${formatTime(timestamp)}</div>`;
+      <div class="thread-aside"><div class="thread-time">${formatTime(timestamp)}</div><div class="thread-menu-wrap"><button class="thread-menu-btn" data-id="${message.id}" title="More" type="button"><svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" fill="none" stroke-width="1.5"><circle cx="12" cy="5" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="12" cy="19" r="1.5"/></svg></button><div class="thread-menu-dropdown" data-menu-id="${message.id}"></div></div></div>`;
 
     const avatarEl = item.querySelector('.thread-avatar');
     avatarEl.addEventListener('click', (e) => {
@@ -789,6 +793,46 @@ function renderList() {
     if (selectedIds.has(message.id)) {
       item.classList.add('selected');
     }
+
+    const menuBtn = item.querySelector('.thread-menu-btn');
+    const menuDropdown = item.querySelector('.thread-menu-dropdown');
+    if (menuBtn && menuDropdown) {
+      menuBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        document.querySelectorAll('.thread-menu-dropdown.open').forEach(d => { if (d !== menuDropdown) d.classList.remove('open'); });
+        menuDropdown.classList.toggle('open');
+        if (menuDropdown.classList.contains('open') && userLabels.length) {
+          const msgLabels = getMessageLabels(message.id);
+          menuDropdown.innerHTML = userLabels.map(l => {
+            const active = msgLabels.includes(l.name);
+            return `<div class="menu-label-item${active ? ' active-label' : ''}" data-message-id="${message.id}" data-label="${escapeHtml(l.name)}" data-color="${l.color || '#888'}">
+              <span class="menu-label-dot" style="background:${l.color || '#888'}"></span>
+              <span class="menu-label-name">${escapeHtml(l.name)}</span>
+              <span class="menu-label-check">${active ? '✓' : ''}</span>
+            </div>`;
+          }).join('');
+          menuDropdown.querySelectorAll('.menu-label-item').forEach(el => {
+            el.addEventListener('click', (e) => {
+              e.stopPropagation();
+              const msgId = el.dataset.messageId;
+              const labelName = el.dataset.label;
+              assignLabel(msgId, labelName);
+              el.classList.toggle('active-label');
+              el.querySelector('.menu-label-check').textContent = el.classList.contains('active-label') ? '✓' : '';
+              menuDropdown.classList.remove('open');
+            });
+          });
+        } else if (menuDropdown.classList.contains('open')) {
+          menuDropdown.innerHTML = '<div class="menu-label-item" style="cursor:default;color:var(--muted);font-size:10px;">No labels</div>';
+        }
+      });
+    }
+
+    document.addEventListener('click', (e) => {
+      if (!e.target.closest('.thread-menu-wrap')) {
+        document.querySelectorAll('.thread-menu-dropdown.open').forEach(d => d.classList.remove('open'));
+      }
+    }, { once: false });
 
     container.appendChild(item);
   });

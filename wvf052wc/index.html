@@ -87,6 +87,11 @@ select.form-input{appearance:none;background-image:url("data:image/svg+xml,%3Csv
 .reply-preview .preview-body{color:var(--ink2)}
 .reply-preview .preview-foot{font-size:0.6rem;color:var(--ink3);margin-top:0.75rem;padding-top:0.5rem;border-top:1px solid var(--rule)}
 
+/* ── Labels ── */
+.label-color-opt{width:22px;height:22px;border-radius:50%;border:2px solid transparent;cursor:pointer;transition:border-color 0.15s;flex-shrink:0}
+.label-color-opt:hover{border-color:var(--ink)}
+.label-color-opt.active{border-color:var(--ink);box-shadow:0 0 0 1px var(--ink)}
+
 /* ── Auto-Labels ── */
 .rule-list{display:flex;flex-direction:column;gap:2px}
 .rule-row{display:flex;align-items:center;gap:10px;padding:0.6rem 0;border-bottom:1px solid var(--rule)}
@@ -146,7 +151,7 @@ select.form-input{appearance:none;background-image:url("data:image/svg+xml,%3Csv
   </a>
   <div class="nav-right">
     <a href="/profile.html" class="nav-link">Settings</a>
-    <a href="/customize/" class="nav-link active">Customize</a>
+    <a href="/wvf052wc/" class="nav-link active">Customize</a>
     <button class="nav-link" id="themeBtn">Theme</button>
   </div>
 </nav>
@@ -154,11 +159,35 @@ select.form-input{appearance:none;background-image:url("data:image/svg+xml,%3Csv
 <div class="layout">
   <aside class="sidebar">
     <div class="sidebar-label">Customize</div>
-    <a href="#section-autoreply" class="side-link active" data-section="autoreply">Auto-Reply</a>
+    <a href="#section-labels" class="side-link active" data-section="labels">Labels</a>
+    <a href="#section-autoreply" class="side-link" data-section="autoreply">Auto-Reply</a>
     <a href="#section-autolabels" class="side-link" data-section="autolabels">Auto-Labels</a>
   </aside>
 
   <main class="content">
+
+    <!-- ─── LABELS ──────────────────────────────────────────── -->
+    <section class="section" id="section-labels">
+      <div class="section-header">
+        <h2 class="section-title">Labels</h2>
+        <p class="section-desc">Create and manage custom labels to organise your mail.</p>
+      </div>
+      <div class="card">
+        <div class="card-pad">
+          <div class="form-group">
+            <label class="form-label">Create new label</label>
+            <div class="rule-create">
+              <input type="text" id="newLabelInput" class="form-input" placeholder="Label name" maxlength="40" style="flex:1;min-width:120px;">
+              <div class="label-color-picker" id="labelColorPicker" style="display:flex;gap:4px;"></div>
+              <button class="btn" id="createLabelBtn" type="button">Create</button>
+            </div>
+          </div>
+          <div id="labelList" class="rule-list">
+            <div class="hint" style="padding:0.5rem 0;">No labels yet. Create one above.</div>
+          </div>
+        </div>
+      </div>
+    </section>
 
     <!-- ─── AUTO-REPLY ──────────────────────────────────────── -->
     <section class="section" id="section-autoreply">
@@ -425,17 +454,154 @@ document.getElementById('testAutoReplyBtn').addEventListener('click', async () =
   } catch { showToast('Failed to send test.', true); }
 });
 
-// ─── LABELS (for dropdown) ──────────────────────────────
+// ─── LABELS (CRUD) ─────────────────────────────────────
+
+const LABEL_COLORS = ['#4a9c6d','#2b7ecf','#e67e22','#9b59b6','#e74c3c','#1abc9c','#f39c12','#3498db','#95a5a6','#d35400'];
+
+let labelEditState = null;
+
+function initLabelColorPicker() {
+  const container = document.getElementById('labelColorPicker');
+  container.innerHTML = LABEL_COLORS.map((c, i) =>
+    `<div class="label-color-opt${i === 0 ? ' active' : ''}" data-color="${c}" style="background:${c};"></div>`
+  ).join('');
+  container.querySelectorAll('.label-color-opt').forEach(el => {
+    el.addEventListener('click', () => {
+      container.querySelectorAll('.label-color-opt').forEach(o => o.classList.remove('active'));
+      el.classList.add('active');
+    });
+  });
+}
+initLabelColorPicker();
 
 async function loadLabels() {
   if (!currentUser) return;
   try {
     const snap = await getDocs(collection(db, 'user_settings', currentUser.uid, 'labels'));
     const labels = snap.docs.map(d => ({ id: d.id, name: d.data().name, color: d.data().color }));
+    // Update label dropdown for auto-label rules
     const sel = document.getElementById('newRuleLabel');
     sel.innerHTML = '<option value="">Select label…</option>' + labels.map(l => `<option value="${escapeHtml(l.id)}" data-color="${l.color || '#888'}">${escapeHtml(l.name)}</option>`).join('');
+    // Render label list
+    renderLabelList(labels);
   } catch { /* ignore */ }
 }
+
+function renderLabelList(labels) {
+  const container = document.getElementById('labelList');
+  if (!labels.length) {
+    container.innerHTML = '<div class="hint" style="padding:0.5rem 0;">No labels yet. Create one above.</div>';
+    return;
+  }
+  container.innerHTML = labels.map(l => {
+    const editing = labelEditState && labelEditState.id === l.id;
+    if (editing) {
+      return `<div class="rule-row" data-id="${l.id}">
+        <div class="label-color-picker" data-edit-picker="${l.id}" style="display:flex;gap:4px;"></div>
+        <div class="rule-value"><input type="text" id="labelEditInput" value="${escapeHtml(labelEditState.name)}" maxlength="40" class="form-input" style="padding:4px 8px;font-size:0.75rem;"></div>
+        <div class="rule-actions">
+          <button data-save-label="${l.id}" title="Save">✓</button>
+          <button class="del" data-cancel-edit title="Cancel">✕</button>
+        </div>
+      </div>`;
+    }
+    return `<div class="rule-row" data-id="${l.id}">
+      <span class="rule-label"><span class="dot" style="background:${l.color || '#888'}"></span>${escapeHtml(l.name)}</span>
+      <div class="rule-actions">
+        <button data-edit-label="${l.id}" title="Edit label">✎</button>
+        <button class="del" data-delete-label="${l.id}" title="Delete label">✕</button>
+      </div>
+    </div>`;
+  }).join('');
+  container.querySelectorAll('[data-delete-label]').forEach(btn => {
+    btn.addEventListener('click', () => deleteLabel(btn.dataset.deleteLabel));
+  });
+  container.querySelectorAll('[data-edit-label]').forEach(btn => {
+    btn.addEventListener('click', () => startEditLabel(btn.dataset.editLabel, labels));
+  });
+  container.querySelectorAll('[data-save-label]').forEach(btn => {
+    btn.addEventListener('click', () => saveLabelEdit(btn.dataset.saveLabel));
+  });
+  container.querySelectorAll('[data-cancel-edit]').forEach(btn => {
+    btn.addEventListener('click', () => { labelEditState = null; loadLabels(); });
+  });
+  if (labelEditState) {
+    const picker = container.querySelector('[data-edit-picker]');
+    if (picker) {
+      picker.innerHTML = LABEL_COLORS.map((c, i) =>
+        `<div class="label-color-opt${c === labelEditState.color ? ' active' : ''}" data-color="${c}" style="background:${c};"></div>`
+      ).join('');
+      picker.querySelectorAll('.label-color-opt').forEach(el => {
+        el.addEventListener('click', () => {
+          picker.querySelectorAll('.label-color-opt').forEach(o => o.classList.remove('active'));
+          el.classList.add('active');
+          labelEditState.color = el.dataset.color;
+        });
+      });
+    }
+    const input = document.getElementById('labelEditInput');
+    if (input) {
+      input.focus();
+      input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') saveLabelEdit(labelEditState.id);
+        if (e.key === 'Escape') { labelEditState = null; loadLabels(); }
+      });
+      input.addEventListener('input', () => { labelEditState.name = input.value; });
+    }
+  }
+}
+
+function startEditLabel(id, labels) {
+  const l = labels.find(x => x.id === id);
+  if (!l) return;
+  labelEditState = { id: l.id, name: l.name, color: l.color || LABEL_COLORS[0] };
+  loadLabels();
+}
+
+async function saveLabelEdit(id) {
+  if (!currentUser || !labelEditState || labelEditState.id !== id) return;
+  const name = labelEditState.name.trim();
+  if (!name) { showToast('Label name cannot be empty.', true); return; }
+  const color = labelEditState.color || LABEL_COLORS[0];
+  try {
+    await updateDoc(doc(db, 'user_settings', currentUser.uid, 'labels', id), { name, color, updatedAt: serverTimestamp() });
+    labelEditState = null;
+    await loadLabels();
+    showToast('Label updated.');
+  } catch { showToast('Failed to update label.', true); }
+}
+
+document.getElementById('createLabelBtn').addEventListener('click', async () => {
+  if (!currentUser) return;
+  const input = document.getElementById('newLabelInput');
+  const name = input.value.trim();
+  if (!name) { showToast('Enter a label name.', true); return; }
+  const activeColor = document.querySelector('#labelColorPicker .label-color-opt.active');
+  const color = activeColor ? activeColor.dataset.color : LABEL_COLORS[0];
+  try {
+    await addDoc(collection(db, 'user_settings', currentUser.uid, 'labels'), { name, color, createdAt: serverTimestamp() });
+    input.value = '';
+    await loadLabels();
+    showToast(`Label "${name}" created.`);
+  } catch { showToast('Failed to create label.', true); }
+});
+
+document.getElementById('newLabelInput').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') document.getElementById('createLabelBtn').click();
+});
+
+async function deleteLabel(id) {
+  if (!currentUser || !id) return;
+  if (!confirm('Delete this label? Messages will keep their current labels.')) return;
+  try {
+    await deleteDoc(doc(db, 'user_settings', currentUser.uid, 'labels', id));
+    labelEditState = null;
+    await loadLabels();
+    showToast('Label deleted.');
+  } catch { showToast('Failed to delete label.', true); }
+}
+
+
 
 // ─── AUTO-LABEL RULES ───────────────────────────────────
 
