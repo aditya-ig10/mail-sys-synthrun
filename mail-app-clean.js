@@ -48,13 +48,16 @@ let draftSaveTimer = null;
 function updateSelectedCount() {
   const el = document.getElementById('selectedCount');
   const bulk = document.getElementById('bulkActions');
+  const emptyTrashBtn = document.getElementById('emptyTrashBtn');
   if (selectedIds.size) {
     el.textContent = `${selectedIds.size} selected`;
     el.style.display = '';
     if (bulk) bulk.style.display = 'flex';
+    if (emptyTrashBtn) emptyTrashBtn.style.display = 'none';
   } else {
     el.style.display = 'none';
     if (bulk) bulk.style.display = 'none';
+    if (emptyTrashBtn) emptyTrashBtn.style.display = currentFolder === 'trash' ? '' : 'none';
   }
 }
 
@@ -191,6 +194,8 @@ function updateFolderSelection(folder) {
   document.getElementById('folderLabel').textContent = folder.startsWith('label:') ? folder.slice(6) : (FOLDER_LABELS[folder] || folder);
   document.querySelectorAll('.side-link').forEach((item) => item.classList.remove('active'));
   document.querySelectorAll(`[data-folder="${folder}"]`).forEach((item) => item.classList.add('active'));
+  const emptyTrashBtn = document.getElementById('emptyTrashBtn');
+  if (emptyTrashBtn) emptyTrashBtn.style.display = folder === 'trash' ? '' : 'none';
 }
 
 function showFolderView({ folder = currentFolder, replaceRoute = false } = {}) {
@@ -243,6 +248,7 @@ onAuthStateChanged(auth, async (user) => {
     slug: user.uid,
     initials: user.email.split('@')[0].slice(0, 2).toUpperCase(),
   };
+  window.__signOut = async () => { await signOut(auth); window.location.href = LOGIN_URL; };
   document.getElementById('userAvatar').textContent = user.email.split('@')[0].slice(0, 2).toUpperCase();
   document.getElementById('userEmail').textContent = user.email;
   document.getElementById('statusUser').textContent = user.email;
@@ -353,38 +359,7 @@ function bindUi() {
     if (activeMessageId) retryOutboxMessage(activeMessageId);
   });
 
-  document.getElementById('userChip').addEventListener('click', () => {
-    const menu = document.getElementById('userMenu');
-    const open = menu.classList.toggle('show');
-    document.getElementById('userChip').setAttribute('aria-expanded', String(open));
-  });
-
-  document.addEventListener('click', (event) => {
-    const userChip = document.getElementById('userChip');
-    if (!userChip.contains(event.target)) {
-      document.getElementById('userMenu').classList.remove('show');
-    }
-  });
-
-  document.getElementById('signOutBtn').addEventListener('click', async () => {
-    await signOut(auth);
-    window.location.href = LOGIN_URL;
-  });
-
-  document.getElementById('accountBtn').addEventListener('click', () => {
-    const base = AUTH_BASE ? '/' + AUTH_BASE : '';
-    const profile = window.SYNTHRUN_PROFILE_DATA || {};
-    if (AUTH_BASE) {
-      window.location.href = base + '/settings';
-    } else {
-      const slug = profile.slug || 'profile';
-      window.location.href = `/${encodeURIComponent(slug)}.html`;
-    }
-  });
-
-  document.getElementById('customizeMenuBtn')?.addEventListener('click', () => {
-    window.location.href = '/wvf052wc/';
-  });
+  // User-chip, nav, sign-out handled by spa-nav.js via data-spa-link + window.__signOut
 
   document.querySelectorAll('.side-link[data-folder]').forEach((link) => {
     link.addEventListener('click', () => {
@@ -440,6 +415,26 @@ function bindUi() {
   });
   document.addEventListener('click', () => document.getElementById('labelDropdown').classList.remove('open'));
   document.getElementById('labelDropdown').addEventListener('click', (e) => e.stopPropagation());
+
+  // Empty trash
+  const emptyTrashBtn = document.getElementById('emptyTrashBtn');
+  if (emptyTrashBtn) {
+    emptyTrashBtn.addEventListener('click', async () => {
+      const trashIds = allMessages.filter(m => m.folder === 'trash').map(m => m.id);
+      if (!trashIds.length) return;
+      if (!confirm(`Permanently delete ${trashIds.length} message${trashIds.length === 1 ? '' : 's'} from trash?`)) return;
+      try {
+        await Promise.all(trashIds.map(id => deleteDoc(doc(db, 'mail', id))));
+        allMessages = allMessages.filter(m => m.folder !== 'trash');
+        selectedIds.clear();
+        renderList();
+        showToast('Trash emptied.');
+      } catch (e) {
+        console.error('emptyTrash:', e);
+        showToast('Could not empty trash.', true);
+      }
+    });
+  }
 
   // Bulk more dropdown — open/close
   document.getElementById('bulkMoreBtn').addEventListener('click', (e) => {

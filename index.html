@@ -381,9 +381,12 @@ body.layout-gmail .mobile-back-btn svg {
 }
 .thread-toolbar {
   height: 48px; flex-shrink: 0;
-  display: flex; align-items: center; justify-content: space-between;
+  display: flex; align-items: center;
   padding: 0 14px;
   border-bottom: 1px solid var(--line);
+}
+.toolbar-right {
+  display: flex; align-items: center; gap: 4px; margin-left: auto;
 }
 .toolbar-label {
   text-transform: uppercase; font-size: 11px; letter-spacing: 0.1em;
@@ -1309,11 +1312,11 @@ body[data-theme="dark"] .bulk-more-item:hover { background: rgba(255,255,255,0.0
       <span class="user-chip-email" id="userEmail">Loading…</span>
       <svg class="user-chip-caret" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"></path></svg>
       <div class="user-menu" id="userMenu" role="menu">
-        <button class="user-menu-item" id="accountBtn" type="button" role="menuitem">
+        <button class="user-menu-item" data-spa-link="settings" type="button" role="menuitem" href="/profile.html">
           <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"></circle><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"></path></svg>
           My account
         </button>
-        <button class="user-menu-item" id="customizeMenuBtn" type="button" role="menuitem">
+        <button class="user-menu-item" data-spa-link="customize" type="button" role="menuitem" href="/wvf052wc/">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
           Customize
         </button>
@@ -1399,44 +1402,49 @@ body[data-theme="dark"] .bulk-more-item:hover { background: rgba(255,255,255,0.0
       <div class="thread-toolbar">
         <span class="toolbar-label" id="folderLabel">Inbox</span>
         <span class="toolbar-selected-count" id="selectedCount" style="display:none"></span>
-        <div class="bulk-actions" id="bulkActions" style="display:none">
-          <div class="bulk-more-wrap">
-            <button class="icon-btn" id="bulkMoreBtn" title="More actions" aria-label="More actions" type="button">
-              <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="5" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="12" cy="19" r="1.5"/></svg>
-            </button>
-            <div class="bulk-more-dropdown" id="bulkMoreDropdown">
-              <button class="bulk-more-item" id="bulkArchiveBtn" type="button">
-                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 8v13H3V8M1 3h22v5H1zM10 12h4"></path></svg>
-                Archive
+        <div class="toolbar-right">
+          <div class="bulk-actions" id="bulkActions" style="display:none">
+            <div class="bulk-more-wrap">
+              <button class="icon-btn" id="bulkMoreBtn" title="More actions" aria-label="More actions" type="button">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="5" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="12" cy="19" r="1.5"/></svg>
               </button>
-              <button class="bulk-more-item" id="bulkTrashBtn" type="button">
-                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"></path></svg>
-                Trash
-              </button>
-              <div class="bulk-more-sep"></div>
-              <button class="bulk-more-item" id="bulkFlagBtn" type="button">
-                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"></path><path d="M4 22V15"></path></svg>
-                Flag
-              </button>
-              <button class="bulk-more-item" id="bulkReadBtn" type="button">
-                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 8l9 6 9-6M5 19h14a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2z"></path></svg>
-                Mark read
-              </button>
-              <button class="bulk-more-item" id="bulkUnreadBtn" type="button">
-                <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"></circle><path d="M2 12C4.7 6.5 8 4 12 4s7.3 2.5 10 8c-2.7 5.5-6 8-10 8S4.7 17.5 2 12"></path></svg>
-                Mark unread
-              </button>
-              <button class="bulk-more-item" id="bulkLabelBtn" type="button">
-                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.6 12.6l-7 7a2 2 0 0 1-2.8 0L3 12V3h9l8.6 8.6a2 2 0 0 1 0 2.8z"></path><circle cx="7.5" cy="7.5" r="1.5" fill="currentColor"></circle></svg>
-                Label
-              </button>
-              <div class="bulk-more-labels" id="bulkMoreLabels" style="display:none"></div>
+              <div class="bulk-more-dropdown" id="bulkMoreDropdown">
+                <button class="bulk-more-item" id="bulkArchiveBtn" type="button">
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 8v13H3V8M1 3h22v5H1zM10 12h4"></path></svg>
+                  Archive
+                </button>
+                <button class="bulk-more-item" id="bulkTrashBtn" type="button">
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"></path></svg>
+                  Trash
+                </button>
+                <div class="bulk-more-sep"></div>
+                <button class="bulk-more-item" id="bulkFlagBtn" type="button">
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"></path><path d="M4 22V15"></path></svg>
+                  Flag
+                </button>
+                <button class="bulk-more-item" id="bulkReadBtn" type="button">
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 8l9 6 9-6M5 19h14a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2z"></path></svg>
+                  Mark read
+                </button>
+                <button class="bulk-more-item" id="bulkUnreadBtn" type="button">
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"></circle><path d="M2 12C4.7 6.5 8 4 12 4s7.3 2.5 10 8c-2.7 5.5-6 8-10 8S4.7 17.5 2 12"></path></svg>
+                  Mark unread
+                </button>
+                <button class="bulk-more-item" id="bulkLabelBtn" type="button">
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.6 12.6l-7 7a2 2 0 0 1-2.8 0L3 12V3h9l8.6 8.6a2 2 0 0 1 0 2.8z"></path><circle cx="7.5" cy="7.5" r="1.5" fill="currentColor"></circle></svg>
+                  Label
+                </button>
+                <div class="bulk-more-labels" id="bulkMoreLabels" style="display:none"></div>
+              </div>
             </div>
           </div>
+          <button class="icon-btn" id="emptyTrashBtn" title="Empty trash" aria-label="Empty trash" type="button" style="display:none">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/></svg>
+          </button>
+          <button class="icon-btn" id="selectAllBtn" title="Select all" aria-label="Select all" type="button">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6L9 17l-5-5"></path></svg>
+          </button>
         </div>
-        <button class="icon-btn" id="selectAllBtn" title="Select all" aria-label="Select all" type="button">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6L9 17l-5-5"></path></svg>
-        </button>
       </div>
       <div class="thread-items" id="threadItems" role="list" aria-label="Messages"></div>
     </div>
@@ -1671,6 +1679,7 @@ body[data-theme="dark"] .bulk-more-item:hover { background: rgba(255,255,255,0.0
 <div class="toast" id="toast" role="alert" aria-live="polite" aria-atomic="true"></div>
 
 <!-- ── Scripts ────────────────────────────────────────────────── -->
+<script src="/spa-nav.js"></script>
 <script type="module" src="./mail-app-clean.js"></script>
 <script src="./templates.js"></script>
 <script>
