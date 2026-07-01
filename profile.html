@@ -1333,6 +1333,9 @@ header{height:var(--header-h);display:grid;grid-template-columns:220px 1fr auto;
     document.getElementById('userAvatar').textContent = initials;
     document.getElementById('userEmail').textContent = user.email;
 
+    // Hide skeleton immediately — show content progressively
+    document.querySelector('.skeleton-overlay')?.classList.add('hidden');
+
     // Settings doc — fetch once, pass to all consumers
     const settingsRef = doc(db, 'user_settings', user.uid);
     const settingsSnap = await getDoc(settingsRef);
@@ -1355,8 +1358,6 @@ header{height:var(--header-h);display:grid;grid-template-columns:220px 1fr auto;
       updateBackupEmailUI(settings),
       updateLayoutUI(settings),
     ]);
-
-    document.getElementById('skeletonOverlay')?.classList.add('hidden');
   });
 
   // ─── EVENTS ──────────────────────────────────────────────

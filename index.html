@@ -422,6 +422,12 @@ body[data-theme="dark"] .thread-item.selected { background: rgba(255,255,255,0.0
   width: 2px;
   background: var(--unread-dot);
 }
+.thread-item.has-labels::before {
+  content: '';
+  position: absolute; left: 0; top: 0; bottom: 0;
+  width: 3px;
+  background: var(--label-color, var(--unread-dot));
+}
 .thread-item.unread .thread-subject { font-weight: 500; }
 body.density-compact .thread-item { padding: 8px 12px; gap: 8px; }
 body.density-compact .thread-subject { font-size: 11px; }

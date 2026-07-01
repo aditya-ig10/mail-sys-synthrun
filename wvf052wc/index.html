@@ -687,15 +687,18 @@ document.getElementById('newLabelInput').addEventListener('keydown', (e) => {
 
 async function deleteLabel(id) {
   if (!currentUser || !id) return;
-  // Check if any auto-label rules reference this label
   let ruleCount = 0;
   try {
     const snap = await getDocs(collection(db, 'user_settings', currentUser.uid, 'autoLabelRules'));
     ruleCount = snap.docs.filter(d => d.data().labelId === id).length;
   } catch { /* ignore */ }
-  const msg = ruleCount > 0
-    ? `Delete "${document.querySelector('[data-delete-label="' + id + '"]")?.closest('.rule-row')?.querySelector('.rule-label')?.textContent?.trim() || 'this label'}"?\n\n${ruleCount} auto-label rule${ruleCount > 1 ? 's' : ''} reference${ruleCount > 1 ? '' : 's'} this label and will stop working.\n\nMessages will keep their current labels.`
-    : 'Delete this label? Messages will keep their current labels.';
+  const labelEl = document.querySelector('[data-delete-label="' + id + '"]');
+  const labelName = labelEl ? (labelEl.closest('.rule-row')?.querySelector('.rule-label')?.textContent?.trim() || 'this label') : 'this label';
+  let msg = 'Delete this label? Messages will keep their current labels.';
+  if (ruleCount > 0) {
+    const plural = ruleCount > 1 ? 's' : '';
+    msg = 'Delete "' + labelName + '"?\n\n' + ruleCount + ' auto-label rule' + plural + ' references this label and will stop working.\n\nMessages will keep their current labels.';
+  }
   if (!confirm(msg)) return;
   try {
     await deleteDoc(doc(db, 'user_settings', currentUser.uid, 'labels', id));

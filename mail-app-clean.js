@@ -125,6 +125,12 @@ function renderSidebarLabels() {
       <span class="side-link-left"><span class="label-swatch" style="background:${l.color || '#888'};display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px;vertical-align:middle;"></span>${escapeHtml(l.name)}</span>
     </button>`
   ).join('');
+  container.querySelectorAll('.side-link[data-folder]').forEach((link) => {
+    link.addEventListener('click', () => {
+      showFolderView({ folder: link.dataset.folder });
+      renderList();
+    });
+  });
 }
 
 async function assignLabel(messageId, labelName, silent) {
@@ -766,7 +772,15 @@ function renderList() {
 
   messages.forEach((message) => {
     const item = document.createElement('div');
-    item.className = `thread-item${message.unread ? ' unread' : ''}${message.id === activeMessageId ? ' active' : ''}`;
+    const msgLabels = Array.isArray(message.labels) ? message.labels : [];
+    let labelColor = '';
+    if (msgLabels.length) {
+      const firstLabelName = msgLabels[0];
+      const found = userLabels.find(l => l.name === firstLabelName);
+      if (found && found.color) labelColor = found.color;
+    }
+    item.className = `thread-item${message.unread ? ' unread' : ''}${message.id === activeMessageId ? ' active' : ''}${labelColor ? ' has-labels' : ''}`;
+    if (labelColor) item.style.setProperty('--label-color', labelColor);
     item.setAttribute('role', 'button');
     item.setAttribute('tabindex', '0');
     item.dataset.id = message.id;
