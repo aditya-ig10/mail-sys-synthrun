@@ -16,18 +16,39 @@ html,body{width:100%;height:100%;background:var(--white);color:var(--ink);font-f
 :root{--white:#fafaf8;--off:#f2f1ee;--ink:#111110;--ink2:#3a3a38;--ink3:#888884;--ink4:#c4c4be;--rule:#e0dfd9;--surface:rgba(255,255,255,0.75);--nav-bg:rgba(250,250,248,0.94);--red:#c13c3c;--green:#4a9c6d;--accent:#111110;--accent-contrast:#fafaf8;--radius:0px}
 html[data-theme="dark"],body[data-theme="dark"]{--white:#101114;--off:#181a1f;--ink:#eceae2;--ink2:#c4c0b5;--ink3:#989388;--ink4:#646055;--rule:#2b2e35;--surface:rgba(24,26,31,0.82);--nav-bg:rgba(16,17,20,0.9);--accent:#eceae2;--accent-contrast:#101114}
 
-/* ── Nav ── */
-nav{display:flex;align-items:center;height:52px;padding:0 1.5rem;border-bottom:1px solid var(--rule);background:var(--nav-bg);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);position:sticky;top:0;z-index:100;gap:12px}
-.nav-logo{display:flex;align-items:center;gap:8px;text-decoration:none;color:var(--ink);font-size:0.75rem;font-weight:500;letter-spacing:-0.01em}
-.nav-logo svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.5}
-.nav-logo path{stroke:currentColor}
-.nav-right{margin-left:auto;display:flex;align-items:center;gap:8px}
-.nav-link{background:none;border:1px solid var(--rule);border-radius:3px;padding:6px 12px;font-size:0.6rem;cursor:pointer;color:var(--ink);text-decoration:none;transition:background 0.15s;font-family:inherit}
-.nav-link:hover{background:var(--rule)}
-.nav-link.active{background:var(--ink);color:var(--accent-contrast);border-color:var(--ink)}
+/* ── Shared Navbar ── */
+:root{--bg:#fafaf8;--panel:rgba(255,255,255,0.82);--panel-strong:#fff;--text:#111110;--muted:#6d6d67;--subtle:#9a9a92;--line:#deddd7;--accent:#111;--accent-contrast:#fafaf8;--unread-dot:#4a9c6d;--radius:0px;--header-h:56px;--status-h:28px;--sidebar-w:220px;--transition:150ms ease}
+html[data-theme="dark"],body[data-theme="dark"]{--bg:#101114;--panel:rgba(24,26,31,0.86);--panel-strong:#15171b;--text:#eceae2;--muted:#b0aba0;--subtle:#7f7a70;--line:#2a2d34;--accent:#eceae2;--accent-contrast:#111}
+header{height:var(--header-h);display:grid;grid-template-columns:220px 1fr auto;align-items:center;gap:12px;padding:0 16px 0 0;border-bottom:1px solid var(--line);background:var(--panel);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);position:relative;z-index:10}
+.h-left{display:flex;align-items:center}
+.h-logo{display:flex;gap:9px;align-items:center;justify-content:center;text-transform:uppercase;font-size:11px;letter-spacing:.14em;height:100%;padding:0 18px;flex:1;min-width:0;border-right:1px solid var(--line);color:var(--text);text-decoration:none;transition:background var(--transition)}
+.h-logo:hover{background:rgba(0,0,0,.03)}
+.h-logo svg{width:17px;height:17px;stroke:currentColor;fill:none;stroke-width:1.4;flex-shrink:0}
+.h-search{display:flex;align-items:center;gap:10px;border:1px solid var(--line);background:rgba(255,255,255,.22);padding:0 12px;height:34px;max-width:480px;transition:border-color var(--transition),background var(--transition)}
+.h-search:focus-within{border-color:var(--muted)}
+.h-search svg{width:13px;height:13px;stroke:var(--subtle);fill:none;stroke-width:1.6;flex-shrink:0}
+.h-search input{width:100%;border:0;outline:0;background:transparent;color:var(--text);font-size:12px}
+.h-search input::placeholder{color:var(--subtle)}
+.h-right{display:flex;align-items:center;gap:8px}
+.icon-btn{width:34px;height:34px;display:grid;place-items:center;border:1px solid var(--line);background:transparent;cursor:pointer;color:var(--text);transition:background var(--transition),border-color var(--transition);flex-shrink:0}
+.icon-btn:hover{background:rgba(0,0,0,.05)}
+.icon-btn svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:1.6}
+.user-chip{position:relative;display:flex;align-items:center;gap:9px;border:1px solid var(--line);padding:5px 10px;min-width:160px;max-width:200px;background:var(--panel-strong);cursor:pointer;user-select:none;transition:background var(--transition)}
+.user-chip:hover{background:rgba(0,0,0,.03)}
+.user-avatar{width:26px;height:26px;display:grid;place-items:center;border-radius:50%;background:var(--accent);color:var(--accent-contrast);font-size:10px;letter-spacing:.06em;flex-shrink:0;line-height:1}
+.user-chip-email{font-size:11px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.user-chip-caret{width:12px;height:12px;stroke:var(--subtle);fill:none;stroke-width:1.6;flex-shrink:0;transition:transform var(--transition)}
+.user-chip[aria-expanded="true"] .user-chip-caret{transform:rotate(180deg)}
+.user-menu{position:absolute;right:0;top:calc(100% + 6px);min-width:180px;background:var(--panel-strong);border:1px solid var(--line);box-shadow:0 16px 40px rgba(0,0,0,.13);padding:6px;display:none;z-index:40}
+.user-menu.show{display:block}
+.user-menu-item{width:100%;display:flex;align-items:center;gap:9px;padding:9px 10px;margin:0;text-align:left;font-size:11px;border:1px solid transparent;background:transparent;cursor:pointer;color:var(--text);transition:background var(--transition)}
+.user-menu-item:hover{background:rgba(0,0,0,.04);border-color:var(--line)}
+.user-menu-item svg{width:13px;height:13px;stroke:currentColor;fill:none;stroke-width:1.6;flex-shrink:0}
+.user-menu-divider{height:1px;background:var(--line);margin:6px 0}
+.sidebar-toggle{display:none}
 
 /* ── Layout ── */
-.layout{display:flex;height:calc(100% - 52px)}
+.layout{display:flex;height:calc(100% - 56px)}
 .sidebar{width:180px;border-right:1px solid var(--rule);padding:1rem 0;flex-shrink:0;overflow-y:auto}
 .sidebar-label{font-size:0.55rem;text-transform:uppercase;letter-spacing:0.06em;color:var(--ink3);padding:0 1.25rem;margin-bottom:0.5rem}
 .side-link{display:block;padding:0.55rem 1.25rem;font-size:0.65rem;color:var(--ink3);text-decoration:none;border-right:2px solid transparent;transition:color 0.15s,border-color 0.15s,background 0.15s;cursor:pointer}
@@ -115,7 +136,7 @@ select.form-input{appearance:none;background-image:url("data:image/svg+xml,%3Csv
 .skeleton-overlay.hidden{opacity:0;visibility:hidden;pointer-events:none}
 @keyframes shimmer{0%{background-position:-400px 0}100%{background-position:400px 0}}
 .sk{background:linear-gradient(90deg,var(--rule) 25%,var(--white) 50%,var(--rule) 75%);background-size:800px 100%;animation:shimmer 1.8s ease-in-out infinite;border-radius:2px}
-.sk-nav{height:52px;border-bottom:1px solid var(--rule);display:flex;align-items:center;padding:0 1.5rem;gap:12px}
+.sk-nav{height:56px;border-bottom:1px solid var(--line);display:flex;align-items:center;padding:0 16px;gap:12px}
 .sk-nav .sk{height:11px;width:80px}
 .sk-nav .sk:last-child{margin-left:auto;width:60px;height:26px}
 .sk-body{flex:1;display:grid;grid-template-columns:180px 1fr;min-height:0}
@@ -144,18 +165,45 @@ select.form-input{appearance:none;background-image:url("data:image/svg+xml,%3Csv
 
 <script>document.getElementById('skeletonOverlay')?.classList.remove('hidden');</script>
 
-<nav>
-  <a href="/" class="nav-logo">
-    <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"></circle><path d="M7 14c1.4-2.6 3.1-4 5.1-4s3.8 1.4 5.2 4"></path></svg>
-    Synthrun
-  </a>
-  <div class="nav-right">
-    <a href="/profile.html" class="nav-link">Settings</a>
-    <a href="/wvf052wc/" class="nav-link active">Customize</a>
-    <button class="nav-link" id="themeBtn">Theme</button>
+<header>
+  <div class="h-left">
+    <a href="/" class="h-logo" data-spa-link>
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"></circle><path d="M7 14c1.4-2.6 3.1-4 5.1-4s3.8 1.4 5.2 4"></path></svg>
+      Mail
+    </a>
   </div>
-</nav>
+  <div class="h-search" role="search">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="m16.5 16.5 4 4"></path></svg>
+    <input type="search" placeholder="Search mail…" aria-label="Search mail" disabled>
+  </div>
+  <div class="h-right">
+    <button class="icon-btn" id="themeBtn" title="Toggle theme" aria-label="Toggle theme">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"></path></svg>
+    </button>
+    <div class="user-chip" id="userChip" role="button" tabindex="0" aria-haspopup="true" aria-expanded="false">
+      <div class="user-avatar" id="userAvatar">??</div>
+      <span class="user-chip-email" id="userEmail">Loading…</span>
+      <svg class="user-chip-caret" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"></path></svg>
+      <div class="user-menu" id="userMenu" role="menu">
+        <button class="user-menu-item" data-spa-link="profile" type="button" role="menuitem" href="/profile.html">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"></circle><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"></path></svg>
+          My account
+        </button>
+        <button class="user-menu-item" data-spa-link="customize" type="button" role="menuitem" href="/wvf052wc/">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+          Customize
+        </button>
+        <div class="user-menu-divider" role="separator"></div>
+        <button class="user-menu-item" id="signOutBtn" type="button" role="menuitem">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M17 16l4-4-4-4M21 12H9M13 3H5a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1h8"></path></svg>
+          Sign out
+        </button>
+      </div>
+    </div>
+  </div>
+</header>
 
+<div id="app-content">
 <div class="layout">
   <aside class="sidebar">
     <div class="sidebar-label">Customize</div>
@@ -294,14 +342,16 @@ select.form-input{appearance:none;background-image:url("data:image/svg+xml,%3Csv
 
   </main>
 </div>
+</div>
 
 <script type="module">
 import { firebaseConfig, AUTH_BASE } from '/firebase-config.js';
-import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
+import { initializeApp, getApp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
 import { getAuth, onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
 import { getFirestore, doc, getDoc, setDoc, updateDoc, deleteDoc, collection, addDoc, getDocs, query, where, serverTimestamp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 
-const app = initializeApp(firebaseConfig);
+let app;
+try { app = getApp(); } catch { app = initializeApp(firebaseConfig); }
 const auth = getAuth(app);
 const db = getFirestore(app);
 const LOGIN_URL = AUTH_BASE ? '/' + AUTH_BASE + '/login' : '/login/';
@@ -341,10 +391,16 @@ document.getElementById('themeBtn').addEventListener('click', () => {
 media.addEventListener('change', () => applyTheme(localStorage.getItem('synthrun-theme') || 'system'));
 
 // ─── Auth ────────────────────────────────────────────────
-onAuthStateChanged(auth, async (user) => {
+if (window.__authUnsub) window.__authUnsub();
+window.__authUnsub = onAuthStateChanged(auth, async (user) => {
   if (!user || !user.email) { window.location.replace(LOGIN_URL); return; }
   currentUser = user;
   document.querySelector('.skeleton-overlay')?.classList.add('hidden');
+  const email = user.email;
+  const initials = email.split('@')[0].slice(0, 2).toUpperCase();
+  document.getElementById('userAvatar').textContent = initials;
+  document.getElementById('userEmail').textContent = email;
+  window.__signOut = async () => { await signOut(auth); window.location.href = LOGIN_URL; };
   await Promise.all([loadAutoReply(), loadLabels(), loadRules()]);
 });
 
@@ -699,5 +755,7 @@ const observer = new IntersectionObserver((entries) => {
 }, { rootMargin: '-80px 0px -60% 0px' });
 document.querySelectorAll('.section').forEach(s => observer.observe(s));
 </script>
+
+<script src="/spa-nav.js"></script>
 </body>
 </html>
