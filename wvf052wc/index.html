@@ -296,23 +296,15 @@ select.form-input{appearance:none;background-image:url("data:image/svg+xml,%3Csv
 </div>
 
 <script type="module">
+import { firebaseConfig, AUTH_BASE } from '/firebase-config.js';
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
 import { getAuth, onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
 import { getFirestore, doc, getDoc, setDoc, updateDoc, deleteDoc, collection, addDoc, getDocs, query, where, serverTimestamp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 
-const firebaseConfig = {
-  apiKey: "AIzaSyCgdmCxpZ0trJDDNVO4r8ipqkGq60sSLV4",
-  authDomain: "synthrun-site.firebaseapp.com",
-  projectId: "synthrun-site",
-  storageBucket: "synthrun-site.appspot.com",
-  messagingSenderId: "792002938683",
-  appId: "1:792002938683:web:24ae4a87fa95e8f5f035c8",
-};
-
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
-const LOGIN_URL = '/login/';
+const LOGIN_URL = AUTH_BASE ? '/' + AUTH_BASE + '/login' : '/login/';
 
 let currentUser = null;
 
