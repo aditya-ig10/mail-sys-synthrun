@@ -49,8 +49,7 @@ function updateSelectedCount() {
   const el = document.getElementById('selectedCount');
   const bulk = document.getElementById('bulkActions');
   if (selectedIds.size) {
-    el.textContent = `$
-    {selectedIds.size} selected`;
+    el.textContent = `${selectedIds.size} selected`;
     el.style.display = '';
     if (bulk) bulk.style.display = 'flex';
   } else {
@@ -1768,6 +1767,7 @@ function escapeHtml(value) {
 
 function cleanPreviewText(text) {
   return String(text)
+    .replace(/\u00c2/g, '')
     .replace(/\u00a0/g, ' ')
     .replace(/https?:\/\/\S+/g, '')
     .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
