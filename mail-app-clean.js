@@ -118,9 +118,10 @@ async function loadUserLabels() {
 function renderSidebarLabels() {
   const container = document.getElementById('sidebarCustomLabels');
   if (!container) return;
-  if (!userLabels.length) { container.innerHTML = ''; return; }
-  container.innerHTML = userLabels.map(l =>
-    `<button class="side-link" data-folder="label:${l.name}" type="button">
+  const visible = userLabels.filter(l => l.hidden !== true);
+  if (!visible.length) { container.innerHTML = ''; return; }
+  container.innerHTML = visible.map(l =>
+    `<button class="side-link" data-folder="label:${l.name}" type="button" ${l.description ? 'title="' + escapeHtml(l.description) + '"' : ''}>
       <span class="side-link-left"><span class="label-swatch" style="background:${l.color || '#888'};display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px;vertical-align:middle;"></span>${escapeHtml(l.name)}</span>
     </button>`
   ).join('');
@@ -476,15 +477,27 @@ async function applyAutoLabels() {
     for (const msg of allMessages) {
       const existing = Array.isArray(msg.labels) ? msg.labels : [];
       const senderEmail = (msg.senderEmail || msg.from || '').toLowerCase();
-      const body = (msg.body || msg.subject || '').toLowerCase();
+      const body = (msg.body || '').toLowerCase();
+      const subject = (msg.subject || '').toLowerCase();
+      const recipient = (msg.recipientEmail || msg.to || '').toLowerCase();
+      const cc = (msg.cc || []).map(a => (a.email || a).toLowerCase()).join(' ');
       const domain = senderEmail.split('@')[1] || '';
+      const allRecipients = recipient + ' ' + cc;
       for (const rule of rules) {
         if (existing.includes(rule.labelName)) continue;
+        const val = rule.value.toLowerCase();
+        const exact = rule.matchMode === 'exact';
         let match = false;
         if (rule.type === 'domain') {
-          match = domain === rule.value;
+          match = exact ? domain === val : domain.includes(val);
         } else if (rule.type === 'keyword') {
-          match = body.includes(rule.value);
+          match = exact ? body === val || subject === val : body.includes(val) || subject.includes(val);
+        } else if (rule.type === 'sender') {
+          match = exact ? senderEmail === val : senderEmail.includes(val);
+        } else if (rule.type === 'subject') {
+          match = exact ? subject === val : subject.includes(val);
+        } else if (rule.type === 'recipient') {
+          match = exact ? allRecipients === val : allRecipients.includes(val);
         }
         if (match) {
           existing.push(rule.labelName);
