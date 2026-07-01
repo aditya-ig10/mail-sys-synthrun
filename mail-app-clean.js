@@ -442,33 +442,48 @@ function bindUi() {
   document.addEventListener('click', () => document.getElementById('labelDropdown').classList.remove('open'));
   document.getElementById('labelDropdown').addEventListener('click', (e) => e.stopPropagation());
 
-  // Bulk label dropdown
+  // Bulk more dropdown — open/close
+  document.getElementById('bulkMoreBtn').addEventListener('click', (e) => {
+    e.stopPropagation();
+    document.getElementById('bulkMoreDropdown').classList.toggle('open');
+    document.getElementById('bulkMoreLabels').style.display = 'none';
+  });
+  document.addEventListener('click', () => {
+    document.getElementById('bulkMoreDropdown').classList.remove('open');
+  });
+  document.getElementById('bulkMoreDropdown').addEventListener('click', (e) => e.stopPropagation());
+
+  // Bulk label — expand labels inline in dropdown
   document.getElementById('bulkLabelBtn').addEventListener('click', (e) => {
     e.stopPropagation();
-    document.getElementById('bulkLabelDropdown').classList.toggle('open');
-    if (userLabels.length) {
-      document.getElementById('bulkLabelDropdown').innerHTML = userLabels.map(l =>
-        `<div class="label-dropdown-item" data-bulk-label="${escapeHtml(l.name)}">
-          <span class="label-dot" style="background:${l.color || '#888'};width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:6px;"></span>
-          <span>${escapeHtml(l.name)}</span>
-        </div>`
-      ).join('');
-      document.getElementById('bulkLabelDropdown').querySelectorAll('[data-bulk-label]').forEach(el => {
-        el.addEventListener('click', (e) => {
-          e.stopPropagation();
-          document.getElementById('bulkLabelDropdown').classList.remove('open');
-          const labelName = el.dataset.bulkLabel;
-          Promise.all([...selectedIds].map(id => assignLabel(id, labelName, true))).then(() => {
-            selectedIds.clear();
-            renderList();
-            showToast(`Label "${labelName}" applied.`);
+    const labelsEl = document.getElementById('bulkMoreLabels');
+    const hidden = labelsEl.style.display === 'none';
+    labelsEl.style.display = hidden ? '' : 'none';
+    if (hidden) {
+      if (!userLabels.length) {
+        labelsEl.innerHTML = '<div class="bulk-more-item" style="cursor:default;color:var(--subtle);font-size:0.7rem">No labels</div>';
+      } else {
+        labelsEl.innerHTML = userLabels.map(l =>
+          `<button class="bulk-more-item" data-bulk-label="${escapeHtml(l.name)}" type="button">
+            <span class="label-dot" style="background:${l.color || '#888'};width:8px;height:8px;border-radius:50%;display:inline-block;flex-shrink:0;"></span>
+            <span>${escapeHtml(l.name)}</span>
+          </button>`
+        ).join('');
+        labelsEl.querySelectorAll('[data-bulk-label]').forEach(el => {
+          el.addEventListener('click', (e) => {
+            e.stopPropagation();
+            document.getElementById('bulkMoreDropdown').classList.remove('open');
+            const labelName = el.dataset.bulkLabel;
+            Promise.all([...selectedIds].map(id => assignLabel(id, labelName, true))).then(() => {
+              selectedIds.clear();
+              renderList();
+              showToast(`Label "${labelName}" applied.`);
+            });
           });
         });
-      });
+      }
     }
   });
-  document.addEventListener('click', () => document.getElementById('bulkLabelDropdown').classList.remove('open'));
-  document.getElementById('bulkLabelDropdown').addEventListener('click', (e) => e.stopPropagation());
 }
 
 // ─── AUTO-LABEL ENGINE ──────────────────────────────────
@@ -679,6 +694,25 @@ function isGenericSenderName(value) {
   return !name || name === 'synthrun mail' || name === 'synthrun';
 }
 
+function isSystemGeneratedEmail(email) {
+  const atIdx = email.indexOf('@');
+  if (atIdx < 0) return false;
+  const local = email.slice(0, atIdx);
+  if (local.length > 20) return true;
+  return /^[a-f0-9]{8,}(-[a-f0-9]{4,}){2,}/i.test(local);
+}
+
+function formatSenderEmail(email) {
+  const atIdx = email.indexOf('@');
+  if (atIdx < 0) return email;
+  const local = email.slice(0, atIdx);
+  const domain = email.slice(atIdx + 1);
+  if (isSystemGeneratedEmail(email)) {
+    return domain;
+  }
+  return email;
+}
+
 function getSenderIdentity(message) {
   const senderEmail = sanitizeEmail(message.senderEmail || message.fromEmail || message.from);
   const senderName = String(message.fromName || message.senderName || '').trim();
@@ -699,12 +733,13 @@ function getSenderLabel(message) {
   if (name) return name;
 
   const email = sender.email || sanitizeEmail(message.from) || '';
-  if (email && !isBounceAddress(email)) return email;
+  if (email && !isBounceAddress(email)) return formatSenderEmail(email);
 
   const fallback = sanitizeEmail(message.from);
   if (isBounceAddress(fallback)) return 'Synthrun Mail';
 
-  return fallback || 'Unknown';
+  const formatted = formatSenderEmail(fallback);
+  return formatted || 'Unknown';
 }
 
 function renderList() {
@@ -799,7 +834,7 @@ function renderList() {
       <div class="thread-body">
         <div class="thread-from">${escapeHtml(senderLabel)}</div>
         <div class="thread-subject">${escapeHtml(message.subject || '(no subject)')}</div>
-        <div class="thread-preview">${escapeHtml(stripMarkdown(message.body || '').slice(0, 80))}</div>
+        <div class="thread-preview">${escapeHtml(cleanPreviewText(stripMarkdown(message.body || '')).slice(0, 80))}</div>
         ${message.folder === 'outbox' ? `<div class="thread-tags"><span class="thread-tag ${message.status === 'failed' ? 'tag-error' : message.status === 'sending' ? 'tag-pending' : ''}">${message.status === 'sending' ? 'Sending...' : message.status === 'failed' ? 'Failed' : 'Pending'}</span></div>` : ''}
         ${attachmentCount ? `<div class="thread-tags"><span class="thread-tag">📎 ${attachmentCount} attachment${attachmentCount === 1 ? '' : 's'}</span></div>` : ''}
         ${Array.isArray(message.labels) && message.labels.length ? `<div class="thread-tags">${message.labels.map((label) => `<span class="thread-tag">${escapeHtml(label)}</span>`).join('')}</div>` : ''}
@@ -1729,6 +1764,15 @@ function escapeHtml(value) {
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;');
+}
+
+function cleanPreviewText(text) {
+  return String(text)
+    .replace(/\u00a0/g, ' ')
+    .replace(/https?:\/\/\S+/g, '')
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+    .replace(/\s+/g, ' ')
+    .trim();
 }
 
 function stripMarkdown(text) {

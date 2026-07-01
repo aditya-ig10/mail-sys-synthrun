@@ -1136,15 +1136,30 @@ button:focus:not(:focus-visible), input:focus:not(:focus-visible) { outline: non
 .label-dropdown-item .label-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
 .label-dropdown-item .label-check { margin-left: auto; opacity: 0; }
 .label-dropdown-item.active .label-check { opacity: 1; }
-.bulk-label-wrap { position: relative; display: inline-flex; }
-.bulk-label-dropdown {
-  position: absolute; left: 0; top: 100%; margin-top: 4px;
-  background: var(--panel-strong); border: 1px solid var(--line);
-  border-radius: 4px; min-width: 150px; max-height: 180px; overflow-y: auto;
-  display: none; z-index: 50; box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+.bulk-more-sep { height: 1px; background: var(--line); margin: 4px 0; }
+.bulk-more-labels {
+  border-top: 1px solid var(--line); padding: 2px 0;
+  max-height: 160px; overflow-y: auto;
 }
-.bulk-label-dropdown.open { display: block; }
-.bulk-label-dropdown .label-dropdown-item { padding: 6px 10px; }
+.bulk-more-wrap { position: relative; display: inline-flex; }
+.bulk-more-dropdown {
+  position: absolute; right: 0; top: 100%; margin-top: 4px;
+  background: var(--panel-strong); border: 1px solid var(--line);
+  border-radius: 6px; min-width: 150px;
+  display: none; z-index: 50; box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+  padding: 4px 0;
+}
+.bulk-more-dropdown.open { display: block; }
+.bulk-more-item {
+  display: flex; align-items: center; gap: 8px; width: 100%;
+  padding: 8px 12px; border: none; background: none;
+  cursor: pointer; font-size: 0.75rem; color: var(--text);
+  transition: background 0.1s;
+}
+.bulk-more-item:hover { background: rgba(0,0,0,0.03); }
+body[data-theme="dark"] .bulk-more-item:hover { background: rgba(255,255,255,0.03); }
+.bulk-more-item svg { width: 14px; height: 14px; flex-shrink: 0; stroke: currentColor; fill: none; stroke-width: 1.5; }
+
 
 /* ─── Thread Three-Dot Menu ──────────────────────────── */
 .thread-menu-wrap { position: relative; }
@@ -1385,26 +1400,38 @@ button:focus:not(:focus-visible), input:focus:not(:focus-visible) { outline: non
         <span class="toolbar-label" id="folderLabel">Inbox</span>
         <span class="toolbar-selected-count" id="selectedCount" style="display:none"></span>
         <div class="bulk-actions" id="bulkActions" style="display:none">
-          <button class="icon-btn" id="bulkArchiveBtn" title="Archive" aria-label="Archive selected" type="button">
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 8v13H3V8M1 3h22v5H1zM10 12h4"></path></svg>
-          </button>
-          <button class="icon-btn" id="bulkFlagBtn" title="Flag" aria-label="Flag selected" type="button">
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"></path><path d="M4 22V15"></path></svg>
-          </button>
-          <button class="icon-btn" id="bulkReadBtn" title="Mark read" aria-label="Mark selected as read" type="button">
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 8l9 6 9-6M5 19h14a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2z"></path></svg>
-          </button>
-          <button class="icon-btn" id="bulkUnreadBtn" title="Mark unread" aria-label="Mark selected as unread" type="button">
-            <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"></circle><path d="M2 12C4.7 6.5 8 4 12 4s7.3 2.5 10 8c-2.7 5.5-6 8-10 8S4.7 17.5 2 12"></path></svg>
-          </button>
-          <button class="icon-btn" id="bulkTrashBtn" title="Trash" aria-label="Move selected to trash" type="button">
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"></path></svg>
-          </button>
-          <div class="bulk-label-wrap">
-            <button class="icon-btn" id="bulkLabelBtn" title="Label" aria-label="Apply label" type="button">
-              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.6 12.6l-7 7a2 2 0 0 1-2.8 0L3 12V3h9l8.6 8.6a2 2 0 0 1 0 2.8z"></path><circle cx="7.5" cy="7.5" r="1.5" fill="currentColor"></circle></svg>
+          <div class="bulk-more-wrap">
+            <button class="icon-btn" id="bulkMoreBtn" title="More actions" aria-label="More actions" type="button">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="5" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="12" cy="19" r="1.5"/></svg>
             </button>
-            <div class="bulk-label-dropdown" id="bulkLabelDropdown"></div>
+            <div class="bulk-more-dropdown" id="bulkMoreDropdown">
+              <button class="bulk-more-item" id="bulkArchiveBtn" type="button">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 8v13H3V8M1 3h22v5H1zM10 12h4"></path></svg>
+                Archive
+              </button>
+              <button class="bulk-more-item" id="bulkTrashBtn" type="button">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"></path></svg>
+                Trash
+              </button>
+              <div class="bulk-more-sep"></div>
+              <button class="bulk-more-item" id="bulkFlagBtn" type="button">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"></path><path d="M4 22V15"></path></svg>
+                Flag
+              </button>
+              <button class="bulk-more-item" id="bulkReadBtn" type="button">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 8l9 6 9-6M5 19h14a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2z"></path></svg>
+                Mark read
+              </button>
+              <button class="bulk-more-item" id="bulkUnreadBtn" type="button">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"></circle><path d="M2 12C4.7 6.5 8 4 12 4s7.3 2.5 10 8c-2.7 5.5-6 8-10 8S4.7 17.5 2 12"></path></svg>
+                Mark unread
+              </button>
+              <button class="bulk-more-item" id="bulkLabelBtn" type="button">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.6 12.6l-7 7a2 2 0 0 1-2.8 0L3 12V3h9l8.6 8.6a2 2 0 0 1 0 2.8z"></path><circle cx="7.5" cy="7.5" r="1.5" fill="currentColor"></circle></svg>
+                Label
+              </button>
+              <div class="bulk-more-labels" id="bulkMoreLabels" style="display:none"></div>
+            </div>
           </div>
         </div>
         <button class="icon-btn" id="selectAllBtn" title="Select all" aria-label="Select all" type="button">
