@@ -482,6 +482,58 @@ function htmlEscape(value) {
     .replace(/"/g, '&quot;');
 }
 
+function wrapHtmlEmail(bodyHtml, { fromName, subject, to, userEmail }) {
+  const date = new Date().toLocaleString('en-US', { dateStyle: 'long', timeStyle: 'short' });
+  return `<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#f5f5f5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#f5f5f5;padding:32px 12px;">
+<tr><td align="center">
+<table width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:600px;background:#ffffff;border:1px solid #e0e0e0;border-radius:8px;overflow:hidden;">
+<tr><td style="padding:0;">
+<table width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#111110;height:48px;">
+<tr><td style="padding:0 28px;vertical-align:middle;">
+<span style="font-size:11px;letter-spacing:0.12em;text-transform:uppercase;color:#fafaf8;font-weight:500;">Synthrun Mail</span>
+</td></tr>
+</table>
+</td></tr>
+<tr><td style="padding:28px 28px 8px;">
+<table width="100%" cellpadding="0" cellspacing="0" border="0">
+<tr>
+<td style="font-size:12px;color:#888884;letter-spacing:0.04em;padding-bottom:4px;">From: ${htmlEscape(fromName)}</td>
+</tr>
+<tr>
+<td style="font-size:12px;color:#888884;letter-spacing:0.04em;padding-bottom:4px;">To: ${htmlEscape(to)}</td>
+</tr>
+<tr>
+<td style="font-size:12px;color:#888884;letter-spacing:0.04em;padding-bottom:4px;">Date: ${htmlEscape(date)}</td>
+</tr>
+<tr>
+<td style="font-size:12px;color:#888884;letter-spacing:0.04em;">Subject: ${htmlEscape(subject)}</td>
+</tr>
+</table>
+</td></tr>
+<tr><td style="border-top:1px solid #e8e8e6;margin:0 28px;height:0;"></td></tr>
+<tr><td style="padding:24px 28px 28px;font-size:15px;line-height:1.7;color:#222220;">
+${bodyHtml}
+</td></tr>
+<tr><td style="border-top:1px solid #e8e8e6;height:0;"></td></tr>
+<tr><td style="padding:16px 28px;">
+<table width="100%" cellpadding="0" cellspacing="0" border="0">
+<tr>
+<td style="font-size:10px;letter-spacing:0.08em;text-transform:uppercase;color:#aaa;--darkreader-inline-color:#a09e9d;">Synthrun Mail</td>
+<td style="text-align:right;font-size:10px;letter-spacing:0.06em;color:#ccc;">${htmlEscape(userEmail)}</td>
+</tr>
+</table>
+</td></tr>
+</table>
+</td></tr>
+</table>
+</body>
+</html>`;
+}
+
 function htmlToText(value) {
   return String(value || '')
     .replace(/<\/(p|div|h[1-6]|li|tr|table|section|article|header|footer)>/gi, '\n')
@@ -621,7 +673,8 @@ app.post('/send', async (req, res) => {
     const recipients = [sanitizeEmail(to)];
     if (cc) recipients.push(sanitizeEmail(cc));
     if (bcc) recipients.push(sanitizeEmail(bcc));
-    const htmlContent = htmlBody || htmlEscape(fallbackText);
+    const rawHtml = htmlBody || htmlEscape(fallbackText);
+    const htmlContent = wrapHtmlEmail(rawHtml, { fromName, subject, to, userEmail });
 
     const resolvedAttachments = await resolveAttachments(Array.isArray(attachments) ? attachments : []);
 
