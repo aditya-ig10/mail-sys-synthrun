@@ -840,20 +840,53 @@ app.post('/send', async (req, res) => {
   }
 });
 
+function fixEncoding(text) {
+  let s = String(text);
+  s = s.replace(/\u00c3\u00a9/g, '\u00e9');
+  s = s.replace(/\u00c3\u00a8/g, '\u00e8');
+  s = s.replace(/\u00c3\u00aa/g, '\u00ea');
+  s = s.replace(/\u00c3\u00ab/g, '\u00eb');
+  s = s.replace(/\u00c3\u00a0/g, '\u00e0');
+  s = s.replace(/\u00c3\u00a2/g, '\u00e2');
+  s = s.replace(/\u00c3\u00a4/g, '\u00e4');
+  s = s.replace(/\u00c3\u00a1/g, '\u00e1');
+  s = s.replace(/\u00c3\u00a3/g, '\u00e3');
+  s = s.replace(/\u00c3\u00a5/g, '\u00e5');
+  s = s.replace(/\u00c3\u00a7/g, '\u00e7');
+  s = s.replace(/\u00c3\u00b1/g, '\u00f1');
+  s = s.replace(/\u00c3\u00b3/g, '\u00f3');
+  s = s.replace(/\u00c3\u00b6/g, '\u00f6');
+  s = s.replace(/\u00c3\u00ba/g, '\u00fa');
+  s = s.replace(/\u00c3\u00bc/g, '\u00fc');
+  s = s.replace(/\u00c3\u0089/g, '\u00c9');
+  s = s.replace(/\u00c3\u0081/g, '\u00c1');
+  s = s.replace(/\u00c3\u0093/g, '\u00d3');
+  s = s.replace(/\u00c3\u009a/g, '\u00da');
+  s = s.replace(/\u00c3\u0091/g, '\u00d1');
+  s = s.replace(/\u2019/g, "'");
+  s = s.replace(/\u2018/g, "'");
+  s = s.replace(/\u201c/g, '"');
+  s = s.replace(/\u201d/g, '"');
+  s = s.replace(/\u2013/g, '-');
+  s = s.replace(/\u2014/g, '--');
+  s = s.replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/g, '');
+  return s;
+}
+
 function sanitizeIncomingText(text) {
   if (!text) return '';
-  const str = String(text);
+  let str = String(text);
 
-  // Count C1 control characters (0x80-0x9F) — only discard if high ratio,
-  // since charset-encoded text (ISO-8859-1, Windows-1252) legitimately contains these.
-  let c1Count = 0;
+  // Fix common encoding artifacts first
+  str = fixEncoding(str);
+
+  // Null byte check
+  let nullCount = 0;
   for (let i = 0; i < str.length; i++) {
-    const code = str.charCodeAt(i);
-    if (code === 0x00) return '';
-    if (code >= 0x80 && code <= 0x9F) c1Count++;
+    if (str.charCodeAt(i) === 0x00) nullCount++;
   }
-  if (str.length > 0 && c1Count / str.length > 0.3) {
-    console.warn(`sanitizeIncomingText: high C1 control-char ratio ${(c1Count / str.length).toFixed(2)}, discarding. length=${str.length}`);
+  if (str.length > 0 && nullCount / str.length > 0.05) {
+    console.warn(`sanitizeIncomingText: high null-byte ratio ${(nullCount / str.length).toFixed(2)}, discarding`);
     return '';
   }
 
@@ -877,9 +910,9 @@ function sanitizeIncomingText(text) {
     return '';
   }
 
-  // For longer texts, check readability via ASCII alphanumeric + space ratio
+  // For longer texts, check readability via letter + space ratio (allow accented chars)
   if (cleaned.length > 100) {
-    let alphaSpaceCount = 0;
+    let letterCount = 0;
     const sample = cleaned.slice(0, 500);
     for (const ch of sample) {
       const code = ch.charCodeAt(0);
@@ -887,14 +920,15 @@ function sanitizeIncomingText(text) {
         (code >= 0x41 && code <= 0x5A) ||
         (code >= 0x61 && code <= 0x7A) ||
         (code >= 0x30 && code <= 0x39) ||
-        code === 0x20
+        code === 0x20 ||
+        code >= 0xC0
       ) {
-        alphaSpaceCount++;
+        letterCount++;
       }
     }
-    const ratio = alphaSpaceCount / sample.length;
+    const ratio = letterCount / sample.length;
     if (ratio < 0.25) {
-      console.warn(`sanitizeIncomingText: low alphanumeric ratio ${ratio.toFixed(2)}, likely binary. length=${str.length}`);
+      console.warn(`sanitizeIncomingText: low letter ratio ${ratio.toFixed(2)}, likely binary. length=${str.length}`);
       return '';
     }
   }

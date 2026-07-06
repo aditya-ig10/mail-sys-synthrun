@@ -237,21 +237,29 @@ main {
   transition: opacity 0.4s ease, visibility 0.4s ease;
 }
 .skeleton-overlay.hidden { opacity: 0; visibility: hidden; pointer-events: none; }
+.skeleton-overlay { animation: skFadeIn 0.3s ease; }
+@keyframes skFadeIn { from { opacity: 0; } to { opacity: 1; } }
 @keyframes shimmer {
-  0% { background-position: -400px 0; }
-  100% { background-position: 400px 0; }
+  0% { background-position: -600px 0; }
+  100% { background-position: 600px 0; }
 }
 .sk {
   background: linear-gradient(90deg, var(--rule) 25%, var(--white) 50%, var(--rule) 75%);
-  background-size: 800px 100%;
-  animation: shimmer 1.8s ease-in-out infinite;
+  background-size: 1200px 100%;
+  animation: shimmer 2s ease-in-out infinite;
   border-radius: 2px;
+  position: relative; overflow: hidden;
 }
-.sk-nav { height: 52px; border-bottom: 1px solid var(--rule); display: flex; align-items: center; justify-content: space-between; padding: 0 1.5rem; }
+.sk::after {
+  content: ''; position: absolute; inset: 0;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.06), transparent);
+  animation: shimmer 2s ease-in-out infinite;
+}
+.sk-nav { height: 52px; border-bottom: 1px solid var(--rule); display: flex; align-items: center; justify-content: space-between; padding: 0 1.5rem; animation: skFadeIn 0.2s ease both; }
 .sk-nav .sk { height: 11px; width: 80px; }
 .sk-nav .sk:last-child { width: 60px; height: 26px; }
 .sk-body { flex: 1; display: grid; grid-template-columns: 1fr 1fr; min-height: 0; }
-.sk-left { display: flex; align-items: center; justify-content: center; }
+.sk-left { display: flex; align-items: center; justify-content: center; animation: skFadeIn 0.3s ease 0.05s both; }
 .sk-left-inner { display: flex; flex-direction: column; gap: 14px; width: 280px; }
 .sk-left-inner .sk { height: 10px; }
 .sk-left-inner .sk:nth-child(1) { width: 120px; height: 14px; }
@@ -259,7 +267,7 @@ main {
 .sk-left-inner .sk:nth-child(3) { width: 180px; }
 .sk-left-inner .sk:nth-child(4) { width: 100%; height: 42px; }
 .sk-left-inner .sk:nth-child(5) { width: 140px; }
-.sk-right { display: flex; align-items: center; justify-content: center; background: var(--off); }
+.sk-right { display: flex; align-items: center; justify-content: center; background: var(--off); animation: skFadeIn 0.3s ease 0.1s both; }
 .sk-right-inner { display: flex; flex-direction: column; gap: 12px; width: 260px; }
 .sk-right-inner .sk { height: 10px; }
 .sk-right-inner .sk:nth-child(1) { width: 80px; height: 80px; border-radius: 50%; }

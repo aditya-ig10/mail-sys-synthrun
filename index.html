@@ -512,7 +512,7 @@ body[data-theme="dark"] .mail-sender-avatar { background: rgba(255,255,255,0.04)
 .mail-sender-name { font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .mail-sender-addr { font-size: 10px; color: var(--subtle); margin-top: 1px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .mail-bubble-time { font-size: 10px; color: var(--subtle); white-space: nowrap; flex-shrink: 0; }
-.mail-bubble-body { padding: 14px 13px 10px; white-space: pre-wrap; line-height: 1.85; font-size: 13px; color: var(--muted); }
+.mail-bubble-body { padding: 14px 13px 10px; white-space: pre-wrap; line-height: 1.85; font-size: 13px; color: var(--text); overflow-wrap: break-word; word-break: break-word; }
 .mail-bubble-body.is-html { white-space: normal; color: var(--text); background: transparent; color-scheme: light dark; }
 .mail-bubble-body.is-html img { max-width: 100%; height: auto; }
 .mail-bubble-body.is-html a { color: var(--accent); text-decoration: underline; }
@@ -563,15 +563,27 @@ body[data-theme="dark"] .reply-btn:hover { background: rgba(255,255,255,0.04); }
 }
 
 @keyframes shimmer {
-  0% { background-position: -400px 0; }
-  100% { background-position: 400px 0; }
+  0% { background-position: -600px 0; }
+  100% { background-position: 600px 0; }
 }
+@keyframes skFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.skeleton-overlay { animation: skFadeIn 0.3s ease; }
 
 .skeleton-block {
   background: linear-gradient(90deg, var(--line) 25%, var(--panel-strong) 50%, var(--line) 75%);
-  background-size: 800px 100%;
-  animation: shimmer 1.8s ease-in-out infinite;
+  background-size: 1200px 100%;
+  animation: shimmer 2s ease-in-out infinite;
   border-radius: 2px;
+  position: relative; overflow: hidden;
+}
+.skeleton-block::after {
+  content: ''; position: absolute; inset: 0;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.06), transparent);
+  animation: shimmer 2s ease-in-out infinite;
 }
 
 .skeleton-header {
@@ -617,8 +629,9 @@ body[data-theme="dark"] .reply-btn:hover { background: rgba(255,255,255,0.04); }
   border-right: 1px solid var(--line);
   display: flex; flex-direction: column;
 }
-.skeleton-thread-toolbar { height: 48px; flex-shrink: 0; border-bottom: 1px solid var(--line); display: flex; align-items: center; padding: 0 14px; }
-.skeleton-thread-toolbar .skeleton-block { height: 11px; width: 60px; }
+.skeleton-thread-toolbar { height: 48px; flex-shrink: 0; border-bottom: 1px solid var(--line); display: flex; align-items: center; padding: 0 14px; gap: 8px; }
+.skeleton-thread-toolbar .skeleton-block { height: 11px; width: 80px; }
+.skeleton-thread-toolbar .skeleton-block:last-child { width: 100px; margin-left: auto; }
 .skeleton-thread-items { flex: 1; overflow: hidden; }
 .skeleton-thread-item {
   display: grid;
@@ -627,19 +640,33 @@ body[data-theme="dark"] .reply-btn:hover { background: rgba(255,255,255,0.04); }
   padding: 13px 14px;
   border-bottom: 1px solid var(--line);
   align-items: start;
+  animation: skFadeIn 0.3s ease both;
 }
+.skeleton-thread-item:nth-child(1) { animation-delay: 0.02s; }
+.skeleton-thread-item:nth-child(2) { animation-delay: 0.06s; }
+.skeleton-thread-item:nth-child(3) { animation-delay: 0.10s; }
+.skeleton-thread-item:nth-child(4) { animation-delay: 0.14s; }
+.skeleton-thread-item:nth-child(5) { animation-delay: 0.18s; }
 .skeleton-thread-item .skeleton-block:first-child { width: 32px; height: 32px; border-radius: 50%; }
-.skeleton-thread-body { display: flex; flex-direction: column; gap: 6px; }
+.skeleton-thread-body { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
 .skeleton-thread-body .skeleton-block:nth-child(1) { height: 10px; width: 45%; }
 .skeleton-thread-body .skeleton-block:nth-child(2) { height: 12px; width: 70%; }
 .skeleton-thread-body .skeleton-block:nth-child(3) { height: 10px; width: 55%; }
 .skeleton-thread-item .skeleton-block:last-child { width: 40px; height: 10px; }
 
-.skeleton-view { display: flex; align-items: center; justify-content: center; }
-.skeleton-view-card { display: flex; flex-direction: column; align-items: center; gap: 12px; opacity: 0.5; }
-.skeleton-view-card .skeleton-block { width: 120px; height: 12px; }
-.skeleton-view-card .skeleton-block:first-child { width: 80px; height: 80px; border-radius: 50%; }
-.skeleton-view-card .skeleton-block:nth-child(3) { width: 200px; }
+.skeleton-view {
+  display: flex; align-items: center; justify-content: center;
+  animation: skFadeIn 0.4s ease 0.1s both;
+}
+.skeleton-view-card {
+  display: flex; flex-direction: column; align-items: center; gap: 14px;
+  opacity: 0.55;
+}
+.skeleton-view-card .skeleton-block { width: 140px; height: 11px; }
+.skeleton-view-card .skeleton-block:first-child { width: 72px; height: 72px; border-radius: 50%; }
+.skeleton-view-card .skeleton-block:nth-child(2) { width: 180px; height: 14px; }
+.skeleton-view-card .skeleton-block:nth-child(3) { width: 100px; }
+.skeleton-view-card .skeleton-block:nth-child(4) { width: 220px; }
 
 @media (max-width: 900px) {
   .skeleton-body { grid-template-columns: 1fr; }
@@ -731,12 +758,33 @@ body[data-theme="dark"] .compose-close:hover { background: rgba(255,255,255,0.05
 .compose-toggle-link.active { color: var(--accent); }
 
 /* ─── Recipient Chip Input ────────────────────────────── */
-.recipient-chips { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; padding: 7px 0; min-height: 34px; }
+.recipient-chips { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; padding: 7px 0; min-height: 34px; position: relative; }
 .chip { display: inline-flex; align-items: center; gap: 3px; padding: 2px 6px 2px 8px; background: var(--accent); color: var(--accent-contrast); font-size: 11px; border-radius: 3px; letter-spacing: 0.02em; line-height: 1.5; }
 .chip-remove { display: grid; place-items: center; width: 14px; height: 14px; border: 0; background: transparent; color: var(--accent-contrast); cursor: pointer; font-size: 13px; line-height: 1; padding: 0; opacity: 0.65; transition: opacity 0.15s; }
 .chip-remove:hover { opacity: 1; }
 .chip-input { border: 0; outline: 0; background: transparent; color: var(--text); font-size: 12px; min-width: 80px; flex: 1; }
 .chip-input::placeholder { color: var(--subtle); }
+
+/* ─── Autocomplete Dropdown ───────────────────────────── */
+.autocomplete-dropdown {
+  position: absolute; left: 0; right: 0; top: 100%;
+  background: var(--panel-strong); border: 1px solid var(--line);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.1);
+  z-index: 60; display: none; max-height: 180px; overflow-y: auto;
+}
+.autocomplete-dropdown.show { display: block; }
+.autocomplete-item {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 10px; cursor: pointer; transition: background 0.1s;
+  font-size: 11px; color: var(--text);
+}
+.autocomplete-item:hover,
+.autocomplete-item.highlighted { background: rgba(0,0,0,0.04); }
+body[data-theme="dark"] .autocomplete-item:hover,
+body[data-theme="dark"] .autocomplete-item.highlighted { background: rgba(255,255,255,0.06); }
+.autocomplete-item-name { font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.autocomplete-item-email { color: var(--subtle); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex-shrink: 1; min-width: 0; }
+.autocomplete-item-sep { margin: 0 2px; color: var(--line); }
 
 .compose-body { flex: 1; overflow: auto; padding: 13px; min-height: 160px; }
 
@@ -1688,11 +1736,47 @@ const themeObserver = new MutationObserver(() => {
 themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
 
 /* ── Recipient Chip Input ── */
+/* ─── Contact Index (auto-suggest source) ────────────────── */
+let contactIndex = [];
+let contactIndexLoaded = false;
+
+function loadContactIndex() {
+  try {
+    const raw = localStorage.getItem('synthrun-contact-index');
+    if (raw) contactIndex = JSON.parse(raw);
+  } catch {}
+  contactIndexLoaded = true;
+}
+
+function saveContactIndex() {
+  try { localStorage.setItem('synthrun-contact-index', JSON.stringify(contactIndex)); } catch {}
+}
+
+function addContacts(emails) {
+  if (!Array.isArray(emails)) return;
+  let changed = false;
+  for (const item of emails) {
+    if (item && item.email && !contactIndex.some(c => c.email === item.email.toLowerCase())) {
+      contactIndex.push({ email: item.email.toLowerCase(), name: item.name || '' });
+      changed = true;
+    }
+  }
+  if (changed) saveContactIndex();
+}
+
+function getContactLabel(entry) {
+  return entry.name ? `${entry.name} <${entry.email}>` : entry.email;
+}
+
+loadContactIndex();
+
 function initChipInput(containerId, placeholder = 'add recipient') {
   const container = document.getElementById(containerId);
   const hidden = container.querySelector('input[type="hidden"]');
   const chipInput = container.querySelector('.chip-input');
   let chips = [];
+  let dropdown = null;
+  let highlightIdx = -1;
 
   function parseEmails(str) {
     return str.split(/[,;]/).map(s => s.trim().toLowerCase()).filter(Boolean);
@@ -1705,7 +1789,8 @@ function initChipInput(containerId, placeholder = 'add recipient') {
       const enc = email.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
       html += `<span class="chip">${enc}<button class="chip-remove" data-email="${enc}">&times;</button></span>`;
     }
-    html += `<input type="text" class="chip-input" placeholder="${chips.length ? '' : placeholder}" autocomplete="email">`;
+    html += `<input type="text" class="chip-input" placeholder="${chips.length ? '' : placeholder}" autocomplete="off">`;
+    html += '<div class="autocomplete-dropdown" id="ac-' + containerId + '"></div>';
     container.innerHTML = html;
     container.prepend(hidden);
     const newInput = container.querySelector('.chip-input');
@@ -1715,22 +1800,113 @@ function initChipInput(containerId, placeholder = 'add recipient') {
       render();
       return;
     }
+    dropdown = document.getElementById('ac-' + containerId);
     bindInput(newInput);
     bindRemoves();
   }
 
+  function showDropdown(filter) {
+    if (!dropdown) return;
+    const lower = filter.toLowerCase().trim();
+    const matches = lower ? contactIndex.filter(c => {
+      const label = getContactLabel(c).toLowerCase();
+      return label.includes(lower) && !chips.includes(c.email);
+    }) : [];
+    if (!matches.length) { dropdown.classList.remove('show'); return; }
+    highlightIdx = -1;
+    dropdown.innerHTML = matches.map((c, i) =>
+      `<div class="autocomplete-item" data-index="${i}" data-email="${c.email.replace(/"/g,'&quot;')}">
+        <span class="autocomplete-item-name">${c.name ? c.name.replace(/</g,'&lt;') : c.email.replace(/</g,'&lt;')}</span>
+        ${c.name ? `<span class="autocomplete-item-email">${c.email.replace(/</g,'&lt;')}</span>` : ''}
+      </div>`
+    ).join('');
+    dropdown.classList.add('show');
+    dropdown.querySelectorAll('.autocomplete-item').forEach(el => {
+      el.addEventListener('mousedown', (e) => {
+        e.preventDefault();
+        const email = el.dataset.email;
+        if (email && !chips.includes(email)) {
+          chips.push(email);
+          render();
+          const inp = container.querySelector('.chip-input');
+          if (inp) { inp.focus(); inp.value = ''; }
+          if (dropdown) dropdown.classList.remove('show');
+        }
+      });
+    });
+  }
+
+  function highlightNext() {
+    if (!dropdown || !dropdown.classList.contains('show')) return;
+    const items = dropdown.querySelectorAll('.autocomplete-item');
+    if (!items.length) return;
+    if (highlightIdx >= 0) items[highlightIdx].classList.remove('highlighted');
+    highlightIdx = (highlightIdx + 1) % items.length;
+    items[highlightIdx].classList.add('highlighted');
+    items[highlightIdx].scrollIntoView({ block: 'nearest' });
+  }
+
+  function highlightPrev() {
+    if (!dropdown || !dropdown.classList.contains('show')) return;
+    const items = dropdown.querySelectorAll('.autocomplete-item');
+    if (!items.length) return;
+    if (highlightIdx >= 0) items[highlightIdx].classList.remove('highlighted');
+    highlightIdx = (highlightIdx - 1 + items.length) % items.length;
+    items[highlightIdx].classList.add('highlighted');
+    items[highlightIdx].scrollIntoView({ block: 'nearest' });
+  }
+
+  function selectHighlighted() {
+    if (!dropdown || !dropdown.classList.contains('show')) return;
+    const items = dropdown.querySelectorAll('.autocomplete-item');
+    if (highlightIdx >= 0 && highlightIdx < items.length) {
+      const email = items[highlightIdx].dataset.email;
+      if (email && !chips.includes(email)) {
+        chips.push(email);
+        render();
+        const inp = container.querySelector('.chip-input');
+        if (inp) { inp.focus(); inp.value = ''; }
+        if (dropdown) dropdown.classList.remove('show');
+      }
+    }
+  }
+
   function bindInput(input) {
+    input.addEventListener('input', () => showDropdown(input.value));
     input.addEventListener('keydown', (e) => {
       if (e.key === 'Enter' || e.key === ',') {
         e.preventDefault();
-        addFromInput(input);
+        if (dropdown && dropdown.classList.contains('show')) {
+          selectHighlighted();
+        } else {
+          addFromInput(input);
+        }
+      } else if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        highlightNext();
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        highlightPrev();
+      } else if (e.key === 'Tab') {
+        if (dropdown && dropdown.classList.contains('show')) {
+          selectHighlighted();
+          e.preventDefault();
+        }
+      } else if (e.key === 'Escape') {
+        if (dropdown) dropdown.classList.remove('show');
       } else if (e.key === 'Backspace' && input.selectionStart === 0 && chips.length) {
         chips.pop();
         render();
       }
     });
-    input.addEventListener('blur', () => addFromInput(input));
+    input.addEventListener('blur', () => {
+      setTimeout(() => { if (dropdown) dropdown.classList.remove('show'); }, 200);
+      addFromInput(input);
+    });
     input.addEventListener('paste', () => setTimeout(() => addFromInput(input), 0));
+    input.addEventListener('focus', () => {
+      if (input.value.trim()) showDropdown(input.value);
+    });
   }
 
   function bindRemoves() {
@@ -1758,6 +1934,7 @@ function initChipInput(containerId, placeholder = 'add recipient') {
   render();
 }
 window.SYNTHRUN_INIT_CHIP_INPUT = initChipInput;
+window.SYNTHRUN_ADD_CONTACTS = addContacts;
 
 function flushChipInputs() {
   ['toChips', 'ccChips', 'bccChips'].forEach((id) => {

@@ -133,18 +133,20 @@ select.form-input{appearance:none;background-image:url("data:image/svg+xml,%3Csv
 @media(max-width:640px){.sidebar{width:auto;border-right:none;border-bottom:1px solid var(--rule);padding:0.5rem 0;display:flex;gap:0;overflow-x:auto}.sidebar .sidebar-label{display:none}.sidebar .side-link{border-right:none;border-bottom:2px solid transparent;white-space:nowrap;padding:0.5rem 0.75rem}.sidebar .side-link.active{border-right:none;border-bottom-color:var(--ink)}.layout{flex-direction:column}main.content{padding:1.25rem}.date-range{flex-direction:column;align-items:stretch}.date-range .sep{text-align:center}.rule-create{flex-direction:column;align-items:stretch}}
 
 /* ── Skeleton ── */
-.skeleton-overlay{position:fixed;inset:0;z-index:200;background:var(--white);display:flex;flex-direction:column;transition:opacity 0.4s ease,visibility 0.4s ease}
+.skeleton-overlay{position:fixed;inset:0;z-index:200;background:var(--white);display:flex;flex-direction:column;transition:opacity 0.4s ease,visibility 0.4s ease;animation:skFadeIn 0.3s ease}
 .skeleton-overlay.hidden{opacity:0;visibility:hidden;pointer-events:none}
-@keyframes shimmer{0%{background-position:-400px 0}100%{background-position:400px 0}}
-.sk{background:linear-gradient(90deg,var(--rule) 25%,var(--white) 50%,var(--rule) 75%);background-size:800px 100%;animation:shimmer 1.8s ease-in-out infinite;border-radius:2px}
-.sk-nav{height:56px;border-bottom:1px solid var(--line);display:flex;align-items:center;padding:0 16px;gap:12px}
+@keyframes skFadeIn{from{opacity:0}to{opacity:1}}
+@keyframes shimmer{0%{background-position:-600px 0}100%{background-position:600px 0}}
+.sk{background:linear-gradient(90deg,var(--rule) 25%,var(--white) 50%,var(--rule) 75%);background-size:1200px 100%;animation:shimmer 2s ease-in-out infinite;border-radius:2px;position:relative;overflow:hidden}
+.sk::after{content:'';position:absolute;inset:0;background:linear-gradient(90deg,transparent,rgba(255,255,255,0.06),transparent);animation:shimmer 2s ease-in-out infinite}
+.sk-nav{height:56px;border-bottom:1px solid var(--line);display:flex;align-items:center;padding:0 16px;gap:12px;animation:skFadeIn 0.2s ease both}
 .sk-nav .sk{height:11px;width:80px}
 .sk-nav .sk:last-child{margin-left:auto;width:60px;height:26px}
 .sk-body{flex:1;display:grid;grid-template-columns:180px 1fr;min-height:0}
-.sk-sidebar{border-right:1px solid var(--rule);padding:1rem;display:flex;flex-direction:column;gap:8px}
+.sk-sidebar{border-right:1px solid var(--rule);padding:1rem;display:flex;flex-direction:column;gap:8px;animation:skFadeIn 0.3s ease 0.05s both}
 .sk-sidebar .sk{height:10px}
 .sk-sidebar .sk:first-child{width:60%;height:12px}
-.sk-main{padding:2rem;display:flex;flex-direction:column;gap:16px;max-width:640px}
+.sk-main{padding:2rem;display:flex;flex-direction:column;gap:16px;max-width:640px;animation:skFadeIn 0.3s ease 0.08s both}
 .sk-main .sk{height:10px}
 .sk-main .sk:first-child{width:160px;height:22px}
 .sk-main .sk:nth-child(2){width:100%;height:1px}

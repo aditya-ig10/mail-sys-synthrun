@@ -536,6 +536,24 @@ async function loadMessages() {
       .map((entry) => ({ id: entry.id, ...entry.data() }))
       .sort((left, right) => toMillis(right.receivedAt) - toMillis(left.receivedAt));
     messageMap = new Map(allMessages.map(m => [m.id, m]));
+    // Build contact index from loaded messages
+    const contacts = [];
+    for (const m of allMessages) {
+      if (m.from && !contacts.some(c => c.email === m.from.toLowerCase())) {
+        contacts.push({ email: m.from.toLowerCase(), name: m.fromName || '' });
+      }
+      if (m.senderEmail && !contacts.some(c => c.email === m.senderEmail.toLowerCase())) {
+        contacts.push({ email: m.senderEmail.toLowerCase(), name: m.fromName || '' });
+      }
+      if (m.to) {
+        for (const addr of m.to.split(',').map(s => s.trim().toLowerCase()).filter(Boolean)) {
+          if (!contacts.some(c => c.email === addr)) {
+            contacts.push({ email: addr, name: '' });
+          }
+        }
+      }
+    }
+    window.SYNTHRUN_ADD_CONTACTS?.(contacts);
     window.SYNTHRUN_UPDATE_LOADING?.(4);
     renderList();
   } catch (error) {
@@ -828,7 +846,7 @@ function renderList() {
       <div class="thread-body">
         <div class="thread-from">${escapeHtml(senderLabel)}</div>
         <div class="thread-subject">${escapeHtml(message.subject || '(no subject)')}</div>
-        <div class="thread-preview">${escapeHtml(cleanPreviewText(stripMarkdown(message.body || '')).slice(0, 80))}</div>
+        <div class="thread-preview">${escapeHtml(cleanPreviewText(stripMarkdown(fixEncoding(message.body || ''))).slice(0, 80))}</div>
         ${message.folder === 'outbox' ? `<div class="thread-tags"><span class="thread-tag ${message.status === 'failed' ? 'tag-error' : message.status === 'sending' ? 'tag-pending' : ''}">${message.status === 'sending' ? 'Sending...' : message.status === 'failed' ? 'Failed' : 'Pending'}</span></div>` : ''}
         ${attachmentCount ? `<div class="thread-tags"><span class="thread-tag">📎 ${attachmentCount} attachment${attachmentCount === 1 ? '' : 's'}</span></div>` : ''}
         ${Array.isArray(message.labels) && message.labels.length ? `<div class="thread-tags">${message.labels.map((label) => `<span class="thread-tag">${escapeHtml(label)}</span>`).join('')}</div>` : ''}
@@ -1023,8 +1041,8 @@ async function openMessage(id, { updateRoute = true, replaceRoute = false } = {}
       </div>`
     : '';
 
-  const bodyText = isProbablyBinary(message.body) ? '' : (message.body || '');
-  const htmlBodyText = isProbablyBinary(message.htmlBody) ? '' : (message.htmlBody || '');
+  const bodyText = isProbablyBinary(message.body) ? '' : fixEncoding(message.body || '');
+  const htmlBodyText = isProbablyBinary(message.htmlBody) ? '' : fixEncoding(message.htmlBody || '');
 
   let bodyHtml = '';
   let isBodyHtml = false;
@@ -1068,7 +1086,7 @@ async function openMessage(id, { updateRoute = true, replaceRoute = false } = {}
     const host = document.getElementById('mailBodyContent');
     if (host && !host.shadowRoot) {
       const root = host.attachShadow({ mode: 'open' });
-      root.innerHTML = `<style>:host{all:initial;display:block;}</style><div>${bodyHtml}</div>`;
+      root.innerHTML = `<style>:host{all:initial;display:block;overflow-wrap:break-word;word-break:break-word;line-height:1.7;font-size:14px;color:#222;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif}:host img{max-width:100%;height:auto}:host a{color:#111}:host table{max-width:100%!important}:host td{word-break:break-word}:host blockquote{border-left:2px solid #ddd;margin:1em 0;padding:0 1em;color:#666}</style><div>${bodyHtml}</div>`;
     }
   }
 
@@ -1663,6 +1681,7 @@ async function sendMessage() {
     if (msg) { msg.folder = 'sent'; msg.status = 'sent'; }
     renderList();
     showToast('Message sent.');
+    window.SYNTHRUN_ADD_CONTACTS?.([to, cc, bcc].filter(Boolean).flatMap(s => s.split(',').map(a => ({ email: a.trim(), name: '' }))));
   } catch (error) {
     console.error('sendMessage:', error);
     setComposeStatus('');
@@ -1770,6 +1789,42 @@ function cleanPreviewText(text) {
     .trim();
 }
 
+function fixEncoding(text) {
+  let s = String(text);
+  // Fix common UTF-8 double-encoding artifacts (Latin-1 → UTF-8 misinterpretation)
+  s = s.replace(/\u00c3\u00a9/g, '\u00e9'); // é
+  s = s.replace(/\u00c3\u00a8/g, '\u00e8'); // è
+  s = s.replace(/\u00c3\u00aa/g, '\u00ea'); // ê
+  s = s.replace(/\u00c3\u00ab/g, '\u00eb'); // ë
+  s = s.replace(/\u00c3\u00a0/g, '\u00e0'); // à
+  s = s.replace(/\u00c3\u00a2/g, '\u00e2'); // â
+  s = s.replace(/\u00c3\u00a4/g, '\u00e4'); // ä
+  s = s.replace(/\u00c3\u00a1/g, '\u00e1'); // á
+  s = s.replace(/\u00c3\u00a3/g, '\u00e3'); // ã
+  s = s.replace(/\u00c3\u00a5/g, '\u00e5'); // å
+  s = s.replace(/\u00c3\u00a7/g, '\u00e7'); // ç
+  s = s.replace(/\u00c3\u00b1/g, '\u00f1'); // ñ
+  s = s.replace(/\u00c3\u00b3/g, '\u00f3'); // ó
+  s = s.replace(/\u00c3\u00b6/g, '\u00f6'); // ö
+  s = s.replace(/\u00c3\u00ba/g, '\u00fa'); // ú
+  s = s.replace(/\u00c3\u00bc/g, '\u00fc'); // ü
+  s = s.replace(/\u00c3\u0089/g, '\u00c9'); // É
+  s = s.replace(/\u00c3\u0081/g, '\u00c1'); // Á
+  s = s.replace(/\u00c3\u0093/g, '\u00d3'); // Ó
+  s = s.replace(/\u00c3\u009a/g, '\u00da'); // Ú
+  s = s.replace(/\u00c3\u0091/g, '\u00d1'); // Ñ
+  // Fix smart quotes and dashes
+  s = s.replace(/\u2019/g, "'");
+  s = s.replace(/\u2018/g, "'");
+  s = s.replace(/\u201c/g, '"');
+  s = s.replace(/\u201d/g, '"');
+  s = s.replace(/\u2013/g, '-');
+  s = s.replace(/\u2014/g, '--');
+  // Fix remaining control chars
+  s = s.replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/g, '');
+  return s;
+}
+
 function stripMarkdown(text) {
   return String(text)
     .replace(/\*\*(.+?)\*\*/g, '$1')
@@ -1788,13 +1843,15 @@ function stripMarkdown(text) {
 function isProbablyBinary(text) {
   if (!text) return false;
   const str = String(text);
+  let nullCount = 0;
   let c1Count = 0;
   for (let i = 0; i < str.length; i++) {
     const code = str.charCodeAt(i);
-    if (code === 0x00) return true;
+    if (code === 0x00) nullCount++;
     if (code >= 0x80 && code <= 0x9F) c1Count++;
   }
-  return str.length > 0 && c1Count / str.length > 0.3;
+  if (nullCount > 0 && nullCount / str.length > 0.05) return true;
+  return str.length > 0 && c1Count / str.length > 0.5;
 }
 
 function hasHtmlTags(text) {
