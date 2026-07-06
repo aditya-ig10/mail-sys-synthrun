@@ -563,55 +563,67 @@ function htmlEscape(value) {
 }
 
 function wrapHtmlEmail(bodyHtml, { fromName, subject, to, userEmail }) {
-  const date = new Date().toLocaleString('en-US', { dateStyle: 'long', timeStyle: 'short' });
-  return `<!DOCTYPE html>
-<html>
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
-<body style="margin:0;padding:0;background:#f5f5f5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
-<table width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#f5f5f5;padding:32px 12px;">
-<tr><td align="center">
-<table width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:600px;background:#ffffff;border:1px solid #e0e0e0;border-radius:8px;overflow:hidden;">
-<tr><td style="padding:0;">
-<table width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#111110;height:48px;">
-<tr><td style="padding:0 28px;vertical-align:middle;">
-<span style="font-size:11px;letter-spacing:0.12em;text-transform:uppercase;color:#fafaf8;font-weight:500;">Synthrun Mail</span>
-</td></tr>
-</table>
-</td></tr>
-<tr><td style="padding:28px 28px 8px;">
-<table width="100%" cellpadding="0" cellspacing="0" border="0">
-<tr>
-<td style="font-size:12px;color:#888884;letter-spacing:0.04em;padding-bottom:4px;">From: ${htmlEscape(fromName)}</td>
-</tr>
-<tr>
-<td style="font-size:12px;color:#888884;letter-spacing:0.04em;padding-bottom:4px;">To: ${htmlEscape(to)}</td>
-</tr>
-<tr>
-<td style="font-size:12px;color:#888884;letter-spacing:0.04em;padding-bottom:4px;">Date: ${htmlEscape(date)}</td>
-</tr>
-<tr>
-<td style="font-size:12px;color:#888884;letter-spacing:0.04em;">Subject: ${htmlEscape(subject)}</td>
-</tr>
-</table>
-</td></tr>
-<tr><td style="border-top:1px solid #e8e8e6;margin:0 28px;height:0;"></td></tr>
-<tr><td style="padding:24px 28px 28px;font-size:15px;line-height:1.7;color:#222220;">
-${bodyHtml}
-</td></tr>
-<tr><td style="border-top:1px solid #e8e8e6;height:0;"></td></tr>
-<tr><td style="padding:16px 28px;">
-<table width="100%" cellpadding="0" cellspacing="0" border="0">
-<tr>
-<td style="font-size:10px;letter-spacing:0.08em;text-transform:uppercase;color:#aaa;--darkreader-inline-color:#a09e9d;">Synthrun Mail</td>
-<td style="text-align:right;font-size:10px;letter-spacing:0.06em;color:#ccc;">${htmlEscape(userEmail)}</td>
-</tr>
-</table>
-</td></tr>
-</table>
-</td></tr>
-</table>
-</body>
-</html>`;
+  const esc = (s) => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  return `<div style="background:#f2f1ee;padding:32px 12px;font-family:'Courier New',Courier,monospace;">
+  <div style="max-width:560px;margin:0 auto;background:#fafaf8;border:1px solid #e0dfd9;">
+    <table width="100%" cellpadding="0" cellspacing="0" border="0">
+      <tr>
+        <td style="background:#111110;padding:0 28px;height:48px;">
+          <table width="100%" cellpadding="0" cellspacing="0">
+            <tr>
+              <td style="vertical-align:middle;">
+                <span style="font-family:'Courier New',monospace;font-size:10px;letter-spacing:0.18em;text-transform:uppercase;color:#fafaf8;font-weight:400;">Synthrun</span>
+              </td>
+              <td style="vertical-align:middle;text-align:right;"></td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+    <table width="100%" cellpadding="0" cellspacing="0" border="0">
+      <tr>
+        <td style="padding:10px 28px;border-bottom:1px solid #e0dfd9;">
+          <table width="100%" cellpadding="0" cellspacing="0">
+            <tr>
+              <td><span style="font-family:'Courier New',monospace;font-size:8px;letter-spacing:0.12em;text-transform:uppercase;color:#888884;">&#9679; ${esc(subject)}</span></td>
+              <td style="text-align:right;"><span style="font-family:'Courier New',monospace;font-size:8px;letter-spacing:0.1em;text-transform:uppercase;color:#888884;">${esc(fromName)} &rarr; ${esc(to)}</span></td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+    <table width="100%" cellpadding="0" cellspacing="0" border="0">
+      <tr>
+        <td style="padding:36px 28px 28px;">
+          ${bodyHtml}
+          <div style="border-top:1px solid #e0dfd9;margin-top:24px;padding-top:20px;">
+            <span style="font-family:'Courier New',monospace;font-size:8px;letter-spacing:0.14em;text-transform:uppercase;color:#888884;display:block;margin-bottom:12px;">Sent via Synthrun</span>
+          </div>
+        </td>
+      </tr>
+    </table>
+    <table width="100%" cellpadding="0" cellspacing="0" border="0">
+      <tr>
+        <td style="padding:0 28px 24px;">
+          <a href="https://synthrun.site" style="display:inline-block;background:#111110;color:#fafaf8;text-decoration:none;font-family:'Courier New',monospace;font-size:9px;letter-spacing:0.12em;text-transform:uppercase;padding:11px 20px;">Visit Synthrun &rarr;</a>
+          <div style="margin-top:10px;font-family:'Courier New',monospace;font-size:9px;color:#888884;">Reply to <a href="mailto:${esc(userEmail)}" style="color:#888884;">${esc(userEmail)}</a></div>
+        </td>
+      </tr>
+    </table>
+    <table width="100%" cellpadding="0" cellspacing="0" border="0">
+      <tr>
+        <td style="padding:12px 28px;">
+          <table width="100%" cellpadding="0" cellspacing="0">
+            <tr>
+              <td><span style="font-family:'Courier New',monospace;font-size:8px;letter-spacing:0.14em;text-transform:uppercase;color:#888884;">Synthrun</span></td>
+              <td style="text-align:right;"><span style="font-family:'Courier New',monospace;font-size:7px;letter-spacing:0.07em;text-transform:uppercase;color:#c4c4be;">&copy; 2026 Synthrun</span></td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </div>
+</div>`;
 }
 
 function htmlToText(value) {
