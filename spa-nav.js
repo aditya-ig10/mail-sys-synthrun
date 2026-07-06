@@ -95,7 +95,7 @@ function initUserChip() {
   if (!chip || chip.dataset.spaInit) return;
   chip.dataset.spaInit = '1';
   chip.addEventListener('click', (e) => {
-    e.stopPropagation();
+    if (e.target.closest('[data-spa-link]')) return;
     const menu = document.getElementById('userMenu');
     if (!menu) return;
     const open = !menu.classList.contains('show');

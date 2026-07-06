@@ -35,7 +35,7 @@ header{height:var(--header-h);display:grid;grid-template-columns:220px 1fr auto;
 .icon-btn svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:1.6}
 .user-chip{position:relative;display:flex;align-items:center;gap:9px;border:1px solid var(--line);padding:5px 10px;min-width:160px;max-width:200px;background:var(--panel-strong);cursor:pointer;user-select:none;transition:background var(--transition)}
 .user-chip:hover{background:rgba(0,0,0,.03)}
-.user-avatar{width:26px;height:26px;display:grid;place-items:center;border-radius:50%;background:var(--accent);color:var(--accent-contrast);font-size:10px;letter-spacing:.06em;flex-shrink:0;line-height:1}
+.user-avatar{width:26px;height:26px;display:grid;place-items:center;border-radius:50%;overflow:hidden;background:var(--accent);color:var(--accent-contrast);font-size:10px;letter-spacing:.06em;flex-shrink:0;line-height:1}
 .user-chip-email{font-size:11px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .user-chip-caret{width:12px;height:12px;stroke:var(--subtle);fill:none;stroke-width:1.6;flex-shrink:0;transition:transform var(--transition)}
 .user-chip[aria-expanded="true"] .user-chip-caret{transform:rotate(180deg)}
@@ -357,7 +357,6 @@ select.form-input{appearance:none;background-image:url("data:image/svg+xml,%3Csv
     </section>
 
   </main>
-</div>
 </div>
 
 <script type="module">
@@ -820,5 +819,6 @@ document.querySelectorAll('.section').forEach(s => observer.observe(s));
 </script>
 
 <script src="/spa-nav.js"></script>
+</div>
 </body>
 </html>
