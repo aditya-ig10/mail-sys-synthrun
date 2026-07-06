@@ -104,15 +104,6 @@ async function fetchSettingsFromFirebase(uid) {
       const s = snap.data();
       saveCachedSettings(s);
       applySettings(s);
-      if (s.photoURL) {
-        const avatar = document.getElementById('userAvatar');
-        if (avatar) {
-          avatar.innerHTML = `<img src="${s.photoURL}" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`;
-        }
-        if (window.SYNTHRUN_PROFILE_DATA) {
-          window.SYNTHRUN_PROFILE_DATA.photoURL = s.photoURL;
-        }
-      }
     }
   } catch { /* ignore */ }
 }

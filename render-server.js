@@ -205,6 +205,83 @@ function sendJson(res, status, body) {
   res.status(status).json(body);
 }
 
+function buildAutoReplyHtml(message) {
+  const esc = (s) => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  return `<div style="background:#f2f1ee;padding:32px 12px;font-family:'Courier New',Courier,monospace;">
+  <div style="max-width:560px;margin:0 auto;background:#fafaf8;border:1px solid #e0dfd9;">
+    <table width="100%" cellpadding="0" cellspacing="0" border="0">
+      <tr>
+        <td style="background:#111110;padding:0 28px;height:48px;">
+          <table width="100%" cellpadding="0" cellspacing="0">
+            <tr>
+              <td style="vertical-align:middle;">
+                <span style="font-family:'Courier New',monospace;font-size:10px;letter-spacing:0.18em;text-transform:uppercase;color:#fafaf8;font-weight:400;">Synthrun</span>
+              </td>
+              <td style="vertical-align:middle;text-align:right;"></td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+    <table width="100%" cellpadding="0" cellspacing="0" border="0">
+      <tr>
+        <td style="padding:10px 28px;border-bottom:1px solid #e0dfd9;">
+          <table width="100%" cellpadding="0" cellspacing="0">
+            <tr>
+              <td><span style="font-family:'Courier New',monospace;font-size:8px;letter-spacing:0.12em;text-transform:uppercase;color:#888884;">&#9679; Message received</span></td>
+              <td style="text-align:right;"><span style="font-family:'Courier New',monospace;font-size:8px;letter-spacing:0.1em;text-transform:uppercase;color:#888884;">Response within 24 hrs</span></td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+    <table width="100%" cellpadding="0" cellspacing="0" border="0">
+      <tr>
+        <td style="padding:36px 28px 28px;">
+          <div style="font-family:Georgia,'Times New Roman',serif;font-size:26px;font-weight:400;font-style:italic;color:#111110;line-height:1.15;letter-spacing:-0.02em;margin-bottom:20px;">
+            <span style="font-style:normal;">Got it.</span><br><em>We'll be in touch.</em>
+          </div>
+          <p style="font-family:'Courier New',monospace;font-size:11px;line-height:1.85;color:#3a3a38;margin-bottom:14px;">${esc(message)}</p>
+          <p style="font-family:'Courier New',monospace;font-size:11px;line-height:1.85;color:#3a3a38;margin-bottom:0;">In the meantime, feel free to look around at what we've shipped at <a href="https://synthrun.site" style="color:#111110;">synthrun.site</a> &mdash; services, process, and the stack we work with.</p>
+          <div style="border-top:1px solid #e0dfd9;margin-top:24px;padding-top:20px;">
+            <span style="font-family:'Courier New',monospace;font-size:8px;letter-spacing:0.14em;text-transform:uppercase;color:#888884;display:block;margin-bottom:12px;">What happens next</span>
+            <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:8px;">
+              <tr><td style="font-family:'Courier New',monospace;font-size:8px;color:#c4c4be;vertical-align:top;padding-top:2px;width:26px;">01</td><td style="font-family:'Courier New',monospace;font-size:10px;color:#3a3a38;line-height:1.7;">We read your message carefully &mdash; not a template response.</td></tr>
+            </table>
+            <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:8px;">
+              <tr><td style="font-family:'Courier New',monospace;font-size:8px;color:#c4c4be;vertical-align:top;padding-top:2px;width:26px;">02</td><td style="font-family:'Courier New',monospace;font-size:10px;color:#3a3a38;line-height:1.7;">We'll reply with relevant questions or a proposed next step.</td></tr>
+            </table>
+            <table width="100%" cellpadding="0" cellspacing="0">
+              <tr><td style="font-family:'Courier New',monospace;font-size:8px;color:#c4c4be;vertical-align:top;padding-top:2px;width:26px;">03</td><td style="font-family:'Courier New',monospace;font-size:10px;color:#3a3a38;line-height:1.7;">If it's a fit, we scope the project &mdash; no retainers before we've earned them.</td></tr>
+            </table>
+          </div>
+        </td>
+      </tr>
+    </table>
+    <table width="100%" cellpadding="0" cellspacing="0" border="0">
+      <tr>
+        <td style="padding:0 28px 24px;">
+          <a href="https://synthrun.site" style="display:inline-block;background:#111110;color:#fafaf8;text-decoration:none;font-family:'Courier New',monospace;font-size:9px;letter-spacing:0.12em;text-transform:uppercase;padding:11px 20px;">Visit Synthrun &rarr;</a>
+          <div style="margin-top:10px;font-family:'Courier New',monospace;font-size:9px;color:#888884;">Or reply to <a href="mailto:hello@synthrun.site" style="color:#888884;">hello@synthrun.site</a></div>
+        </td>
+      </tr>
+    </table>
+    <table width="100%" cellpadding="0" cellspacing="0" border="0">
+      <tr>
+        <td style="padding:12px 28px;">
+          <table width="100%" cellpadding="0" cellspacing="0">
+            <tr>
+              <td><span style="font-family:'Courier New',monospace;font-size:8px;letter-spacing:0.14em;text-transform:uppercase;color:#888884;">Synthrun</span></td>
+              <td style="text-align:right;"><span style="font-family:'Courier New',monospace;font-size:7px;letter-spacing:0.07em;text-transform:uppercase;color:#c4c4be;">&copy; 2026 Synthrun &middot; India &middot; US &amp; UK</span></td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </div>
+</div>`;
+}
+
 async function sendAutoReplies({ fromEmail, fromName, subject, text, html, recipients }) {
   const db = admin.firestore();
   const autoReplyCutoff = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000); // 7 days
@@ -235,6 +312,7 @@ async function sendAutoReplies({ fromEmail, fromName, subject, text, html, recip
       // Send the auto-reply
       const replySubject = ar.subject || `Re: ${subject || ''}`;
       const replyText = `${ar.message}\n\n---\nOn ${new Date().toLocaleString('en-US', { dateStyle: 'long', timeStyle: 'short' })}, ${fromName || fromEmail} wrote:\n\n${text || '(no text)'}`;
+      const replyHtml = buildAutoReplyHtml(ar.message);
 
       const brevoApiKey = getBrevoApiKey();
       const senderAddress = recipientEmail;
@@ -248,6 +326,7 @@ async function sendAutoReplies({ fromEmail, fromName, subject, text, html, recip
           to: fromEmail,
           subject: replySubject,
           text: replyText,
+          htmlContent: replyHtml,
         });
       } else {
         const transporter = createTransport();
@@ -257,6 +336,7 @@ async function sendAutoReplies({ fromEmail, fromName, subject, text, html, recip
           to: fromEmail,
           subject: replySubject,
           text: replyText,
+          html: replyHtml,
         });
       }
 

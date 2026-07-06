@@ -128,23 +128,11 @@ main.content {
 }
 .card-left { display: flex; align-items: center; gap: 1rem; flex: 1; }
 .card-avatar {
-  width: 60px; height: 60px; border-radius: 50%;
+  width: 40px; height: 40px; border-radius: 50%;
   display: grid; place-items: center;
   background: var(--ink); color: var(--white);
-  font-size: 1rem; letter-spacing: 0.08em; flex-shrink: 0;
-  overflow: hidden; cursor: pointer; position: relative;
-  transition: opacity 0.2s;
+  font-size: 0.75rem; letter-spacing: 0.08em; flex-shrink: 0;
 }
-.card-avatar:hover { opacity: 0.85; }
-.card-avatar img { width: 100%; height: 100%; object-fit: cover; }
-.card-avatar-overlay {
-  position: absolute; inset: 0; border-radius: 50%;
-  display: grid; place-items: center;
-  background: rgba(0,0,0,0.4); color: #fff;
-  font-size: 0.5rem; letter-spacing: 0.08em; text-transform: uppercase;
-  opacity: 0; transition: opacity 0.25s;
-}
-.card-avatar:hover .card-avatar-overlay { opacity: 1; }
 .card-info { flex: 1; }
 .card-label {
   font-size: 0.58rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink3); margin-bottom: 0.15rem;
@@ -450,11 +438,7 @@ header{height:var(--header-h);display:grid;grid-template-columns:220px 1fr auto;
       <div class="card">
         <div class="card-pad card-row">
           <div class="card-left">
-            <div class="card-avatar" id="settingsAvatar" title="Click to change photo">
-              <span id="settingsAvatarInitials">??</span>
-              <div class="card-avatar-overlay">Change</div>
-              <input type="file" id="photoInput" accept="image/*" style="display:none">
-            </div>
+            <div class="card-avatar" id="settingsAvatar">??</div>
             <div class="card-info">
               <div class="card-label">Account</div>
               <div class="card-value" id="settingsName">Loading...</div>
@@ -812,7 +796,7 @@ header{height:var(--header-h);display:grid;grid-template-columns:220px 1fr auto;
     addDoc,
     serverTimestamp,
   } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
-  // Photo upload uses POST /upload (Telegram proxy) — no direct Firebase Storage needed
+
 
   const LOGIN_URL = AUTH_BASE ? '/' + AUTH_BASE + '/login' : '/login/';
   let app;
@@ -1338,7 +1322,7 @@ header{height:var(--header-h);display:grid;grid-template-columns:220px 1fr auto;
     const name = formatName(user.email);
     const initials = getInitials(user.email);
     document.title = `${name} — Synthrun Settings`;
-    document.getElementById('settingsAvatarInitials').textContent = initials;
+    document.getElementById('settingsAvatar').textContent = initials;
     document.getElementById('settingsName').textContent = name;
     document.getElementById('settingsEmail').textContent = user.email;
     document.getElementById('settingsJoined').textContent = user.metadata?.creationTime
@@ -1365,16 +1349,6 @@ header{height:var(--header-h);display:grid;grid-template-columns:220px 1fr auto;
       await setDoc(settingsRef, { ...settings, createdAt: serverTimestamp(), updatedAt: serverTimestamp() });
     } else {
       settings = settingsSnap.data();
-    }
-
-    // Load photo if exists
-    if (settings.photoURL) {
-      const avatarEl = document.getElementById('settingsAvatar');
-      avatarEl.innerHTML = `<img src="${settings.photoURL}" alt="${initials}" id="settingsAvatarImg">`;
-      const headerAvatar = document.getElementById('userAvatar');
-      if (headerAvatar) {
-        headerAvatar.innerHTML = `<img src="${settings.photoURL}" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`;
-      }
     }
 
     await Promise.all([
@@ -1555,41 +1529,6 @@ header{height:var(--header-h);display:grid;grid-template-columns:220px 1fr auto;
     if (!pw) { showToast('Enter your password.', true); return; }
     reauth(pw);
   });
-
-  // ─── PHOTO UPLOAD (via Telegram proxy) ──────────────────
-  const photoInput = document.getElementById('photoInput');
-  const settingsAvatar = document.getElementById('settingsAvatar');
-  if (photoInput && settingsAvatar) {
-    settingsAvatar.addEventListener('click', () => photoInput.click());
-    photoInput.addEventListener('change', async () => {
-      const file = photoInput.files?.[0];
-      if (!file || !currentUser) return;
-      try {
-        const token = await currentUser.getIdToken();
-        const toBase64 = (f) => new Promise((resolve, reject) => {
-          const r = new FileReader();
-          r.onload = () => resolve(r.result.split(',')[1]);
-          r.onerror = reject;
-          r.readAsDataURL(f);
-        });
-        const base64 = await toBase64(file);
-        const resp = await fetch('/upload', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-          body: JSON.stringify({ name: 'profile', type: file.type, size: file.size, data: base64 }),
-        });
-        if (!resp.ok) throw new Error((await resp.json()).error || 'Upload failed');
-        const { url } = await resp.json();
-        await updateDoc(doc(db, 'user_settings', currentUser.uid), { photoURL: url, updatedAt: serverTimestamp() });
-        settingsAvatar.innerHTML = `<img src="${url}" alt="" id="settingsAvatarImg">`;
-        document.getElementById('userAvatar').innerHTML = `<img src="${url}" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`;
-        showToast('Photo updated.');
-      } catch (err) {
-        showToast('Photo upload failed: ' + (err.message || ''), true);
-      }
-      photoInput.value = '';
-    });
-  }
 
   // Load labels for settings page (customize link)
   setTimeout(() => { 
