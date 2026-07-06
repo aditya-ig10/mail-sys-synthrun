@@ -563,6 +563,10 @@ function htmlEscape(value) {
 }
 
 function wrapHtmlEmail(bodyHtml, { fromName, subject, to, userEmail }) {
+  // If body is already a complete email (contains the outer wrapper), pass through
+  if (/background:#f2f1ee/.test(bodyHtml) && /max-width:560px/.test(bodyHtml)) {
+    return bodyHtml;
+  }
   const esc = (s) => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
   return `<div style="background:#f2f1ee;padding:32px 12px;font-family:'Courier New',Courier,monospace;">
   <div style="max-width:560px;margin:0 auto;background:#fafaf8;border:1px solid #e0dfd9;">
