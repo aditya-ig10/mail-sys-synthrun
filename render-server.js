@@ -609,14 +609,14 @@ app.post('/send', async (req, res) => {
       return sendJson(res, 403, { error: 'Sender not authorised' });
     }
 
-    const { to, cc, bcc, subject, body: text, htmlBody, attachments = [] } = req.body || {};
+    const { to, cc, bcc, subject, body: text, htmlBody, attachments = [], fromName: customFromName } = req.body || {};
     const fallbackText = String(text || '').trim() || htmlToText(htmlBody);
     if (!to || !subject || (!fallbackText && !htmlBody)) {
       return sendJson(res, 400, { error: 'Missing required fields: to, subject, body' });
     }
 
     const senderAddress = userEmail;
-    const fromName = formatFromName(userEmail);
+    const fromName = customFromName || formatFromName(userEmail);
 
     const recipients = [sanitizeEmail(to)];
     if (cc) recipients.push(sanitizeEmail(cc));

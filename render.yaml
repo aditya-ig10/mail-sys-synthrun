@@ -28,7 +28,7 @@ services:
       - key: FROM_NAME
         value: Synthrun Mail
       - key: FROM_NAME_TEMPLATE
-        value: "{name} from {email}"
+        value: "Synthrun Mail"
       - key: SENDER_ADDRESS
         sync: false
       - key: ALLOWED_ORIGIN
