@@ -11,12 +11,16 @@ private val navItems = listOf(
     "inbox" to Icons.Default.MailOutline,
     "unread" to Icons.Default.Email,
     "sent" to Icons.AutoMirrored.Filled.Send,
-    "flagged" to Icons.Default.Star,
-    "clients" to Icons.Default.Person
+    "outbox" to Icons.Default.Outbox,
+    "spam" to Icons.Default.Warning
 )
 
 @Composable
-fun MobileNav(currentFolder: String, onSelect: (String) -> Unit) {
+fun MobileNav(
+    currentFolder: String,
+    onSelect: (String) -> Unit,
+    inboxUnread: Int = 0
+) {
     NavigationBar {
         navItems.forEach { (folder, icon) ->
             NavigationBarItem(
@@ -24,10 +28,13 @@ fun MobileNav(currentFolder: String, onSelect: (String) -> Unit) {
                 onClick = { onSelect(folder) },
                 label = { Text(folder.replaceFirstChar { it.uppercase() }, style = MaterialTheme.typography.labelSmall) },
                 icon = {
-                    Icon(
-                        imageVector = icon,
-                        contentDescription = folder
-                    )
+                    BadgedBox(badge = {
+                        if (folder == "unread" && inboxUnread > 0) {
+                            Badge { Text("$inboxUnread") }
+                        }
+                    }) {
+                        Icon(imageVector = icon, contentDescription = folder)
+                    }
                 }
             )
         }
