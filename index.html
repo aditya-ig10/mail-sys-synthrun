@@ -1827,11 +1827,13 @@ function initChipInput(containerId, placeholder = 'add recipient') {
         const email = el.dataset.email;
         if (email && !chips.includes(email)) {
           chips.push(email);
-          render();
-          const inp = container.querySelector('.chip-input');
-          if (inp) { inp.focus(); inp.value = ''; }
-          if (dropdown) dropdown.classList.remove('show');
         }
+        const currentInput = container.querySelector('.chip-input');
+        if (currentInput) currentInput.value = '';
+        render();
+        const inp = container.querySelector('.chip-input');
+        if (inp) inp.focus();
+        if (dropdown) dropdown.classList.remove('show');
       });
     });
   }
@@ -1920,14 +1922,13 @@ function initChipInput(containerId, placeholder = 'add recipient') {
 
   function addFromInput(input) {
     const val = input.value.trim().replace(/[,;]+$/, '').trim();
-    if (val) {
-      const parsed = parseEmails(val);
-      for (const email of parsed) {
-        if (!chips.includes(email)) chips.push(email);
-      }
+    if (!val) return;
+    const parsed = parseEmails(val);
+    let changed = false;
+    for (const email of parsed) {
+      if (!chips.includes(email)) { chips.push(email); changed = true; }
     }
-    input.value = '';
-    render();
+    if (changed) render();
   }
 
   chips = parseEmails(hidden.value);
