@@ -142,12 +142,16 @@ async function sendViaBrevoApi({ senderAddress, fromName, userEmail, to, cc, bcc
     throw new Error('Missing BREVO_API_KEY');
   }
 
+  if (!Array.isArray(to) || !to.length) {
+    throw new Error('No valid recipient emails');
+  }
+
   const payload = {
     sender: {
       name: fromName,
       email: senderAddress,
     },
-    to: [{ email: sanitizeEmail(to) }],
+    to: to.map(email => ({ email })),
     subject: String(subject),
     textContent: String(text),
     htmlContent,
@@ -156,11 +160,11 @@ async function sendViaBrevoApi({ senderAddress, fromName, userEmail, to, cc, bcc
     },
   };
 
-  if (cc) {
-    payload.cc = [{ email: sanitizeEmail(cc) }];
+  if (Array.isArray(cc) && cc.length) {
+    payload.cc = cc.map(email => ({ email }));
   }
-  if (bcc) {
-    payload.bcc = [{ email: sanitizeEmail(bcc) }];
+  if (Array.isArray(bcc) && bcc.length) {
+    payload.bcc = bcc.map(email => ({ email }));
   }
 
   if (Array.isArray(attachments) && attachments.length) {
@@ -187,6 +191,7 @@ async function sendViaBrevoApi({ senderAddress, fromName, userEmail, to, cc, bcc
 
   const responseBody = await response.json().catch(() => ({}));
   if (!response.ok) {
+    console.error('[Brevo API error]', JSON.stringify({ status: response.status, body: responseBody }));
     throw new Error(responseBody.message || `Brevo API returned ${response.status}`);
   }
 
@@ -401,6 +406,29 @@ function sanitizeEmail(value) {
   return String(value || '').trim().toLowerCase();
 }
 
+function isValidEmail(value) {
+  if (!value || !value.includes('@')) return false;
+  const parts = value.split('@');
+  if (parts.length !== 2) return false;
+  const [local, domain] = parts;
+  if (!local || !domain) return false;
+  if (domain.includes('..')) return false;
+  if (local.length > 64 || domain.length > 255) return false;
+  return /^[a-z0-9.!#$%&'*+/=?^_`{|}~-]+$/.test(local) &&
+    /^(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)*[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/.test(domain);
+}
+
+function parseEmailList(value) {
+  return String(value || '')
+    .split(/[,;]/)
+    .map(s => {
+      const angle = s.trim().match(/<([^>]+)>/);
+      return (angle ? angle[1] : s).trim().toLowerCase();
+    })
+    .filter(Boolean)
+    .filter(isValidEmail);
+}
+
 function formatSenderName(email) {
   const localPart = String(email || '')
     .split('@')[0]
@@ -506,8 +534,8 @@ function isProbablySpam({ from, subject, text, htmlContent }) {
   return score >= 4;
 }
 
-async function storeMailboxMessages({ senderEmail, fromName, to, cc, bcc, subject, text, htmlContent, attachments, skipSpamCheck }) {
-  const recipients = [...new Set([to, cc, bcc].map(sanitizeEmail).filter(Boolean).filter(isInternalMailbox))];
+async function storeMailboxMessages({ senderEmail, fromName, to, cc, bcc, subject, text, htmlContent, attachments, skipSpamCheck, toList = [], ccList = [], bccList = [] }) {
+  const recipients = [...new Set([...toList, ...ccList, ...bccList].filter(Boolean).filter(isInternalMailbox))];
   if (!recipients.length) {
     return [];
   }
@@ -763,12 +791,18 @@ app.post('/send', async (req, res) => {
       return sendJson(res, 400, { error: 'Missing required fields: to, subject, body' });
     }
 
+    const toList = parseEmailList(to);
+    const ccList = parseEmailList(cc);
+    const bccList = parseEmailList(bcc);
+
+    if (!toList.length) {
+      return sendJson(res, 400, { error: 'No valid recipient emails in the To field' });
+    }
+
     const senderAddress = userEmail;
     const fromName = customFromName || formatFromName(userEmail);
 
-    const recipients = [sanitizeEmail(to)];
-    if (cc) recipients.push(sanitizeEmail(cc));
-    if (bcc) recipients.push(sanitizeEmail(bcc));
+    const recipients = [...toList, ...ccList, ...bccList];
     const rawHtml = htmlBody || htmlEscape(fallbackText);
     const htmlContent = wrapHtmlEmail(rawHtml, { fromName, subject, to, userEmail });
 
@@ -787,9 +821,9 @@ app.post('/send', async (req, res) => {
         senderAddress,
         fromName,
         userEmail,
-        to,
-        cc,
-        bcc,
+        to: toList,
+        cc: ccList,
+        bcc: bccList,
         subject,
         text: fallbackText,
         htmlContent,
@@ -800,9 +834,9 @@ app.post('/send', async (req, res) => {
       info = await transporter.sendMail({
         from: `"${fromName}" <${senderAddress}>`,
         replyTo: userEmail,
-        to: sanitizeEmail(to),
-        ...(cc ? { cc: sanitizeEmail(cc) } : {}),
-        ...(bcc ? { bcc: sanitizeEmail(bcc) } : {}),
+        to: toList.join(', '),
+        ...(ccList.length ? { cc: ccList.join(', ') } : {}),
+        ...(bccList.length ? { bcc: bccList.join(', ') } : {}),
         subject: String(subject),
         text: fallbackText,
         html: htmlContent,
@@ -824,6 +858,9 @@ app.post('/send', async (req, res) => {
       await storeMailboxMessages({
         senderEmail: senderAddress,
         fromName,
+        toList,
+        ccList,
+        bccList,
         to,
         cc,
         bcc,
@@ -1125,9 +1162,15 @@ app.post('/receive', async (req, res) => {
     //    This ensures the message shows up in inbox even if Telegram uploads are slow.
     const rawAttachments = Array.isArray(attachments) ? attachments : [];
     const parsedFrom = parseEmailAddress(from);
+    const toList = parseEmailList(to);
+    const ccList = parseEmailList(cc);
+    const bccList = parseEmailList(bcc);
     const docIds = await storeMailboxMessages({
       senderEmail: parsedFrom.email || sanitizeEmail(from),
       fromName: parsedFrom.name,
+      toList,
+      ccList,
+      bccList,
       to: sanitizeEmail(to),
       cc: cc ? sanitizeEmail(cc) : '',
       bcc: bcc ? sanitizeEmail(bcc) : '',
@@ -1143,7 +1186,7 @@ app.post('/receive', async (req, res) => {
 
     // 3. Auto-reply (background) — for internal recipients who have auto-reply enabled
     if (docIds.length) {
-      const allRecipients = [...new Set([to, cc, bcc].map(sanitizeEmail).filter(Boolean).filter(isInternalMailbox))];
+      const allRecipients = [...new Set([...toList, ...ccList, ...bccList].filter(Boolean).filter(isInternalMailbox))];
       if (allRecipients.length && parsedFrom.email) {
         sendAutoReplies({ fromEmail: parsedFrom.email, fromName: parsedFrom.name, subject, text: cleanText, html: cleanHtml, recipients: allRecipients }).catch((err) => {
           console.error('/receive: auto-reply error:', err);
