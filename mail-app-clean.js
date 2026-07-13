@@ -1599,6 +1599,7 @@ function themedEmailWrapper(bodyHtml) {
 }
 
 async function sendMessage() {
+  if (composeBusy) return;
   window.SYNTHRUN_FLUSH_CHIPS?.();
   const to = document.getElementById('compTo').value.trim();
   const cc = document.getElementById('compCc').value.trim();

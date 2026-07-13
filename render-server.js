@@ -146,12 +146,16 @@ async function sendViaBrevoApi({ senderAddress, fromName, userEmail, to, cc, bcc
     throw new Error('No valid recipient emails');
   }
 
+  const uniqueTo = [...new Set(to)];
+  const uniqueCc = cc && Array.isArray(cc) ? [...new Set(cc)] : [];
+  const uniqueBcc = bcc && Array.isArray(bcc) ? [...new Set(bcc)] : [];
+
   const payload = {
     sender: {
       name: fromName,
       email: senderAddress,
     },
-    to: to.map(email => ({ email })),
+    to: uniqueTo.map(email => ({ email })),
     subject: String(subject),
     textContent: String(text),
     htmlContent,
@@ -160,11 +164,11 @@ async function sendViaBrevoApi({ senderAddress, fromName, userEmail, to, cc, bcc
     },
   };
 
-  if (Array.isArray(cc) && cc.length) {
-    payload.cc = cc.map(email => ({ email }));
+  if (uniqueCc.length) {
+    payload.cc = uniqueCc.map(email => ({ email }));
   }
-  if (Array.isArray(bcc) && bcc.length) {
-    payload.bcc = bcc.map(email => ({ email }));
+  if (uniqueBcc.length) {
+    payload.bcc = uniqueBcc.map(email => ({ email }));
   }
 
   if (Array.isArray(attachments) && attachments.length) {
@@ -328,7 +332,7 @@ async function sendAutoReplies({ fromEmail, fromName, subject, text, html, recip
           senderAddress,
           fromName: senderName,
           userEmail: recipientEmail,
-          to: fromEmail,
+          to: [fromEmail],
           subject: replySubject,
           text: replyText,
           htmlContent: replyHtml,
@@ -419,14 +423,16 @@ function isValidEmail(value) {
 }
 
 function parseEmailList(value) {
-  return String(value || '')
-    .split(/[,;]/)
-    .map(s => {
-      const angle = s.trim().match(/<([^>]+)>/);
-      return (angle ? angle[1] : s).trim().toLowerCase();
-    })
-    .filter(Boolean)
-    .filter(isValidEmail);
+  return [...new Set(
+    String(value || '')
+      .split(/[,;]/)
+      .map(s => {
+        const angle = s.trim().match(/<([^>]+)>/);
+        return (angle ? angle[1] : s).trim().toLowerCase();
+      })
+      .filter(Boolean)
+      .filter(isValidEmail)
+  )];
 }
 
 function formatSenderName(email) {
@@ -1276,7 +1282,7 @@ app.post('/send-custom-reset', async (req, res) => {
           senderAddress: process.env.FROM_EMAIL || 'mail@synthrun.site',
           fromName: process.env.FROM_NAME || 'Synthrun Mail',
           userEmail: process.env.FROM_EMAIL || 'mail@synthrun.site',
-          to,
+          to: [to],
           subject: 'Reset your Synthrun Mail password',
           text: plainText,
           htmlContent: htmlTemplate,
@@ -1328,7 +1334,7 @@ app.post('/send-backup-code', async (req, res) => {
         senderAddress: process.env.FROM_EMAIL || 'mail@synthrun.site',
         fromName: process.env.FROM_NAME || 'Synthrun Mail',
         userEmail: process.env.FROM_EMAIL || 'mail@synthrun.site',
-        to,
+        to: [to],
         subject,
         text,
         htmlContent: html,
