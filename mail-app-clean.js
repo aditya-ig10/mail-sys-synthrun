@@ -1094,7 +1094,8 @@ async function openMessage(id, { updateRoute = true, replaceRoute = false } = {}
   document.getElementById('messageView').style.display = 'flex';
   const replyTarget = getSenderIdentity(message).email || message.from || '';
   document.getElementById('replyBtn').onclick = () => openCompose({ to: replyTarget, subject: `Re: ${message.subject || ''}`, prefill: `\n\n---\nFrom: ${getSenderLabel(message) || ''}\n${replyBody}` });
-  document.getElementById('forwardBtn').onclick = () => openCompose({ subject: `Fwd: ${message.subject || ''}`, prefill: `\n\n---\nFrom: ${getSenderLabel(message) || ''}\n${replyBody}` });
+  const hasHtmlContent = htmlBodyText && hasHtmlTags(htmlBodyText);
+  document.getElementById('forwardBtn').onclick = () => openCompose({ subject: `Fwd: ${message.subject || ''}`, prefill: `\n\n---\nFrom: ${getSenderLabel(message) || ''}\n${replyBody}`, htmlBody: hasHtmlContent ? buildForwardedHtml(message, bodyHtml, timestamp) : '' });
   const isTrash = message.folder === 'trash';
   const isOutbox = message.folder === 'outbox';
   const isSpam = message.folder === 'spam';
@@ -1414,7 +1415,26 @@ function stripHtmlToText(html) {
   return container.textContent.replace(/\s+\n/g, '\n').replace(/\n\s+/g, '\n').replace(/[ \t]+/g, ' ').trim();
 }
 
-async function openCompose({ to = '', cc = '', bcc = '', subject = '', prefill = '' } = {}) {
+function buildForwardedHtml(message, bodyHtml, timestamp) {
+  const esc = (s) => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  const sender = esc(getSenderLabel(message) || '');
+  const date = timestamp.toLocaleString([], { dateStyle: 'long', timeStyle: 'short' });
+  const subject = esc(message.subject || '(no subject)');
+  const to = esc(message.to || '');
+  return `<div style="border-left:2px solid #d4d4d0;padding-left:16px;margin:24px 0 16px;">
+  <div style="font-size:10px;letter-spacing:0.05em;color:#888884;margin-bottom:10px;font-family:'Courier New',monospace;">
+    <strong style="color:#555;font-weight:600;">From:</strong> ${sender}<br>
+    <strong style="color:#555;font-weight:600;">To:</strong> ${to}<br>
+    <strong style="color:#555;font-weight:600;">Date:</strong> ${date}<br>
+    <strong style="color:#555;font-weight:600;">Subject:</strong> ${subject}
+  </div>
+  <div>
+    ${bodyHtml}
+  </div>
+</div>`;
+}
+
+async function openCompose({ to = '', cc = '', bcc = '', subject = '', prefill = '', htmlBody = '' } = {}) {
   const isReply = Boolean(to || cc || bcc || subject || prefill);
   document.getElementById('compTo').value = to;
   document.getElementById('compCc').value = cc;
@@ -1444,7 +1464,15 @@ async function openCompose({ to = '', cc = '', bcc = '', subject = '', prefill =
     }
   } else {
     document.getElementById('compSubject').value = subject;
-    document.getElementById('compBody').value = prefill;
+    if (htmlBody) {
+      const modeTemplateBtn = document.getElementById('modeTemplateBtn');
+      if (modeTemplateBtn) modeTemplateBtn.click();
+      const htmlBodyTA = document.getElementById('compHtmlBody');
+      if (htmlBodyTA) htmlBodyTA.value = htmlBody;
+      document.getElementById('compBody').value = '';
+    } else {
+      document.getElementById('compBody').value = prefill;
+    }
     setComposeStatus('');
   }
   document.getElementById('attachmentInput').value = '';
