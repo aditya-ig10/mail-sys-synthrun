@@ -24,4 +24,5 @@ dependencyResolutionManagement {
 
 rootProject.name = "SynthrunMail"
 include(":app")
+include(":app")
  
