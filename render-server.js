@@ -596,69 +596,7 @@ function htmlEscape(value) {
     .replace(/"/g, '&quot;');
 }
 
-function wrapHtmlEmail(bodyHtml, { fromName, subject, to, userEmail }) {
-  const esc = (s) => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-  return `<div style="background:#f2f1ee;padding:32px 12px;font-family:'Courier New',Courier,monospace;">
-  <div style="max-width:560px;margin:0 auto;background:#fafaf8;border:1px solid #e0dfd9;">
-    <table width="100%" cellpadding="0" cellspacing="0" border="0">
-      <tr>
-        <td style="background:#111110;padding:0 28px;height:48px;">
-          <table width="100%" cellpadding="0" cellspacing="0">
-            <tr>
-              <td style="vertical-align:middle;">
-                <span style="font-family:'Courier New',monospace;font-size:10px;letter-spacing:0.18em;text-transform:uppercase;color:#fafaf8;font-weight:400;">Synthrun</span>
-              </td>
-              <td style="vertical-align:middle;text-align:right;"></td>
-            </tr>
-          </table>
-        </td>
-      </tr>
-    </table>
-    <table width="100%" cellpadding="0" cellspacing="0" border="0">
-      <tr>
-        <td style="padding:10px 28px;border-bottom:1px solid #e0dfd9;">
-          <table width="100%" cellpadding="0" cellspacing="0">
-            <tr>
-              <td><span style="font-family:'Courier New',monospace;font-size:8px;letter-spacing:0.12em;text-transform:uppercase;color:#888884;">&#9679; ${esc(subject)}</span></td>
-              <td style="text-align:right;"><span style="font-family:'Courier New',monospace;font-size:8px;letter-spacing:0.1em;text-transform:uppercase;color:#888884;">${esc(fromName)} &rarr; ${esc(to)}</span></td>
-            </tr>
-          </table>
-        </td>
-      </tr>
-    </table>
-    <table width="100%" cellpadding="0" cellspacing="0" border="0">
-      <tr>
-        <td style="padding:36px 28px 28px;">
-          ${bodyHtml}
-          <div style="border-top:1px solid #e0dfd9;margin-top:24px;padding-top:20px;">
-            <span style="font-family:'Courier New',monospace;font-size:8px;letter-spacing:0.14em;text-transform:uppercase;color:#888884;display:block;margin-bottom:12px;">Sent via Synthrun</span>
-          </div>
-        </td>
-      </tr>
-    </table>
-    <table width="100%" cellpadding="0" cellspacing="0" border="0">
-      <tr>
-        <td style="padding:0 28px 24px;">
-          <a href="https://synthrun.site" style="display:inline-block;background:#111110;color:#fafaf8;text-decoration:none;font-family:'Courier New',monospace;font-size:9px;letter-spacing:0.12em;text-transform:uppercase;padding:11px 20px;">Visit Synthrun &rarr;</a>
-          <div style="margin-top:10px;font-family:'Courier New',monospace;font-size:9px;color:#888884;">Reply to <a href="mailto:${esc(userEmail)}" style="color:#888884;">${esc(userEmail)}</a></div>
-        </td>
-      </tr>
-    </table>
-    <table width="100%" cellpadding="0" cellspacing="0" border="0">
-      <tr>
-        <td style="padding:12px 28px;">
-          <table width="100%" cellpadding="0" cellspacing="0">
-            <tr>
-              <td><span style="font-family:'Courier New',monospace;font-size:8px;letter-spacing:0.14em;text-transform:uppercase;color:#888884;">Synthrun</span></td>
-              <td style="text-align:right;"><span style="font-family:'Courier New',monospace;font-size:7px;letter-spacing:0.07em;text-transform:uppercase;color:#c4c4be;">&copy; 2026 Synthrun</span></td>
-            </tr>
-          </table>
-        </td>
-      </tr>
-    </table>
-  </div>
-</div>`;
-}
+
 
 function htmlToText(value) {
   return String(value || '')
@@ -805,8 +743,7 @@ app.post('/send', async (req, res) => {
     const fromName = customFromName || formatFromName(userEmail);
 
     const recipients = [...toList, ...ccList, ...bccList];
-    const rawHtml = htmlBody || htmlEscape(fallbackText);
-    const htmlContent = wrapHtmlEmail(rawHtml, { fromName, subject, to, userEmail });
+    const htmlContent = htmlBody || htmlEscape(fallbackText);
 
     const resolvedAttachments = await resolveAttachments(Array.isArray(attachments) ? attachments : []);
 
