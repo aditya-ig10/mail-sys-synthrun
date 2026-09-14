@@ -7,10 +7,11 @@ if (process.env.NODE_ENV === 'production' && String(process.env.ALLOWED_BYPASS |
 }
 
 // Production safety: CORS is fail-closed. Same-origin deployments don't need
-// the header at all, but a browser-facing API must never default to `*`.
+// the header at all, so a missing ALLOWED_ORIGIN only warns (no crash) and
+// the server simply omits Access-Control-Allow-Origin — cross-origin browser
+// calls stay blocked while same-origin traffic works.
 if (process.env.NODE_ENV === 'production' && !String(process.env.ALLOWED_ORIGIN || '').trim()) {
-  console.error('ERROR: ALLOWED_ORIGIN must be set in production (e.g. https://mail.synthrun.site). Refusing to start with open CORS.');
-  process.exit(1);
+  console.warn('WARN: ALLOWED_ORIGIN is not set. Omitting CORS headers (same-origin only). Set ALLOWED_ORIGIN=https://mail.synthrun.site in the Render dashboard for cross-origin frontends.');
 }
 
 // Tiny in-memory sliding-window rate limiter (no dependency, per-process).

@@ -38,6 +38,6 @@ services:
       - key: SENDER_ADDRESS
         sync: false
       - key: ALLOWED_ORIGIN
-        sync: false
+        value: https://mail.synthrun.site
       - key: ALLOWED_BYPASS
         value: "0"
