@@ -553,7 +553,7 @@ body[data-theme="dark"] .load-more-btn:hover:not(:disabled) { background: rgba(2
 .mail-subject-line { font-family: 'Fraunces', serif; font-size: 22px; line-height: 1.2; font-weight: 300; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .mail-meta-row { display: flex; align-items: center; gap: 7px; margin-top: 5px; color: var(--subtle); font-size: 10px; flex-wrap: wrap; }
 .mail-header-actions { display: flex; gap: 6px; align-items: center; flex-shrink: 0; padding-top: 2px; }
-.mail-body-scroll { flex: 1; overflow-y: auto; padding: 16px; scrollbar-width: thin; scrollbar-color: var(--line) transparent; -webkit-overflow-scrolling: touch; }
+.mail-body-scroll { flex: 1; overflow-y: auto; overflow-x: hidden; padding: 16px; scrollbar-width: thin; scrollbar-color: var(--line) transparent; -webkit-overflow-scrolling: touch; }
 .mail-bubble { border: 1px solid var(--line); background: var(--panel); margin-bottom: 12px; }
 .mail-bubble-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 11px 13px; border-bottom: 1px solid var(--line); }
 .mail-sender-block { display: flex; align-items: center; gap: 10px; min-width: 0; }
@@ -1070,46 +1070,141 @@ header, .app-body, .compose-modal { animation: pageRise 0.32s ease both; }
 @media (max-width: 640px) {
   :root { --status-h: 0px; --mobile-nav-h: 0px; --header-h: 48px; }
   body { overflow: hidden; }
-  header { padding-right: 10px; height: var(--header-h); }
+  header { padding-right: 8px; height: var(--header-h); }
   .h-logo { padding: 0 10px; border-right: none; font-size: 10px; }
   .h-logo svg { width: 15px; height: 15px; }
-  .h-search { display: flex; flex: 1; min-width: 0; max-width: none; height: 32px; margin-right: 8px; padding: 0 10px; }
+  .h-search { display: flex; flex: 1; min-width: 0; max-width: none; height: 32px; margin-right: 6px; padding: 0 10px; }
   .h-search input { font-size: 11px; }
   .status-bar { display: none; }
-  .app-body { height: calc(100vh - var(--header-h)); grid-template-columns: 1fr; overflow: hidden; }
+  /* App body full height, single column */
+  .app-body { height: calc(100dvh - var(--header-h)); grid-template-columns: 1fr; overflow: hidden; }
+  /* Mail panel: position relative so list+view can slide */
   .mail-panel { grid-template-columns: 1fr; position: relative; height: 100%; overflow: hidden; }
-  .thread-list { display: flex !important; position: absolute; inset: 0; width: 100%; z-index: 1; background: var(--panel-strong); transform: translateX(0); transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1); will-change: transform; }
-  .thread-items { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; }
-  .mail-view { position: absolute; inset: 0; width: 100%; z-index: 2; background: var(--panel-strong); transform: translateX(100%); transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1); will-change: transform; display: flex; flex-direction: column; overflow: hidden; }
+  /* Thread list: full viewport, slides right when message opens */
+  .thread-list {
+    display: flex !important;
+    position: absolute; inset: 0; width: 100%; z-index: 1;
+    background: var(--panel-strong);
+    transform: translateX(0);
+    transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+    will-change: transform;
+    overflow: hidden;
+  }
+  .thread-items {
+    flex: 1; overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+    /* Prevent horizontal scroll caused by wide mail previews */
+    overflow-x: hidden;
+  }
+  /* Mail view: hidden off-screen right, slides in when message selected */
+  .mail-view {
+    position: absolute; inset: 0; width: 100%; z-index: 2;
+    background: var(--panel-strong);
+    transform: translateX(100%);
+    transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+    will-change: transform;
+    display: flex; flex-direction: column; overflow: hidden;
+  }
   .mail-panel.message-open .mail-view { transform: translateX(0); }
   .mail-panel.message-open .thread-list { transform: translateX(-30%); }
   #messageView { display: none; flex-direction: column; flex: 1; min-height: 0; overflow: hidden; }
   #messageView[style*="flex"] { display: flex !important; }
-  .mail-body-scroll { flex: 1; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; padding: 12px; }
-  .mail-header-bar { padding: 11px 12px; gap: 8px; flex-shrink: 0; min-height: unset; }
-  .mail-subject-line { font-size: 17px; }
-  .mail-header-actions { gap: 4px; }
-  .mail-header-actions .icon-btn { width: 30px; height: 30px; }
+  /* Mail body scrollable area */
+  .mail-body-scroll {
+    flex: 1; min-height: 0;
+    overflow-y: auto; overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+    padding: 12px;
+    word-break: break-word;
+    overflow-wrap: break-word;
+  }
+  /* Mail header */
+  .mail-header-bar { padding: 10px 12px; gap: 8px; flex-shrink: 0; min-height: unset; }
+  .mail-subject-line { font-size: 16px; line-height: 1.3; word-break: break-word; }
+  .mail-header-actions { gap: 4px; flex-wrap: wrap; }
+  .mail-header-actions .icon-btn { width: 32px; height: 32px; }
+  /* Reply bar */
   .reply-bar { padding: 8px 12px; flex-shrink: 0; }
-  .reply-btn { padding: 8px 10px; font-size: 10px; }
-  .mobile-back-btn { display: grid !important; place-items: center; width: 30px; height: 30px; border: 1px solid var(--line); background: transparent; cursor: pointer; color: var(--muted); padding: 0; flex-shrink: 0; -webkit-tap-highlight-color: transparent; }
+  .reply-btn { padding: 8px 10px; font-size: 10px; min-height: 36px; }
+  /* Mobile back button */
+  .mobile-back-btn {
+    display: grid !important; place-items: center;
+    width: 32px; height: 32px;
+    border: 1px solid var(--line); background: transparent;
+    cursor: pointer; color: var(--muted); padding: 0;
+    flex-shrink: 0; -webkit-tap-highlight-color: transparent;
+    min-width: 32px; /* prevent shrinking */
+  }
   .mobile-back-btn svg { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 1.6; }
+  /* Thread toolbar */
   .thread-toolbar { padding: 0 12px; }
+  /* Thread items */
   .thread-item { padding: 14px 12px; min-height: 72px; -webkit-tap-highlight-color: transparent; }
   .thread-subject { font-size: 13px; }
-  .thread-preview { -webkit-line-clamp: 2; font-size: 12px; color: var(--subtle); margin-top: 2px; }
+  .thread-preview { -webkit-line-clamp: 2; font-size: 12px; color: var(--subtle); margin-top: 2px; overflow: hidden; }
   .thread-from { font-size: 12px; margin-bottom: 4px; }
   .thread-time { font-size: 11px; }
+  /* Mail bubbles */
   .mail-bubble { margin-bottom: 10px; }
-  .mail-bubble-body { padding: 12px 12px 10px; font-size: 13px; line-height: 1.75; word-break: break-word; overflow-wrap: break-word; }
+  .mail-bubble-body { padding: 12px 12px 10px; font-size: 13px; line-height: 1.75; word-break: break-word; overflow-wrap: break-word; overflow-x: auto; }
   .mail-bubble-header { padding: 10px 12px; }
+  /* Empty state */
   .mail-view-empty h3 { font-size: 20px; }
-  .compose-overlay { padding: 0; align-items: flex-end; }
-  .compose-modal { width: 100%; max-height: calc(100vh - var(--header-h)); position: relative; border-left: 0; border-right: 0; border-bottom: 0; }
+  /* Compose modal: bottom sheet on mobile */
+  .compose-overlay { padding: 0; align-items: flex-end; justify-content: center; }
+  .compose-modal {
+    width: 100%;
+    max-height: calc(100dvh - var(--header-h));
+    height: auto;
+    min-height: 65dvh;
+    position: relative;
+    border-left: 0; border-right: 0; border-bottom: 0;
+    border-top: 1px solid var(--line);
+    border-radius: 0;
+    resize: none; /* no resize on mobile */
+  }
+  /* Compose maximize button hidden on mobile */
+  #composeMaxBtn { display: none !important; }
   .compose-body { min-height: 120px; }
   .compose-body textarea { min-height: 120px; }
-  .toast { bottom: 12px; }
+  /* Compose footer: wrap on small screens */
+  .compose-footer { padding: 8px 12px; flex-wrap: wrap; gap: 6px; }
+  .compose-from-label { width: 100%; order: 10; text-align: left; }
+  /* Recipient chips: better touch targets */
+  .chip { font-size: 11px; padding: 3px 6px 3px 8px; }
+  .chip-remove { width: 16px; height: 16px; }
+  .chip-input { min-width: 60px; font-size: 12px; }
+  /* Toast */
+  .toast { bottom: env(safe-area-inset-bottom, 12px); }
+  /* Mail details: full width */
+  .mail-details { grid-template-columns: 1fr !important; }
+  /* Labels / tags: wrap nicely */
+  .thread-tags { flex-wrap: wrap; gap: 3px; }
+  /* Prevent iframe email content from overflowing on mobile */
+  .mail-bubble-body iframe,
+  .mail-bubble-body table { max-width: 100% !important; }
 }
+
+/* ── Ultra-small phones (≤380px) ─────────────────────────────── */
+@media (max-width: 380px) {
+  :root { --header-h: 44px; }
+  .h-logo { padding: 0 8px; font-size: 9px; gap: 6px; }
+  .h-logo svg { width: 14px; height: 14px; }
+  .h-search { padding: 0 8px; height: 30px; }
+  .h-search input { font-size: 10px; }
+  .user-chip { padding: 4px 6px; }
+  .user-avatar { width: 22px; height: 22px; font-size: 9px; }
+  .thread-item { padding: 12px 10px; min-height: 64px; }
+  .thread-subject { font-size: 12px; }
+  .compose-modal { min-height: 70dvh; }
+  .compose-field { grid-template-columns: 52px 1fr; padding: 0 10px; }
+  .compose-footer { padding: 7px 10px; }
+  .mail-header-bar { padding: 8px 10px; }
+}
+
+
 
 @media (min-width: 641px) {
   .compose-overlay { align-items: flex-end; justify-content: flex-end; }
@@ -1134,6 +1229,7 @@ header, .app-body, .compose-modal { animation: pageRise 0.32s ease both; }
     width: auto;
     height: auto;
   }
+} /* end @media (min-width: 641px) */
 
 /* ─── Scrollbar Styling ──────────────────────────────────────── */
 ::-webkit-scrollbar { width: 4px; height: 4px; }
@@ -1146,7 +1242,8 @@ header, .app-body, .compose-modal { animation: pageRise 0.32s ease both; }
   header, aside, .sidebar-backdrop, .thread-list, .resize-handle,
   .reply-bar, .mail-header-actions, .status-bar, .toast,
   .compose-overlay, .shortcuts-overlay, .app-loading-overlay,
-  .load-more-wrap, .search-scope-hint, .mail-details-toggle-row {
+  .load-more-wrap, .search-scope-hint, .mail-details-toggle-row,
+  .mobile-fab-compose {
     display: none !important;
   }
   html, body { overflow: visible !important; height: auto !important; }
@@ -1164,6 +1261,33 @@ header, .app-body, .compose-modal { animation: pageRise 0.32s ease both; }
 :focus-visible { outline: 2px solid var(--text); outline-offset: 2px; }
 button:focus:not(:focus-visible), input:focus:not(:focus-visible) { outline: none; }
 .mobile-back-btn { display: none; }
+
+/* ─── Mobile FAB Compose Button ─────────────────────────────── */
+.mobile-fab-compose {
+  position: fixed;
+  right: 18px;
+  bottom: calc(18px + env(safe-area-inset-bottom, 0px));
+  z-index: 90;
+  width: 52px; height: 52px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: var(--accent-contrast);
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 4px 18px rgba(0,0,0,0.22);
+  display: none; /* shown only in ≤640px via media query */
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.18s cubic-bezier(0.16,1,0.3,1), box-shadow 0.18s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+.mobile-fab-compose:active { transform: scale(0.92); box-shadow: 0 2px 8px rgba(0,0,0,0.18); }
+.mobile-fab-compose svg { width: 20px; height: 20px; stroke: currentColor; fill: none; stroke-width: 1.6; }
+@media (max-width: 640px) {
+  .mobile-fab-compose { display: flex; }
+  /* Hide FAB when compose is open */
+  .compose-overlay.show ~ .mobile-fab-compose { display: none; }
+}
 .label-dropdown-wrap { position: relative; }
 .label-dropdown {
   position: absolute; right: 0; top: 100%; margin-top: 4px;
@@ -1585,7 +1709,7 @@ body[data-theme="dark"] .menu-label-item:hover { background: rgba(255,255,255,0.
       <div class="html-editor-pane active" id="htmlCodePane">
         <textarea id="compHtmlBody" placeholder="Write your message here… plain text or HTML, both work." aria-label="Message body" spellcheck="true"></textarea>
       </div>
-      <iframe class="html-preview-pane" id="htmlPreviewPane" title="Email preview" sandbox="allow-same-origin"></iframe>
+      <iframe class="html-preview-pane" id="htmlPreviewPane" title="Email preview" sandbox="allow-same-origin allow-scripts"></iframe>
     </div>
 
     <div class="compose-attachments">
@@ -1614,8 +1738,14 @@ body[data-theme="dark"] .menu-label-item:hover { background: rgba(255,255,255,0.
   </div>
 </div>
 
+
 <!-- ── Toast ──────────────────────────────────────────────────── -->
 <div class="toast" id="toast" role="alert" aria-live="polite" aria-atomic="true"></div>
+
+<!-- ── Mobile Compose FAB (phone only) ───────────────────────── -->
+<button class="mobile-fab-compose" id="mobileFabCompose" type="button" aria-label="Compose new message">
+  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5h-7a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2v-7"></path><path d="M18.378 2.618a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4 9.378-9.382z"></path></svg>
+</button>
 
 <!-- ── Shortcuts help ─────────────────────────────────────────── -->
 <div class="shortcuts-overlay" id="shortcutsOverlay" role="dialog" aria-modal="true" aria-label="Keyboard shortcuts">
@@ -2095,6 +2225,12 @@ document.querySelectorAll('aside .side-link[data-folder]').forEach(btn => {
 });
 document.getElementById('composeBtn')?.addEventListener('click', closeSidebar);
 document.querySelector('.settings-btn')?.addEventListener('click', closeSidebar);
+
+/* ── Mobile FAB compose button ── */
+document.getElementById('mobileFabCompose')?.addEventListener('click', () => {
+  // Trigger the same flow as composeBtn in mail-app-clean.js
+  document.getElementById('composeBtn')?.click();
+});
 
 /* ── Keyboard: close user menu on Escape ── */
 document.addEventListener('keydown', e => {

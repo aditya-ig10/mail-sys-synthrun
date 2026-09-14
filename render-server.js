@@ -938,6 +938,11 @@ app.post('/send', sendLimiter, async (req, res) => {
       toList,
       ccList,
       bccList,
+      // Brevo API function uses `to`/`cc`/`bcc` (arrays), SMTP uses `toList`/`ccList`/`bccList`.
+      // Include both forms so a single smtpArgs object works for both callers.
+      to: toList,
+      cc: ccList,
+      bcc: bccList,
       subject,
       text: fallbackText,
       htmlContent,
