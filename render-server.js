@@ -894,7 +894,11 @@ app.post('/send', sendLimiter, async (req, res) => {
     const bccList = parseEmailList(bcc);
 
     if (!toList.length) {
-      return sendJson(res, 400, { error: 'No valid recipient emails in the To field' });
+      // Echo the rejected input (the sender's own text) so the client can
+      // show exactly what failed validation instead of a bare error.
+      const rawPreview = String(to || '').slice(0, 120);
+      console.warn('[send] rejected recipients', JSON.stringify({ from: userEmail, toPreview: rawPreview }));
+      return sendJson(res, 400, { error: `No valid recipient emails in the To field (received ${rawPreview ? `"${rawPreview}"` : 'nothing'}).` });
     }
 
     const senderAddress = userEmail;

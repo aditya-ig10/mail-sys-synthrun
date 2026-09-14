@@ -1935,7 +1935,21 @@ window.SYNTHRUN_FLUSH_CHIPS = flushChipInputs;
 /* ── Shared email tokenizer: pasted blobs like
    "a@x.com, Name <b@y.com>\ncc@d.io" auto-arrange into chips.
    Valid → chips. Broken-looking (@ but invalid) → left as text + red.
-   Bare words (display names) → dropped silently. */
+   Bare words (display names) → dropped silently.
+   Validity mirrors the server's isValidEmail exactly (same regexes), so an
+   address accepted here can never be rejected on send. */
+function isStrictEmail(addr) {
+  const v = String(addr || '').trim().toLowerCase();
+  if (!v || v.indexOf('@') < 0) return false;
+  const parts = v.split('@');
+  if (parts.length !== 2) return false;
+  const local = parts[0], domain = parts[1];
+  if (!local || !domain || domain.indexOf('..') >= 0) return false;
+  if (local.length > 64 || domain.length > 255) return false;
+  const localOk = /^[a-z0-9.!#$%&'*+/=?^_`{|}~-]+$/.test(local);
+  const domainOk = /^(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)*[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/.test(domain);
+  return localOk && domainOk;
+}
 function splitPastedEmails(raw, alreadyHave) {
   const text = String(raw || '');
   const have = new Set((alreadyHave || []).map((c) => String(c).toLowerCase()));
@@ -1944,7 +1958,7 @@ function splitPastedEmails(raw, alreadyHave) {
   const invalid = [];
   for (const token of tokens) {
     const lower = token.toLowerCase();
-    if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(lower)) {
+    if (isStrictEmail(lower)) {
       if (!have.has(lower)) { have.add(lower); valid.push(lower); }
     } else if (lower.includes('@')) {
       if (!invalid.includes(token)) invalid.push(token);
@@ -2192,11 +2206,17 @@ setInterval(updateClock, 30000);
     try {
       const doc = htmlPreviewPane.contentDocument || htmlPreviewPane.contentWindow.document;
       doc.open();
-      // Strip scripts: the sandbox blocks them anyway, and without this the
-      // browser logs "Blocked script execution" against our own URL.
-      doc.write(String(htmlBodyTA.value || '').replace(/<script[\s\S]*?<\/script>/gi, ''));
+      // Strip scripts AND inline handlers: the sandbox blocks them anyway,
+      // and without this the browser logs "Blocked script execution".
+      doc.write(stripPreviewActive(String(htmlBodyTA.value || '')));
       doc.close();
     } catch(e) {}
+  }
+
+  function stripPreviewActive(html) {
+    return html
+      .replace(/<script[\s\S]*?<\/script>/gi, '')
+      .replace(/\son\w+\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, '');
   }
 
   composeMaxBtn?.addEventListener('click', () => {

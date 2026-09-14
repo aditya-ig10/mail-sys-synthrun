@@ -1849,9 +1849,11 @@ function updateArPreview() {
   try {
     const frameDoc = arPreviewPane.contentDocument || arPreviewPane.contentWindow.document;
     frameDoc.open();
-    // Strip scripts: the sandbox blocks them anyway, and without this the
-    // browser logs "Blocked script execution" against our own URL.
-    frameDoc.write(String(document.getElementById('autoReplyMessage').value || '').replace(/<script[\s\S]*?<\/script>/gi, ''));
+    // Strip scripts AND inline handlers: the sandbox blocks them anyway,
+    // and without this the browser logs "Blocked script execution".
+    frameDoc.write(String(document.getElementById('autoReplyMessage').value || '')
+      .replace(/<script[\s\S]*?<\/script>/gi, '')
+      .replace(/\son\w+\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, ''));
     frameDoc.close();
   } catch {}
 }
