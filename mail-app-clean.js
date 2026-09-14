@@ -1027,6 +1027,24 @@ function sanitizeEmail(value) {
   return String(value || '').trim().toLowerCase();
 }
 
+// Recipient reads must never depend on a single DOM node: union the hidden
+// field, the rendered chips, and any still-typing text, then tokenize once.
+// A stale hidden input can no longer blank the recipients on send.
+function readRecipientBox(boxId) {
+  const box = document.getElementById(boxId);
+  if (!box) return '';
+  const hidden = box.querySelector('input[type="hidden"]');
+  const rendered = [...box.querySelectorAll('.chip')].map((c) => (c.firstChild ? c.firstChild.textContent : '') || '');
+  const typing = box.querySelector('.chip-input')?.value || '';
+  const combined = [...(hidden ? [hidden.value] : []), ...rendered, typing].join(',');
+  if (window.SYNTHRUN_SPLIT_EMAILS) {
+    try {
+      return window.SYNTHRUN_SPLIT_EMAILS(combined, []).valid.join(', ');
+    } catch { /* fall through */ }
+  }
+  return (hidden ? hidden.value : '').trim();
+}
+
 function isBounceAddress(value) {
   return BOUNCE_ADDRESS_PATTERN.test(sanitizeEmail(value));
 }
@@ -1318,9 +1336,9 @@ async function loadDraft(draftId = null) {
 async function saveDraft() {
   if (!currentUser) return;
   window.SYNTHRUN_FLUSH_CHIPS?.();
-  const to = document.getElementById('compTo').value.trim();
-  const cc = document.getElementById('compCc').value.trim();
-  const bcc = document.getElementById('compBcc').value.trim();
+  const to = readRecipientBox('toChips') || document.getElementById('compTo').value.trim();
+  const cc = readRecipientBox('ccChips') || document.getElementById('compCc').value.trim();
+  const bcc = readRecipientBox('bccChips') || document.getElementById('compBcc').value.trim();
   const subject = document.getElementById('compSubject').value.trim();
   // Single HTML editor (compose redesign): raw HTML in, plain text derived.
   const rawBody = String(window.SYNTHRUN_GET_COMPOSE_BODY?.() || '').trim();
@@ -2132,9 +2150,9 @@ function themedEmailWrapper(bodyHtml) {
 async function sendMessage() {
   if (composeBusy) return;
   window.SYNTHRUN_FLUSH_CHIPS?.();
-  const to = document.getElementById('compTo').value.trim();
-  const cc = document.getElementById('compCc').value.trim();
-  const bcc = document.getElementById('compBcc').value.trim();
+  const to = readRecipientBox('toChips') || document.getElementById('compTo').value.trim();
+  const cc = readRecipientBox('ccChips') || document.getElementById('compCc').value.trim();
+  const bcc = readRecipientBox('bccChips') || document.getElementById('compBcc').value.trim();
   const subject = document.getElementById('compSubject').value.trim();
   // Single HTML editor (compose redesign): HTML is the source of truth,
   // plain text is derived for the text part, search and previews.
@@ -2202,6 +2220,7 @@ async function sendMessage() {
     }
     setComposeStatus(draftAttachments.length ? 'Preparing attachments...' : 'Sending...');
     uploadedAttachments = await uploadDraftAttachments();
+    console.log(`[send] to=${to.split(',').filter(Boolean).length} cc=${cc.split(',').filter(Boolean).length} bcc=${bcc.split(',').filter(Boolean).length} subjectLen=${subject.length}`);
     const bodyWithLinks = `${body}${buildAttachmentText(uploadedAttachments)}`;
     const finalHtmlBody = `${htmlBody}${buildAttachmentHtml(uploadedAttachments)}`;
     const debugUser = globalThis.SYNTHRUN_DEBUG_USER || localStorage.getItem('synthrun-debug-user');
