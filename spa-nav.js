@@ -79,10 +79,10 @@ function updateNavActive(path) {
   document.querySelectorAll('[data-spa-link]').forEach(l => {
     const h = l.getAttribute('href');
     const isMail = !h || h === '/';
-    const isSettings = h === '/profile.html';
+    const isSettings = h === '/profile.html' || h === '/settings/';
     const isCustomize = h === '/wvf052wc/';
     const curIsMail = !path || path === '/' || path.startsWith('/?');
-    const curIsSettings = path.startsWith('/profile');
+    const curIsSettings = path.startsWith('/profile') || path.startsWith('/settings');
     const curIsCustomize = path.startsWith('/wvf052wc');
     l.classList.toggle('active',
       (isMail && curIsMail) || (isSettings && curIsSettings) || (isCustomize && curIsCustomize)

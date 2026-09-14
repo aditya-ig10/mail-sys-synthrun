@@ -6,6 +6,14 @@ service cloud.firestore {
         && request.auth.token.email.matches('.*@synthrun\\.site');
     }
 
+    function isSynthrunAdmin() {
+      return isSynthrunUser() && (
+        request.auth.token.email == 'aditya@synthrun.site' ||
+        get(/databases/$(database)/documents/dashboard_users/$(request.auth.uid)).data.isAdmin == true ||
+        get(/databases/$(database)/documents/team_members/$(request.auth.token.email.split('@')[0])).data.isAdmin == true
+      );
+    }
+
     function ownsMessage(data) {
       return isSynthrunUser() && (
         data.recipientEmail == request.auth.token.email ||
@@ -16,9 +24,13 @@ service cloud.firestore {
     }
 
     // Covers inbox, sent, archived, flagged, important, drafts, and trash.
-    // Drafts are stored with recipientEmail = current user, so the same rules apply.
-    // Trashed messages keep their original recipientEmail, so they remain accessible.
-    // important field updates are treated like any other field update on owned messages.
+    // Hardened (Phase 2/E4): validated shape on create, immutable ownership
+    // fields on update. Server-side inbound writes use the Admin SDK and
+    // bypass these rules, so requiring senderUid/senderEmail is safe.
+    function unchangedField(data, newData, field) {
+      return !(field in data) || !(field in newData) || newData[field] == data[field];
+    }
+
     match /mail/{docId} {
       allow create: if isSynthrunUser()
         && (
@@ -26,47 +38,62 @@ service cloud.firestore {
           request.resource.data.senderEmail == request.auth.token.email ||
           request.resource.data.from == request.auth.token.email ||
           request.resource.data.senderUid == request.auth.uid
-        );
+        )
+        // Ownership must point at the author — no colleague spoofing.
+        && request.resource.data.senderUid == request.auth.uid
+        && request.resource.data.senderEmail == request.auth.token.email
+        && request.resource.data.folder in ['inbox', 'sent', 'outbox', 'draft', 'archived', 'trash', 'spam']
+        && (!('subject' in request.resource.data) || request.resource.data.subject.size() < 500)
+        && (!('body' in request.resource.data) || request.resource.data.body.size() < 500000);
 
-      allow read, update, delete: if resource != null && ownsMessage(resource.data);
+      allow read: if resource != null && ownsMessage(resource.data);
+      allow update: if resource != null && ownsMessage(resource.data)
+        && unchangedField(resource.data, request.resource.data, 'senderUid')
+        && unchangedField(resource.data, request.resource.data, 'senderEmail')
+        && unchangedField(resource.data, request.resource.data, 'recipientEmail')
+        && (!('subject' in request.resource.data) || request.resource.data.subject.size() < 500);
+      allow delete: if resource != null && ownsMessage(resource.data);
     }
 
     // User settings — each user can only read/write their own document
     match /user_settings/{userId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+      allow read, write: if request.auth != null && (request.auth.uid == userId || isSynthrunAdmin());
 
       match /sessions/{sessionId} {
-        allow read, write: if request.auth != null && request.auth.uid == userId;
+        allow read, write: if request.auth != null && (request.auth.uid == userId || isSynthrunAdmin());
       }
 
       match /labels/{labelId} {
-        allow read, write: if request.auth != null && request.auth.uid == userId;
+        allow read, write: if request.auth != null && (request.auth.uid == userId || isSynthrunAdmin());
       }
 
       match /autoReplied/{hash} {
-        allow read, write: if request.auth != null && request.auth.uid == userId;
+        allow read, write: if request.auth != null && (request.auth.uid == userId || isSynthrunAdmin());
       }
 
       match /autoLabelRules/{ruleId} {
-        allow read, write: if request.auth != null && request.auth.uid == userId;
+        allow read, write: if request.auth != null && (request.auth.uid == userId || isSynthrunAdmin());
       }
     }
 
-    // Dashboard users — each user can read their own; admins can read all
+    // Dashboard users — each user can read their own; admins can read/write all
     match /dashboard_users/{userId} {
       allow read: if request.auth != null && (
         request.auth.uid == userId ||
-        get(/databases/$(database)/documents/dashboard_users/$(request.auth.uid)).data.isAdmin == true
+        isSynthrunAdmin()
       );
-      allow create: if request.auth != null && request.auth.uid == userId;
-      allow update: if request.auth != null && request.auth.uid == userId;
-      allow delete: if false;
+      allow create: if request.auth != null && (request.auth.uid == userId || isSynthrunAdmin());
+      allow update: if request.auth != null && (
+        request.auth.uid == userId ||
+        isSynthrunAdmin()
+      );
+      allow delete: if isSynthrunAdmin();
     }
 
-    // Team members — readable by all authenticated users; writable by admins only
+    // Team members — readable by all authenticated users; writable by admins
     match /team_members/{memberId} {
       allow read: if request.auth != null;
-      allow write: if request.auth != null && get(/databases/$(database)/documents/dashboard_users/$(request.auth.uid)).data.isAdmin == true;
+      allow write: if isSynthrunAdmin();
     }
 
     // Weekly plans — readable by all authenticated users; writable by own user or admins
@@ -74,7 +101,7 @@ service cloud.firestore {
       allow read: if request.auth != null;
       allow write: if request.auth != null && (
         request.auth.uid == planId.split('_')[0] ||
-        get(/databases/$(database)/documents/dashboard_users/$(request.auth.uid)).data.isAdmin == true
+        isSynthrunAdmin()
       );
     }
 
@@ -92,10 +119,8 @@ service cloud.firestore {
     match /meetings/{meetingId} {
       allow read: if isSynthrunUser() || resource.data.momId != null;
       allow create: if isSynthrunUser();
-      allow update: if isSynthrunUser() && (
-        get(/databases/$(database)/documents/dashboard_users/$(request.auth.uid)).data.isAdmin == true
-      );
-      allow delete: if isSynthrunUser() && get(/databases/$(database)/documents/dashboard_users/$(request.auth.uid)).data.isAdmin == true;
+      allow update: if isSynthrunAdmin();
+      allow delete: if isSynthrunAdmin();
 
       // Meet subcollections — participants, signals, messages
       match /participants/{uid} {
@@ -108,36 +133,48 @@ service cloud.firestore {
         allow delete: if isSynthrunUser() && (
           request.auth.uid == uid ||
           get(/databases/$(database)/documents/meetings/$(meetingId)).data.hostUid == request.auth.uid ||
-          get(/databases/$(database)/documents/dashboard_users/$(request.auth.uid)).data.isAdmin == true
+          isSynthrunAdmin()
         );
       }
 
       match /signals/{signalId} {
         allow read: if isSynthrunUser();
         allow create: if isSynthrunUser();
-        allow delete: if isSynthrunUser() && (resource.data.from == request.auth.uid || get(/databases/$(database)/documents/dashboard_users/$(request.auth.uid)).data.isAdmin == true);
+        allow delete: if isSynthrunUser() && (resource.data.from == request.auth.uid || isSynthrunAdmin());
         allow update: if false;
       }
 
       match /messages/{messageId} {
         allow read: if isSynthrunUser();
         allow create: if isSynthrunUser();
-        allow delete: if get(/databases/$(database)/documents/dashboard_users/$(request.auth.uid)).data.isAdmin == true;
+        allow delete: if isSynthrunAdmin();
         allow update: if false;
       }
     }
 
     // Scheduled meetings — creator or admin can manage
     match /scheduled_meetings/{scheduledId} {
-      allow read: if isSynthrunUser() && (resource.data.creatorId == request.auth.uid || get(/databases/$(database)/documents/dashboard_users/$(request.auth.uid)).data.isAdmin == true);
+      allow read: if isSynthrunUser() && (resource.data.creatorId == request.auth.uid || isSynthrunAdmin());
       allow create: if isSynthrunUser();
-      allow update: if isSynthrunUser() && (resource.data.creatorId == request.auth.uid || get(/databases/$(database)/documents/dashboard_users/$(request.auth.uid)).data.isAdmin == true);
-      allow delete: if isSynthrunUser() && (resource.data.creatorId == request.auth.uid || get(/databases/$(database)/documents/dashboard_users/$(request.auth.uid)).data.isAdmin == true);
+      allow update: if isSynthrunUser() && (resource.data.creatorId == request.auth.uid || isSynthrunAdmin());
+      allow delete: if isSynthrunUser() && (resource.data.creatorId == request.auth.uid || isSynthrunAdmin());
     }
 
-    // Connectors (API keys etc.) — admin only
+    // Connectors (API keys etc.) — readable by any synthrun.site user; writable by admins only
     match /connectors/{docId} {
-      allow read, write: if request.auth != null && get(/databases/$(database)/documents/dashboard_users/$(request.auth.uid)).data.isAdmin == true;
+      allow read: if isSynthrunUser();
+      allow write: if isSynthrunAdmin();
+    }
+
+    // Daily standups — users can read their own; admins can read all; only create (no edit/delete)
+    match /daily_standups/{standupId} {
+      allow read: if isSynthrunUser() && (
+        resource.data.userId == request.auth.uid ||
+        isSynthrunAdmin()
+      );
+      allow create: if isSynthrunUser() && request.resource.data.userId == request.auth.uid;
+      allow update: if false;
+      allow delete: if false;
     }
   }
 }

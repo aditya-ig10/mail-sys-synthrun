@@ -6,6 +6,42 @@ if (process.env.NODE_ENV === 'production' && String(process.env.ALLOWED_BYPASS |
   process.exit(1);
 }
 
+// Production safety: CORS is fail-closed. Same-origin deployments don't need
+// the header at all, but a browser-facing API must never default to `*`.
+if (process.env.NODE_ENV === 'production' && !String(process.env.ALLOWED_ORIGIN || '').trim()) {
+  console.error('ERROR: ALLOWED_ORIGIN must be set in production (e.g. https://mail.synthrun.site). Refusing to start with open CORS.');
+  process.exit(1);
+}
+
+// Tiny in-memory sliding-window rate limiter (no dependency, per-process).
+// Behind Render/Vercel this keys on req.ip — see `trust proxy` (Phase 7).
+const rateBuckets = new Map();
+setInterval(() => {
+  const now = Date.now();
+  for (const [key, hits] of rateBuckets) {
+    const fresh = hits.filter((t) => now - t < 3600000);
+    if (fresh.length) rateBuckets.set(key, fresh);
+    else rateBuckets.delete(key);
+  }
+}, 60000).unref?.();
+
+function rateLimit({ windowMs, max }) {
+  return (req, res, next) => {
+    const key = `${req.path}:${req.ip}`;
+    const now = Date.now();
+    const hits = (rateBuckets.get(key) || []).filter((t) => now - t < windowMs);
+    hits.push(now);
+    rateBuckets.set(key, hits);
+    if (hits.length > max) {
+      return sendJson(res, 429, { error: 'Too many requests, slow down.' });
+    }
+    next();
+  };
+}
+const sendLimiter = rateLimit({ windowMs: 3600000, max: 60 });
+const uploadLimiter = rateLimit({ windowMs: 60000, max: 10 });
+const backupCodeLimiter = rateLimit({ windowMs: 60000, max: 5 });
+
 const fs = require('fs');
 const path = require('path');
 const express = require('express');
@@ -16,6 +52,9 @@ const TELEGRAM_BOT_TOKEN = String(process.env.TELEGRAM_BOT_TOKEN || '').trim();
 const TELEGRAM_CHAT_ID = String(process.env.TELEGRAM_CHAT_ID || '').trim() || TELEGRAM_BOT_TOKEN.split(':')[0];
 
 const app = express();
+// Correct client IPs / protocol behind Render + Vercel proxies (Phase 7).
+// Required for rate-limit keys and absolute attachment URLs in sent mail.
+app.set('trust proxy', 1);
 app.use(express.json({ limit: '50mb' }));
 
 function initFirebase() {
@@ -136,7 +175,7 @@ async function getTelegramFileUrl(fileId) {
   return `https://api.telegram.org/file/bot${TELEGRAM_BOT_TOKEN}/${result.result.file_path}`;
 }
 
-async function sendViaBrevoApi({ senderAddress, fromName, userEmail, to, cc, bcc, subject, text, htmlContent, attachments }) {
+async function sendViaBrevoApi({ senderAddress, fromName, userEmail, to, cc, bcc, subject, text, htmlContent, attachments, headers = {} }) {
   const apiKey = getBrevoApiKey();
   if (!apiKey) {
     throw new Error('Missing BREVO_API_KEY');
@@ -162,6 +201,7 @@ async function sendViaBrevoApi({ senderAddress, fromName, userEmail, to, cc, bcc
     replyTo: {
       email: userEmail,
     },
+    ...(Object.keys(headers).length ? { headers } : {}),
   };
 
   if (uniqueCc.length) {
@@ -196,17 +236,48 @@ async function sendViaBrevoApi({ senderAddress, fromName, userEmail, to, cc, bcc
   const responseBody = await response.json().catch(() => ({}));
   if (!response.ok) {
     console.error('[Brevo API error]', JSON.stringify({ status: response.status, body: responseBody }));
-    throw new Error(responseBody.message || `Brevo API returned ${response.status}`);
+    const err = new Error(responseBody.message || `Brevo API returned ${response.status}`);
+    err.status = response.status;
+    err.provider = 'brevo';
+    throw err;
   }
 
   return responseBody;
 }
 
+function isBrevoAuthError(error) {
+  const status = Number(error && error.status) || 0;
+  if (status === 401 || status === 403) return true;
+  return /authorised_ips|autorized_ips|unrecognised IP|unrecognized IP|unauthorized|unauthorised|invalid.*api.*key/i.test(String((error && error.message) || ''));
+}
+
+async function sendViaSmtp({ senderAddress, fromName, userEmail, toList, ccList, bccList, subject, text, htmlContent, attachments, headers = {}, recipients = [] }) {
+  const transporter = createTransport();
+  return transporter.sendMail({
+    from: `"${fromName}" <${senderAddress}>`,
+    replyTo: userEmail,
+    to: toList.join(', '),
+    ...(ccList.length ? { cc: ccList.join(', ') } : {}),
+    ...(bccList.length ? { bcc: bccList.join(', ') } : {}),
+    subject: String(subject),
+    text,
+    html: htmlContent,
+    headers,
+    attachments: attachmentsToMailOptions(attachments),
+    envelope: {
+      from: senderAddress,
+      to: recipients.length ? recipients : [...toList, ...ccList, ...bccList],
+    },
+  });
+}
+
 function cors(req, res) {
-  const origin = process.env.ALLOWED_ORIGIN || '*';
-  res.setHeader('Access-Control-Allow-Origin', origin);
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Debug-User');
+  // Fail-closed: explicit origin in prod (enforced at boot), `*` only for
+  // local dev. Same-origin traffic ignores these headers entirely.
+  const origin = String(process.env.ALLOWED_ORIGIN || '').trim() || (process.env.NODE_ENV === 'production' ? '' : '*');
+  if (origin) res.setHeader('Access-Control-Allow-Origin', origin);
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Debug-User, Idempotency-Key');
   res.setHeader('Vary', 'Origin');
 }
 
@@ -318,10 +389,14 @@ async function sendAutoReplies({ fromEmail, fromName, subject, text, html, recip
         if (repliedAt > autoReplyCutoff) continue;
       }
 
-      // Send the auto-reply
+      // Send the auto-reply — HTML message supported just like compose:
+      // stored HTML ships as the html part, plain text is derived for the
+      // text part. (The message is the mailbox owner's own saved setting.)
       const replySubject = ar.subject || `Re: ${subject || ''}`;
-      const replyText = `${ar.message}\n\n---\nOn ${new Date().toLocaleString('en-US', { dateStyle: 'long', timeStyle: 'short' })}, ${fromName || fromEmail} wrote:\n\n${text || '(no text)'}`;
-      const replyHtml = buildAutoReplyHtml(ar.message);
+      const arIsHtml = /<[a-z][\s\S]*>/i.test(String(ar.message || ''));
+      const arText = arIsHtml ? htmlToText(ar.message) : String(ar.message || '');
+      const replyText = `${arText}\n\n---\nOn ${new Date().toLocaleString('en-US', { dateStyle: 'long', timeStyle: 'short' })}, ${fromName || fromEmail} wrote:\n\n${text || '(no text)'}`;
+      const replyHtml = arIsHtml ? String(ar.message) : buildAutoReplyHtml(ar.message);
 
       const brevoApiKey = getBrevoApiKey();
       const senderAddress = recipientEmail;
@@ -398,6 +473,27 @@ async function authenticate(req) {
   return decoded.email.toLowerCase();
 }
 
+async function authenticateAttachment(req) {
+  const authHeader = req.headers.authorization || '';
+  const headerToken = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : '';
+  const queryToken = String((req.query && req.query.auth) || '').trim();
+  const debugUser = req.headers['x-debug-user'];
+
+  if (process.env.ALLOWED_BYPASS === '1' && debugUser) {
+    return String(debugUser).trim().toLowerCase();
+  }
+
+  // Browser <img>/<a> tags can't send Authorization headers, so the app
+  // appends a fresh `?auth=<idToken>` when rendering the reader view (E3).
+  const idToken = headerToken || queryToken;
+  if (!idToken) throw new Error('Missing Authorization header');
+
+  initFirebase();
+  const decoded = await admin.auth().verifyIdToken(idToken);
+  if (!decoded.email) throw new Error('Token missing email');
+  return decoded.email.toLowerCase();
+}
+
 async function authenticateFull(req) {
   const authHeader = req.headers.authorization || '';
   const idToken = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : '';
@@ -464,6 +560,30 @@ function formatFromName(email) {
   }
 
   return `${name} from ${senderEmail}`;
+}
+
+// Threading helpers (Phase 4/L1). Mirrors the client's normalizeSubject so
+// both sides agree on what a "thread" is: normalized subject + participant
+// set, hashed to a short stable id stored on every message doc.
+function normalizeSubjectServer(subject) {
+  let s = String(subject || '').trim();
+  let prev = null;
+  while (prev !== s) {
+    prev = s;
+    s = s.replace(/^\s*(re|fwd?|fw)(\[\d+\])?:\s*/i, '');
+  }
+  return (s || '(no subject)').toLowerCase();
+}
+
+function threadIdFor({ subject, participants }) {
+  const base = `${normalizeSubjectServer(subject)}|${[...participants].map((p) => String(p).toLowerCase()).sort().join(',')}`;
+  let h1 = 0x811c9dc5;
+  let h2 = 0x01000193;
+  for (let i = 0; i < base.length; i += 1) {
+    h1 = Math.imul(h1 ^ base.charCodeAt(i), 16777619);
+    h2 = Math.imul(h2 + base.charCodeAt(i), 2246822519);
+  }
+  return `t${(h1 >>> 0).toString(36)}${(h2 >>> 0).toString(36)}`;
 }
 
 function parseEmailAddress(raw) {
@@ -540,7 +660,7 @@ function isProbablySpam({ from, subject, text, htmlContent }) {
   return score >= 4;
 }
 
-async function storeMailboxMessages({ senderEmail, fromName, to, cc, bcc, subject, text, htmlContent, attachments, skipSpamCheck, toList = [], ccList = [], bccList = [] }) {
+async function storeMailboxMessages({ senderEmail, fromName, to, cc, bcc, subject, text, htmlContent, attachments, skipSpamCheck, toList = [], ccList = [], bccList = [], providerMessageId = '', attachmentStatus = 'ready', inReplyTo = '', threadId = '' }) {
   const recipients = [...new Set([...toList, ...ccList, ...bccList].filter(Boolean).filter(isInternalMailbox))];
   if (!recipients.length) {
     return [];
@@ -556,6 +676,13 @@ async function storeMailboxMessages({ senderEmail, fromName, to, cc, bcc, subjec
 
   const payload = {
     folder,
+    previousFolder: null,
+    trashedAt: null,
+    spamAt: folder === 'spam' ? admin.firestore.FieldValue.serverTimestamp() : null,
+    providerMessageId: String(providerMessageId || ''),
+    attachmentStatus,
+    inReplyTo: String(inReplyTo || ''),
+    threadId: String(threadId || ''),
     from: senderEmail,
     fromName,
     senderEmail,
@@ -571,18 +698,24 @@ async function storeMailboxMessages({ senderEmail, fromName, to, cc, bcc, subjec
 
   const ids = await Promise.all(
     recipients.map(async (recipientEmail) => {
-      const snap = await db.collection('mail')
-        .where('recipientEmail', '==', recipientEmail)
-        .where('senderEmail', '==', sanitizeEmail(senderEmail))
-        .where('subject', '==', String(subject))
-        .limit(1)
-        .get();
+      // Idempotency is keyed ONLY on the provider message id — never on
+      // (sender, subject). Subject-based dedup silently dropped legitimate
+      // distinct mail like repeated "Invoice" subjects (retention fix A4).
+      // NOTE: first use needs a composite index on
+      // mail(recipientEmail, providerMessageId) — Firestore logs the link.
+      if (payload.providerMessageId) {
+        const snap = await db.collection('mail')
+          .where('recipientEmail', '==', recipientEmail)
+          .where('providerMessageId', '==', payload.providerMessageId)
+          .limit(1)
+          .get();
 
-      if (snap.empty) {
-        const ref = await db.collection('mail').add({ ...payload, recipientEmail });
-        return ref.id;
+        if (!snap.empty) {
+          return null;
+        }
       }
-      return null;
+      const ref = await db.collection('mail').add({ ...payload, recipientEmail });
+      return ref.id;
     })
   );
   return ids.filter(Boolean);
@@ -655,6 +788,7 @@ app.options('/upload', (req, res) => {
 app.get('/attachment/:fileId', async (req, res) => {
   cors(req, res);
   try {
+    await authenticateAttachment(req);
     const fileUrl = await getTelegramFileUrl(req.params.fileId);
     const fileResponse = await fetch(fileUrl);
     if (!fileResponse.ok) return sendJson(res, 502, { error: 'Failed to fetch attachment' });
@@ -668,18 +802,29 @@ app.get('/attachment/:fileId', async (req, res) => {
     res.setHeader('Content-Length', buffer.length);
     res.end(buffer);
   } catch (error) {
-    sendJson(res, 404, { error: error.message });
+    const status = error.message === 'Missing Authorization header' ? 401 : 404;
+    sendJson(res, status, { error: error.message });
   }
 });
 
-app.post('/upload', async (req, res) => {
+app.post('/upload', uploadLimiter, async (req, res) => {
   cors(req, res);
   try {
     await authenticate(req);
     const { name, type, size, data: base64Data } = req.body || {};
     if (!name || !base64Data) return sendJson(res, 400, { error: 'Missing name or data' });
 
+    // Server-side upload limits (client checks are bypassable with curl).
+    const MAX_FILE_BYTES = Number(process.env.MAX_FILE_BYTES || 10 * 1024 * 1024);
+    const BLOCKED_EXTENSIONS = /\.(exe|bat|cmd|com|msi|scr|ps1|vbs|jar|js|html?|svg)$/i;
+    if (BLOCKED_EXTENSIONS.test(String(name))) {
+      return sendJson(res, 400, { error: 'File type not allowed as an attachment.' });
+    }
     const buffer = Buffer.from(base64Data, 'base64');
+    if (!buffer.length) return sendJson(res, 400, { error: 'Empty content after base64 decode' });
+    if (buffer.length > MAX_FILE_BYTES) {
+      return sendJson(res, 413, { error: `File too large (max ${Math.round(MAX_FILE_BYTES / 1024 / 1024)} MB).` });
+    }
     const { fileId } = await uploadToTelegram(buffer, name, type || 'application/octet-stream');
     const url = `/attachment/${fileId}`;
 
@@ -715,7 +860,7 @@ if (AUTH_PREFIX) {
   });
 }
 
-app.post('/send', async (req, res) => {
+app.post('/send', sendLimiter, async (req, res) => {
   cors(req, res);
 
   try {
@@ -723,6 +868,18 @@ app.post('/send', async (req, res) => {
     const allowedDomain = process.env.ALLOWED_DOMAIN || 'synthrun.site';
     if (!userEmail.endsWith(`@${allowedDomain}`)) {
       return sendJson(res, 403, { error: 'Sender not authorised' });
+    }
+
+    // Idempotency (Phase 2/C1): a client-generated key per compose session.
+    // Replays (double-click, retry, network duplicate) return the original
+    // result instead of sending twice.
+    const idempotencyKey = String(req.headers['idempotency-key'] || (req.body && req.body.idempotencyKey) || '').trim().slice(0, 128);
+    if (idempotencyKey && /^[A-Za-z0-9_-]+$/.test(idempotencyKey)) {
+      initFirebase();
+      const prior = await admin.firestore().collection('sent_keys').doc(idempotencyKey).get();
+      if (prior.exists) {
+        return sendJson(res, 200, { ok: true, messageId: prior.data().messageId || null, deduped: true });
+      }
     }
 
     const { to, cc, bcc, subject, body: text, htmlBody, attachments = [], fromName: customFromName } = req.body || {};
@@ -742,6 +899,19 @@ app.post('/send', async (req, res) => {
     const senderAddress = userEmail;
     const fromName = customFromName || formatFromName(userEmail);
 
+    // Threading (Phase 4/L1): stable thread id from the normalized subject +
+    // participants, plus real In-Reply-To/References when the parent carries
+    // a provider message id (replies to inbound mail thread in Gmail).
+    const inReplyToRaw = String((req.body && req.body.inReplyTo) || '').trim().slice(0, 512);
+    const threadId = threadIdFor({ subject, participants: [...toList, ...ccList, ...bccList] });
+    const threadHeaders = {};
+    if (inReplyToRaw && /[@.]/.test(inReplyToRaw) && !/\s/.test(inReplyToRaw)) {
+      const parentId = inReplyToRaw.includes('@') ? inReplyToRaw : `${inReplyToRaw}@synthrun.site`;
+      const ref = parentId.startsWith('<') ? parentId : `<${parentId}>`;
+      threadHeaders['In-Reply-To'] = ref;
+      threadHeaders['References'] = ref;
+    }
+
     const recipients = [...toList, ...ccList, ...bccList];
     const htmlContent = htmlBody || htmlEscape(fallbackText);
 
@@ -755,36 +925,42 @@ app.post('/send', async (req, res) => {
 
     const brevoApiKey = getBrevoApiKey();
     let info;
+    let sendChannel = 'brevo';
+    const smtpArgs = {
+      senderAddress,
+      fromName,
+      userEmail,
+      toList,
+      ccList,
+      bccList,
+      subject,
+      text: fallbackText,
+      htmlContent,
+      attachments: absoluteUrlAttachments,
+      headers: threadHeaders,
+      recipients,
+    };
     if (brevoApiKey) {
-      info = await sendViaBrevoApi({
-        senderAddress,
-        fromName,
-        userEmail,
-        to: toList,
-        cc: ccList,
-        bcc: bccList,
-        subject,
-        text: fallbackText,
-        htmlContent,
-        attachments: absoluteUrlAttachments,
-      });
+      try {
+        info = await sendViaBrevoApi({ ...smtpArgs });
+      } catch (brevoError) {
+        // Brevo IP-allowlisted keys reject unknown server IPs (Render
+        // rotates egress IPs; localhost is never allowlisted). Fall back to
+        // SMTP instead of hard-failing the send.
+        if (isBrevoAuthError(brevoError) && process.env.SMTP_HOST) {
+          console.warn('[send] Brevo rejected, falling back to SMTP:', brevoError.message);
+          info = await sendViaSmtp({ ...smtpArgs });
+          sendChannel = 'smtp-fallback';
+        } else {
+          if (/authorised_ips|autorized_ips|unrecognised IP|unrecognized IP/i.test(String(brevoError.message || ''))) {
+            throw new Error('Brevo blocked this server IP. Add it under Brevo → Security → Authorised IPs, or configure SMTP_HOST/SMTP_USER/SMTP_PASS so mail falls back to SMTP.');
+          }
+          throw brevoError;
+        }
+      }
     } else {
-      const transporter = createTransport();
-      info = await transporter.sendMail({
-        from: `"${fromName}" <${senderAddress}>`,
-        replyTo: userEmail,
-        to: toList.join(', '),
-        ...(ccList.length ? { cc: ccList.join(', ') } : {}),
-        ...(bccList.length ? { bcc: bccList.join(', ') } : {}),
-        subject: String(subject),
-        text: fallbackText,
-        html: htmlContent,
-        attachments: attachmentsToMailOptions(absoluteUrlAttachments),
-        envelope: {
-          from: senderAddress,
-          to: recipients,
-        },
-      });
+      info = await sendViaSmtp({ ...smtpArgs });
+      sendChannel = 'smtp';
     }
 
     // Store attachments with proxy URLs (not expiring Telegram CDN URLs)
@@ -808,12 +984,30 @@ app.post('/send', async (req, res) => {
         htmlContent,
         attachments: storeAttachments,
         skipSpamCheck: true,
+        providerMessageId: '',
+        attachmentStatus: 'ready',
+        inReplyTo: inReplyToRaw,
+        threadId,
       });
     } catch (storeError) {
       console.warn('Could not store mailbox copy:', storeError);
     }
 
-    return sendJson(res, 200, { ok: true, messageId: info.messageId });
+    if (idempotencyKey && /^[A-Za-z0-9_-]+$/.test(idempotencyKey)) {
+      try {
+        await admin.firestore().collection('sent_keys').doc(idempotencyKey).set({
+          messageId: info.messageId || null,
+          sender: userEmail,
+          to: toList,
+          subject: String(subject),
+          createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+      } catch (keyError) {
+        console.warn('Could not record idempotency key:', keyError.message);
+      }
+    }
+
+    return sendJson(res, 200, { ok: true, messageId: info.messageId, via: sendChannel });
   } catch (error) {
     const status = error.message === 'Missing Authorization header' ? 401 : 502;
     return sendJson(res, status, { error: error.message });
@@ -843,12 +1037,6 @@ function fixEncoding(text) {
   s = s.replace(/\u00c3\u0093/g, '\u00d3');
   s = s.replace(/\u00c3\u009a/g, '\u00da');
   s = s.replace(/\u00c3\u0091/g, '\u00d1');
-  s = s.replace(/\u2019/g, "'");
-  s = s.replace(/\u2018/g, "'");
-  s = s.replace(/\u201c/g, '"');
-  s = s.replace(/\u201d/g, '"');
-  s = s.replace(/\u2013/g, '-');
-  s = s.replace(/\u2014/g, '--');
   s = s.replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/g, '');
   return s;
 }
@@ -1015,7 +1203,7 @@ async function processBrevoAttachments(attachments = [], caption) {
       }
 
       const { fileId } = await uploadToTelegram(buffer, name, contentType, caption);
-      console.log(`/receive: uploaded "${name}" to Telegram, fileId=${fileId}`);
+      console.log(`/receive: uploaded "${name}" (${buffer.length} bytes)`);
       return {
         name,
         size: att.size || buffer.length,
@@ -1078,6 +1266,7 @@ app.post('/receive', async (req, res) => {
     }
 
     const { from, to, cc, bcc, subject, text, html, attachments } = req.body;
+    const providerMessageId = String(pick(req.body, 'messageId', 'message_id', 'MessageID', 'id', 'uuid') || '');
 
     if (!from || !to) {
       return sendJson(res, 400, { error: 'Missing required fields: from, to' });
@@ -1118,6 +1307,8 @@ app.post('/receive', async (req, res) => {
       htmlContent: cleanHtml,
       attachments: rawAttachments.map((a) => ({ name: a.name || 'attachment', size: a.size || 0, type: a.contentType || a.type || 'application/octet-stream' })),
       skipSpamCheck: false,
+      providerMessageId,
+      attachmentStatus: rawAttachments.length ? 'pending' : 'ready',
     });
 
     // 2. Respond to Brevo immediately — the webhook can timeout while we upload.
@@ -1139,7 +1330,7 @@ app.post('/receive', async (req, res) => {
       processBrevoAttachments(rawAttachments, caption).then((processed) => {
         const db = admin.firestore();
         return Promise.all(docIds.map((id) =>
-          db.collection('mail').doc(id).update({ attachments: processed })
+          db.collection('mail').doc(id).update({ attachments: processed, attachmentStatus: 'ready' })
         ));
       }).then(() => {
         console.log(`/receive: patched ${docIds.length} docs with processed attachments`);
@@ -1156,11 +1347,6 @@ app.post('/receive', async (req, res) => {
 app.get('/mail-app-clean.js', (_req, res) => {
   res.type('application/javascript');
   res.sendFile(path.join(__dirname, 'mail-app-clean.js'));
-});
-
-app.get('/templates.js', (_req, res) => {
-  res.type('application/javascript');
-  res.sendFile(path.join(__dirname, 'templates.js'));
 });
 
 app.post('/send-custom-reset', async (req, res) => {
@@ -1241,7 +1427,7 @@ app.post('/send-custom-reset', async (req, res) => {
 
 app.options('/send-backup-code', (req, res) => { cors(req, res); res.status(204).end(); });
 
-app.post('/send-backup-code', async (req, res) => {
+app.post('/send-backup-code', backupCodeLimiter, async (req, res) => {
   cors(req, res);
   try {
     const decoded = await authenticateFull(req);
@@ -1292,7 +1478,7 @@ app.post('/send-backup-code', async (req, res) => {
 
 app.options('/verify-backup-code', (req, res) => { cors(req, res); res.status(204).end(); });
 
-app.post('/verify-backup-code', async (req, res) => {
+app.post('/verify-backup-code', backupCodeLimiter, async (req, res) => {
   cors(req, res);
   try {
     const decoded = await authenticateFull(req);
@@ -1302,16 +1488,6 @@ app.post('/verify-backup-code', async (req, res) => {
     const fdb = admin.firestore();
     const settingsSnap = await fdb.collection('user_settings').doc(decoded.uid).get();
 
-    // Special code "remove" — delete backup email without verification
-    if (code === 'remove') {
-      await fdb.collection('user_settings').doc(decoded.uid).set({
-        backupEmail: '',
-        pendingBackup: admin.firestore.FieldValue.delete(),
-        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-      }, { merge: true });
-      return sendJson(res, 200, { ok: true, email: '' });
-    }
-
     if (!settingsSnap.exists) return sendJson(res, 400, { error: 'No pending verification' });
 
     const data = settingsSnap.data();
@@ -1319,6 +1495,17 @@ app.post('/verify-backup-code', async (req, res) => {
     if (!pending) return sendJson(res, 400, { error: 'No pending verification' });
 
     if (pending.code !== code) return sendJson(res, 400, { error: 'Invalid code' });
+
+    // The "10 minute" expiry printed in the email is now actually enforced
+    // (Phase 2/A8). Codes without a timestamp are treated as expired.
+    const BACKUP_CODE_TTL_MS = 10 * 60 * 1000;
+    let issuedMs = 0;
+    try {
+      issuedMs = pending.expiresAt?.toMillis?.() || 0;
+    } catch { issuedMs = 0; }
+    if (!issuedMs || Date.now() - issuedMs > BACKUP_CODE_TTL_MS) {
+      return sendJson(res, 400, { error: 'Code expired — request a new one.' });
+    }
 
     const email = pending.email;
     await fdb.collection('user_settings').doc(decoded.uid).set({
@@ -1332,6 +1519,105 @@ app.post('/verify-backup-code', async (req, res) => {
     return sendJson(res, err.message === 'Missing Authorization header' ? 401 : 400, { error: err.message });
   }
 });
+
+app.options('/backup-email', (req, res) => { cors(req, res); res.status(204).end(); });
+
+// Explicit, authenticated backup-email removal. Replaces the old
+// code==='remove' magic string on /verify-backup-code (Phase 2/A8).
+app.delete('/backup-email', async (req, res) => {
+  cors(req, res);
+  try {
+    const decoded = await authenticateFull(req);
+    const fdb = admin.firestore();
+    await fdb.collection('user_settings').doc(decoded.uid).set({
+      backupEmail: '',
+      pendingBackup: admin.firestore.FieldValue.delete(),
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    }, { merge: true });
+    return sendJson(res, 200, { ok: true });
+  } catch (err) {
+    return sendJson(res, err.message === 'Missing Authorization header' ? 401 : 400, { error: err.message });
+  }
+});
+
+// Retention policy (Phase 1 / A1). Trash and spam auto-purge after N days.
+// Point a nightly cron (Render Cron Job, Cloud Scheduler, or Brevo-style
+// webhook timer) at POST /admin/purge-expired with the RECEIVE_TOKEN bearer.
+const TRASH_RETENTION_DAYS = Number(process.env.TRASH_RETENTION_DAYS || 30);
+const SPAM_RETENTION_DAYS = Number(process.env.SPAM_RETENTION_DAYS || 30);
+const PURGE_BATCH_LIMIT = 400;
+
+app.post('/admin/purge-expired', async (req, res) => {
+  cors(req, res);
+  try {
+    const authHeader = req.headers.authorization || '';
+    const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : '';
+    const expectedToken = String(process.env.RECEIVE_TOKEN || '').trim();
+    if (!expectedToken || token !== expectedToken) {
+      return sendJson(res, 403, { error: 'Invalid token' });
+    }
+
+    initFirebase();
+    const db = admin.firestore();
+    const nowMs = Date.now();
+    const purged = { trash: 0, spam: 0 };
+    const jobs = [
+      { folder: 'trash', stampField: 'trashedAt', cutoffMs: nowMs - TRASH_RETENTION_DAYS * 86400000, key: 'trash' },
+      { folder: 'spam', stampField: 'spamAt', cutoffMs: nowMs - SPAM_RETENTION_DAYS * 86400000, key: 'spam' },
+    ];
+
+    for (const job of jobs) {
+      const cutoff = new Date(job.cutoffMs);
+      const ids = new Set();
+
+      // 1. Docs filed since the retention schema shipped (have timestamps).
+      const stamped = await db.collection('mail')
+        .where('folder', '==', job.folder)
+        .where(job.stampField, '<', cutoff)
+        .limit(PURGE_BATCH_LIMIT)
+        .get();
+      stamped.forEach((d) => ids.add(d.id));
+
+      // 2. Legacy docs filed before the schema (null stamp): expire by
+      // receivedAt so pre-existing buildup drains on the first runs.
+      if (ids.size < PURGE_BATCH_LIMIT) {
+        const legacy = await db.collection('mail')
+          .where('folder', '==', job.folder)
+          .where(job.stampField, '==', null)
+          .limit(PURGE_BATCH_LIMIT - ids.size)
+          .get();
+        legacy.forEach((d) => {
+          const data = d.data();
+          const receivedMs = toMillisSafe(data.receivedAt);
+          if (receivedMs && receivedMs < job.cutoffMs) ids.add(d.id);
+        });
+      }
+
+      const chunks = [...ids];
+      for (let i = 0; i < chunks.length; i += 100) {
+        await Promise.all(chunks.slice(i, i + 100).map((id) => db.collection('mail').doc(id).delete()));
+      }
+      purged[job.key] = ids.size;
+    }
+
+    return sendJson(res, 200, { ok: true, purged, retentionDays: { trash: TRASH_RETENTION_DAYS, spam: SPAM_RETENTION_DAYS } });
+  } catch (error) {
+    console.error('/admin/purge-expired error:', error);
+    return sendJson(res, 502, { error: error.message });
+  }
+});
+
+function toMillisSafe(value) {
+  try {
+    if (!value) return 0;
+    if (typeof value.toMillis === 'function') return value.toMillis();
+    if (typeof value.toDate === 'function') return value.toDate().getTime();
+    const ms = new Date(value).getTime();
+    return Number.isFinite(ms) ? ms : 0;
+  } catch {
+    return 0;
+  }
+}
 
 app.get('/health', (_req, res) => {
   res.json({ ok: true });
@@ -1350,13 +1636,18 @@ if (AUTH_PREFIX) {
   });
   app.get(prefix + '/settings', (_req, res) => {
     res.setHeader('Cache-Control', 'no-store');
-    res.sendFile(path.join(__dirname, 'profile.html'));
+    res.sendFile(path.join(__dirname, 'settings', 'index.html'));
   });
 }
 
-app.get(/^\/[^/]+\.html$/, (_req, res) => {
-  res.setHeader('Cache-Control', 'no-store');
-  res.sendFile(path.join(__dirname, 'profile.html'));
+// Legacy settings URLs (profile.html, wvf052wc) were merged into /settings/.
+app.get(['/profile.html', '/wvf052wc', '/wvf052wc/'], (_req, res) => {
+  res.redirect(301, '/settings/');
+});
+
+app.get(/^\/[^/]+\.html$/, (req, res, next) => {
+  if (req.path === '/profile.html') return res.redirect(301, '/settings/');
+  next();
 });
 
 app.use(

@@ -28,7 +28,13 @@ services:
       - key: FROM_NAME
         value: Synthrun Mail
       - key: FROM_NAME_TEMPLATE
-        value: "Synthrun Mail"
+        value: "{name} from {email}"
+      - key: TRASH_RETENTION_DAYS
+        value: "30"
+      - key: SPAM_RETENTION_DAYS
+        value: "30"
+      - key: MAX_FILE_BYTES
+        value: "10485760"
       - key: SENDER_ADDRESS
         sync: false
       - key: ALLOWED_ORIGIN

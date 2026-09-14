@@ -6,11 +6,15 @@ import {
   collection,
   deleteDoc,
   doc,
+  getCountFromServer,
   getDoc,
   getDocs,
   getFirestore,
+  limit,
+  orderBy,
   query,
   serverTimestamp,
+  startAfter,
   updateDoc,
   where,
 } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
@@ -54,6 +58,11 @@ function updateSelectedCount() {
     el.style.display = '';
     if (bulk) bulk.style.display = 'flex';
     if (emptyTrashBtn) emptyTrashBtn.style.display = 'none';
+    // Trash multi-select: only Restore / Delete forever make sense here.
+    // (bulkMoreLabels keeps its own inline visibility — excluded on purpose.)
+    const inTrash = currentFolder === 'trash';
+    document.querySelectorAll('#bulkMoreDropdown .bulk-more-item.bulk-normal, #bulkMoreDropdown .bulk-more-sep.bulk-normal').forEach((item) => { item.style.display = inTrash ? 'none' : ''; });
+    document.querySelectorAll('#bulkMoreDropdown .bulk-trash-only').forEach((item) => { item.style.display = inTrash ? '' : 'none'; });
   } else {
     el.style.display = 'none';
     if (bulk) bulk.style.display = 'none';
@@ -75,7 +84,12 @@ function toggleSelected(id) {
   }
   updateSelectedCount();
 }
-const DEBUG_USER = globalThis.SYNTHRUN_DEBUG_USER || localStorage.getItem('synthrun-debug-user') || '';
+// Debug impersonation is a local-dev-only escape hatch. It is NEVER honored
+// on hosted builds — an attacker able to write localStorage for our origin
+// must already own the browser, but documenting a prod backdoor is still a
+// takeover path on any preview deploy (Fix E2 / Phase 0).
+const IS_LOCAL_DEV = ['localhost', '127.0.0.1'].includes(window.location.hostname);
+const DEBUG_USER = IS_LOCAL_DEV ? (globalThis.SYNTHRUN_DEBUG_USER || localStorage.getItem('synthrun-debug-user') || '') : '';
 const SETTINGS_CACHE_KEY = 'synthrun-settings';
 
 function loadCachedSettings() {
@@ -92,9 +106,10 @@ function saveCachedSettings(settings) {
 }
 
 function applySettings(s) {
-  if (!s) return;
-  document.body.classList.toggle('layout-gmail', s.layout === 'gmail');
-  document.body.classList.toggle('density-compact', s.density === 'compact');
+  // Defaults: synthrun layout + compact density unless explicitly changed.
+  const v = s || {};
+  document.body.classList.toggle('layout-gmail', (v.layout || 'synthrun') === 'gmail');
+  document.body.classList.toggle('density-compact', (v.density || 'compact') === 'compact');
 }
 
 async function fetchSettingsFromFirebase(uid) {
@@ -104,8 +119,30 @@ async function fetchSettingsFromFirebase(uid) {
       const s = snap.data();
       saveCachedSettings(s);
       applySettings(s);
+      applySendingIdentity(s);
     }
   } catch { /* ignore */ }
+}
+
+function applySendingIdentity(s) {
+  if (!s) return;
+  window.SYNTHRUN_SENDING_IDENTITY = {
+    displayName: String(s.displayName || '').slice(0, 80),
+    signature: s.signature && typeof s.signature === 'object'
+      ? { enabled: Boolean(s.signature.enabled), text: String(s.signature.text || '').slice(0, 1000) }
+      : { enabled: false, text: '' },
+  };
+  refreshFromLabel();
+}
+
+function refreshFromLabel() {
+  if (!currentUser) return;
+  const identity = window.SYNTHRUN_SENDING_IDENTITY;
+  const label = identity?.displayName
+    ? `${identity.displayName} <${currentUser.email}>`
+    : `from: ${currentUser.email}`;
+  const el = document.getElementById('compFromLabel');
+  if (el) el.textContent = label;
 }
 
 async function loadUserLabels() {
@@ -130,7 +167,6 @@ function renderSidebarLabels() {
   container.querySelectorAll('.side-link[data-folder]').forEach((link) => {
     link.addEventListener('click', () => {
       showFolderView({ folder: link.dataset.folder });
-      renderList();
     });
   });
 }
@@ -166,7 +202,8 @@ function getRouteStateFromLocation() {
   const firstSegment = String(segments[0] || '').toLowerCase();
 
   if (!segments.length || firstSegment === 'index.html' || firstSegment === 'index') {
-    return { folder: 'inbox', messageId: null };
+    // Warm start: reopen the last folder from cookie instead of inbox.
+    return { folder: getLastFolderCookie() || 'inbox', messageId: null };
   }
 
   const routeFolder = ROUTE_FOLDER_ALIASES[firstSegment];
@@ -184,14 +221,32 @@ function buildRoutePath(folder = currentFolder, messageId = activeMessageId) {
 
 function syncRouteToLocation({ folder = currentFolder, messageId = activeMessageId, replace = false } = {}) {
   const nextPath = buildRoutePath(folder, messageId);
+  try {
+    document.cookie = `synthrun-last-folder=${encodeURIComponent(folder)};path=/;max-age=${30 * 86400};SameSite=Lax`;
+  } catch { /* cookies blocked — route still works */ }
   if (window.location.pathname === nextPath) return;
   const method = replace ? 'replaceState' : 'pushState';
   window.history[method]({ folder, messageId: messageId || null }, '', nextPath);
 }
 
+function getLastFolderCookie() {
+  try {
+    const m = document.cookie.match(/(?:^|;\s*)synthrun-last-folder=([^;]*)/);
+    const v = m ? decodeURIComponent(m[1]).slice(0, 80) : '';
+    if (!v) return '';
+    if (FOLDER_LABELS[v]) return v;
+    if (v.startsWith('label:') && v.length > 6) return v;
+    return '';
+  } catch { return ''; }
+}
+
 function updateFolderSelection(folder) {
   currentFolder = folder;
   document.getElementById('folderLabel').textContent = folder.startsWith('label:') ? folder.slice(6) : (FOLDER_LABELS[folder] || folder);
+  const retentionNotice = document.getElementById('retentionNotice');
+  if (retentionNotice) {
+    retentionNotice.textContent = (folder === 'trash' || folder === 'spam') ? '· auto-deletes after 30 days' : '';
+  }
   document.querySelectorAll('.side-link').forEach((item) => item.classList.remove('active'));
   document.querySelectorAll(`[data-folder="${folder}"]`).forEach((item) => item.classList.add('active'));
   const emptyTrashBtn = document.getElementById('emptyTrashBtn');
@@ -206,6 +261,12 @@ function showFolderView({ folder = currentFolder, replaceRoute = false } = {}) {
   document.getElementById('messageView').style.display = 'none';
   setMessageOpenState(false);
   syncRouteToLocation({ folder, messageId: null, replace: replaceRoute });
+  // Paint immediately (fetching placeholder if the folder is cold), then
+  // paint emails exactly once when the page arrives.
+  renderList();
+  ensureFolderLoaded(folder).then(() => {
+    if (currentFolder === folder && !activeMessageId) renderList();
+  });
 }
 
 async function restoreRouteState() {
@@ -217,8 +278,29 @@ async function restoreRouteState() {
   document.getElementById('messageView').style.display = 'none';
   setMessageOpenState(false);
 
+  await ensureFolderLoaded(folder);
+
   if (messageId) {
-    await openMessage(messageId, { replaceRoute: true });
+    // Peek first: draft links reopen in the composer, everything else in
+    // the reader — so a reload on any email link lands on the same email.
+    let target = messageMap.get(messageId);
+    if (!target) {
+      try {
+        const snap = await getDoc(doc(db, 'mail', messageId));
+        if (snap.exists()) {
+          target = { id: snap.id, ...snap.data() };
+          messageMap.set(target.id, target);
+          allMessages.unshift(target);
+        }
+      } catch { target = null; }
+    }
+    if (target && target.folder === 'draft') {
+      updateFolderSelection('drafts');
+      syncRouteToLocation({ folder: 'drafts', messageId: null, replace: true });
+      await openCompose({ draftId: target.id });
+    } else {
+      await openMessage(messageId, { replaceRoute: true });
+    }
   }
 
   syncRouteToLocation({ folder, messageId: messageId || null, replace: true });
@@ -264,15 +346,20 @@ onAuthStateChanged(auth, async (user) => {
   // Apply user settings (layout, density) — cache in localStorage for instant load
   const cached = loadCachedSettings();
   applySettings(cached);
-  // Fetch latest from Firebase in background, update cache
-  fetchSettingsFromFirebase(user.uid).catch(() => {});
+  applySendingIdentity(cached);
 
   window.SYNTHRUN_UPDATE_LOADING?.(2);
-  await loadMessages();
+  // First load fans out in parallel: mail pages + counts, fresh profile
+  // settings (identity/appearance), and label definitions — so the reader,
+  // badges and label colors are all ready before first paint.
+  await Promise.all([
+    loadMessages(),
+    fetchSettingsFromFirebase(user.uid).catch(() => {}),
+    loadUserLabels().catch(() => {}),
+  ]);
   await restoreRouteState();
   window.SYNTHRUN_UPDATE_LOADING?.(5);
   setAppLoading(false);
-  loadUserLabels().catch(() => {});
   applyAutoLabels().catch(() => {});
 });
 
@@ -325,7 +412,7 @@ function bootDebugUser(email) {
 function bindUi() {
   document.getElementById('composeBtn').addEventListener('click', () => openCompose());
   document.getElementById('closeCompose').addEventListener('click', closeCompose);
-  document.getElementById('discardBtn').addEventListener('click', closeCompose);
+  document.getElementById('discardBtn').addEventListener('click', () => closeCompose({ discard: true }));
   document.getElementById('attachBtn').addEventListener('click', () => document.getElementById('attachmentInput').click());
   document.getElementById('attachmentInput').addEventListener('change', onAttachmentsSelected);
   document.getElementById('composeOverlay').addEventListener('click', (event) => {
@@ -358,39 +445,51 @@ function bindUi() {
   document.getElementById('retryBtn').addEventListener('click', () => {
     if (activeMessageId) retryOutboxMessage(activeMessageId);
   });
+  document.getElementById('printBtn').addEventListener('click', () => {
+    if (activeMessageId) window.print();
+  });
 
   // User-chip, nav, sign-out handled by spa-nav.js via data-spa-link + window.__signOut
 
   document.querySelectorAll('.side-link[data-folder]').forEach((link) => {
     link.addEventListener('click', () => {
+      // Single render: showFolderView fetches (if needed) then renders once.
       showFolderView({ folder: link.dataset.folder });
-      renderList();
     });
   });
 
-  ['compTo', 'compCc', 'compBcc', 'compSubject', 'compBody', 'compHtmlBody'].forEach((id) => {
+  ['compTo', 'compCc', 'compBcc', 'compSubject', 'compHtmlBody'].forEach((id) => {
     const el = document.getElementById(id);
     if (el) el.addEventListener('input', scheduleDraftSave);
   });
 
   tick();
   setInterval(tick, 1000);
+  document.addEventListener('keydown', handleGlobalShortcuts);
 
   function bulkAction(fn) {
     return () => Promise.all([...selectedIds].map(fn)).then(() => {
       selectedIds.clear();
       renderList();
+      refreshCounts();
     });
   }
 
-  document.getElementById('bulkTrashBtn').addEventListener('click', bulkAction((id) => updateDoc(doc(db, 'mail', id), { folder: 'trash' }).then(() => {
+  document.getElementById('bulkTrashBtn').addEventListener('click', bulkAction((id) => {
     const msg = messageMap.get(id);
-    if (msg) msg.folder = 'trash';
-  })));
-  document.getElementById('bulkArchiveBtn').addEventListener('click', bulkAction((id) => updateDoc(doc(db, 'mail', id), { folder: 'archived' }).then(() => {
+    const prev = msg?.folder || currentFolder;
+    const updates = { folder: 'trash', previousFolder: prev, trashedAt: serverTimestamp() };
+    return updateDoc(doc(db, 'mail', id), updates).then(() => {
+      if (msg) { msg.folder = 'trash'; msg.previousFolder = prev; }
+    });
+  }));
+  document.getElementById('bulkArchiveBtn').addEventListener('click', bulkAction((id) => {
     const msg = messageMap.get(id);
-    if (msg) msg.folder = 'archived';
-  })));
+    const prev = msg?.folder || currentFolder;
+    return updateDoc(doc(db, 'mail', id), { folder: 'archived', previousFolder: prev }).then(() => {
+      if (msg) { msg.folder = 'archived'; msg.previousFolder = prev; }
+    });
+  }));
   document.getElementById('bulkFlagBtn').addEventListener('click', bulkAction((id) => {
     const msg = messageMap.get(id);
     const next = !msg?.flagged;
@@ -407,6 +506,44 @@ function bindUi() {
     if (msg) msg.unread = true;
     return updateDoc(doc(db, 'mail', id), { unread: true });
   }));
+
+  // Trash-only bulk actions (shown instead of the normal set in Trash).
+  document.getElementById('bulkRestoreBtn').addEventListener('click', async () => {
+    const ids = [...selectedIds];
+    if (!ids.length) return;
+    try {
+      await Promise.all(ids.map((id) => {
+        const msg = messageMap.get(id);
+        const target = restoreTargetFolder(msg?.previousFolder);
+        const updates = { folder: target, previousFolder: null, trashedAt: null, spamAt: null };
+        return updateDoc(doc(db, 'mail', id), updates).then(() => {
+          if (msg) msg.folder = target;
+        });
+      }));
+      selectedIds.clear();
+      renderList();
+      refreshCounts();
+      showToast(`Restored ${ids.length} message${ids.length === 1 ? '' : 's'}.`);
+    } catch {
+      showToast('Could not restore selection.', true);
+    }
+  });
+  document.getElementById('bulkDeleteForeverBtn').addEventListener('click', async () => {
+    const ids = [...selectedIds];
+    if (!ids.length) return;
+    if (!confirm(`Permanently delete ${ids.length} message${ids.length === 1 ? '' : 's'}? This cannot be undone.`)) return;
+    try {
+      await Promise.all(ids.map((id) => deleteDoc(doc(db, 'mail', id))));
+      allMessages = allMessages.filter((m) => !selectedIds.has(m.id));
+      ids.forEach((id) => messageMap.delete(id));
+      selectedIds.clear();
+      renderList();
+      refreshCounts();
+      showToast('Permanently deleted.');
+    } catch {
+      showToast('Could not delete selection.', true);
+    }
+  });
 
   // Label dropdown
   document.getElementById('labelBtn').addEventListener('click', (e) => {
@@ -426,8 +563,10 @@ function bindUi() {
       try {
         await Promise.all(trashIds.map(id => deleteDoc(doc(db, 'mail', id))));
         allMessages = allMessages.filter(m => m.folder !== 'trash');
+        trashIds.forEach(id => messageMap.delete(id));
         selectedIds.clear();
         renderList();
+        refreshCounts();
         showToast('Trash emptied.');
       } catch (e) {
         console.error('emptyTrash:', e);
@@ -526,34 +665,217 @@ async function applyAutoLabels() {
   } catch { /* ignore */ }
 }
 
+// ─── PAGINATED LOADING (Phase 1/A5) ─────────────────────────────
+// The mailbox no longer pulls the whole collection. Each folder keeps its
+// own cursor; the thread list renders the loaded window and offers
+// "Load older messages". Badge counts come from cheap count() aggregations.
+// NOTE: first run needs composite indexes on
+// mail(recipientEmail, receivedAt desc) and
+// mail(recipientEmail, folder, receivedAt desc) — Firestore logs the link.
+const PAGE_SIZE = 50;
+let folderCursors = {};
+let folderExhausted = {};
+let folderCounts = { inboxTotal: 0, inboxUnread: 0, sent: 0, outbox: 0, spam: 0, archived: 0, trash: 0, draft: 0, important: 0 };
+let loadingMore = false;
+
+// Folders with a concrete `folder` value page exactly server-side.
+// Pseudo-folders (inbox view, unread, flagged, important, clients, labels)
+// page over recency and filter client-side.
+function folderQueryKey(folder) {
+  if (folder === 'sent') return 'sent';
+  if (folder === 'outbox') return 'outbox';
+  if (folder === 'archived') return 'archived';
+  if (folder === 'trash') return 'trash';
+  if (folder === 'spam') return 'spam';
+  if (folder === 'drafts') return 'draft';
+  return 'all';
+}
+
+// Firestore reports a failed-precondition with an index-creation link when
+// a composite index is missing. Folder queries degrade to client filtering
+// in that case instead of rendering an empty folder.
+function isMissingIndexError(error) {
+  if (!error) return false;
+  if (String(error.code || '') === 'failed-precondition') return true;
+  return /index/i.test(String(error.message || ''));
+}
+
+function mergeMessages(docs) {  let added = 0;
+  for (const entry of docs) {
+    if (!messageMap.has(entry.id)) {
+      const m = { id: entry.id, ...entry.data() };
+      messageMap.set(m.id, m);
+      allMessages.push(m);
+      added += 1;
+    }
+  }
+  if (added) {
+    allMessages.sort((left, right) => toMillis(right.receivedAt) - toMillis(left.receivedAt));
+  }
+  return added;
+}
+
+function indexMessagesForContacts(msgs) {
+  const contacts = [];
+  for (const m of msgs) {
+    if (m.from && !contacts.some(c => c.email === m.from.toLowerCase())) {
+      contacts.push({ email: m.from.toLowerCase(), name: m.fromName || '' });
+    }
+    if (m.senderEmail && !contacts.some(c => c.email === m.senderEmail.toLowerCase())) {
+      contacts.push({ email: m.senderEmail.toLowerCase(), name: m.fromName || '' });
+    }
+    if (m.to) {
+      for (const addr of m.to.split(',').map(s => s.trim().toLowerCase()).filter(Boolean)) {
+        if (!contacts.some(c => c.email === addr)) {
+          contacts.push({ email: addr, name: '' });
+        }
+      }
+    }
+  }
+  window.SYNTHRUN_ADD_CONTACTS?.(contacts);
+}
+
+async function loadFolderPage(folder, { render = true } = {}) {
+  if (!currentUser || loadingMore) return 0;
+  const key = folderQueryKey(folder);
+  if (folderExhausted[key]) return 0;
+  loadingMore = true;
+  try {
+    const base = collection(db, 'mail');
+    const runPage = (withFolderFilter) => {
+      const constraints = [where('recipientEmail', '==', currentUser.email)];
+      if (withFolderFilter) constraints.push(where('folder', '==', key));
+      constraints.push(orderBy('receivedAt', 'desc'));
+      if (folderCursors[key]) constraints.push(startAfter(folderCursors[key]));
+      constraints.push(limit(PAGE_SIZE));
+      return getDocs(query(base, ...constraints));
+    };
+    let snap;
+    let exact = key === 'all';
+    try {
+      // Exact server-side paging needs composite index
+      // mail(recipientEmail, folder, receivedAt desc).
+      snap = await runPage(key !== 'all');
+    } catch (error) {
+      if (key !== 'all' && isMissingIndexError(error)) {
+        // Index not built yet: over-fetch recency on the base index and
+        // filter locally instead of showing an empty folder.
+        console.warn(`loadFolderPage: no composite index for "${key}", using client filter`);
+        snap = await runPage(false);
+        exact = false;
+      } else {
+        throw error;
+      }
+    }
+    if (!snap.empty) {
+      folderCursors[key] = snap.docs[snap.docs.length - 1];
+    }
+    let docs = snap.docs;
+    if (!exact) {
+      docs = docs.filter((d) => d.data().folder === key);
+      if (snap.docs.length === 0) folderExhausted[key] = true;
+    } else if (snap.docs.length < PAGE_SIZE) {
+      folderExhausted[key] = true;
+    }
+    const added = mergeMessages(docs);
+    indexMessagesForContacts(docs.map((d) => ({ id: d.id, ...d.data() })));
+    if (render) renderList();
+    return added;
+  } catch (error) {
+    console.error('loadFolderPage:', error);
+    if (isMissingIndexError(error)) {
+      showToast('Search index building — retry in a minute.', true);
+    } else {
+      showToast('Could not load messages — check Firestore rules.', true);
+    }
+    return 0;
+  } finally {
+    loadingMore = false;
+  }
+}
+
+async function ensureFolderLoaded(folder) {
+  const key = folderQueryKey(folder);
+  if (!(key in folderCursors) && !folderExhausted[key]) {
+    await loadFolderPage(folder, { render: false });
+  }
+}
+
+let countsIndexWarned = false;
+
+async function refreshCounts() {
+  if (!currentUser) return;
+  const base = collection(db, 'mail');
+  const mine = where('recipientEmail', '==', currentUser.email);
+  // NOTE: firebase 10.12.2 exposes getCountFromServer (not getCountFromFirestore).
+  // Each count degrades independently: multi-filter counts need composite
+  // indexes, so a missing one must not zero out the badges that did load.
+  const countQ = (extra = []) => getCountFromServer(query(base, mine, ...extra)).then((s) => s.data().count).catch(() => null);
+  try {
+    const [total, unreadAll, unreadSpam, unreadTrash, sent, outbox, spam, archived, trash, draft, important] = await Promise.all([
+      countQ(),
+      countQ([where('unread', '==', true)]),
+      countQ([where('folder', '==', 'spam'), where('unread', '==', true)]),
+      countQ([where('folder', '==', 'trash'), where('unread', '==', true)]),
+      countQ([where('folder', '==', 'sent')]),
+      countQ([where('folder', '==', 'outbox')]),
+      countQ([where('folder', '==', 'spam')]),
+      countQ([where('folder', '==', 'archived')]),
+      countQ([where('folder', '==', 'trash')]),
+      countQ([where('folder', '==', 'draft')]),
+      countQ([where('important', '==', true)]),
+    ]);
+    const keep = (v, fallback) => (v == null ? fallback : v);
+    folderCounts.sent = keep(sent, folderCounts.sent);
+    folderCounts.outbox = keep(outbox, folderCounts.outbox);
+    folderCounts.spam = keep(spam, folderCounts.spam);
+    folderCounts.archived = keep(archived, folderCounts.archived);
+    folderCounts.trash = keep(trash, folderCounts.trash);
+    folderCounts.draft = keep(draft, folderCounts.draft);
+    folderCounts.important = keep(important, folderCounts.important);
+    if (total != null) {
+      folderCounts.inboxTotal = Math.max(0, total - folderCounts.sent - folderCounts.outbox - folderCounts.spam - folderCounts.archived - folderCounts.trash - folderCounts.draft);
+    }
+    if (unreadAll != null && unreadSpam != null && unreadTrash != null) {
+      folderCounts.inboxUnread = Math.max(0, unreadAll - unreadSpam - unreadTrash);
+    }
+    if (total == null && !countsIndexWarned) {
+      countsIndexWarned = true;
+      showToast('Mailbox counts unavailable — search index building.', true);
+    }
+    updateBadges();
+  } catch (error) {
+    console.warn('refreshCounts:', error);
+  }
+}
+
+function updateBadges() {
+  const set = (id, value) => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = String(value);
+  };
+  set('badge-inbox', folderCounts.inboxTotal || 0);
+  set('badge-unread', folderCounts.inboxUnread || 0);
+  set('badge-archived', folderCounts.archived || 0);
+  set('badge-sent', folderCounts.sent || '—');
+  set('badge-important', folderCounts.important || 0);
+  set('badge-drafts', folderCounts.draft || '—');
+  set('badge-trash', folderCounts.trash || 0);
+  set('badge-outbox', folderCounts.outbox || 0);
+  set('badge-spam', folderCounts.spam || 0);
+}
+
 async function loadMessages() {
   if (!currentUser) return;
 
   try {
     window.SYNTHRUN_UPDATE_LOADING?.(3);
-    const snap = await getDocs(query(collection(db, 'mail'), where('recipientEmail', '==', currentUser.email)));
-    allMessages = snap.docs
-      .map((entry) => ({ id: entry.id, ...entry.data() }))
-      .sort((left, right) => toMillis(right.receivedAt) - toMillis(left.receivedAt));
-    messageMap = new Map(allMessages.map(m => [m.id, m]));
-    // Build contact index from loaded messages
-    const contacts = [];
-    for (const m of allMessages) {
-      if (m.from && !contacts.some(c => c.email === m.from.toLowerCase())) {
-        contacts.push({ email: m.from.toLowerCase(), name: m.fromName || '' });
-      }
-      if (m.senderEmail && !contacts.some(c => c.email === m.senderEmail.toLowerCase())) {
-        contacts.push({ email: m.senderEmail.toLowerCase(), name: m.fromName || '' });
-      }
-      if (m.to) {
-        for (const addr of m.to.split(',').map(s => s.trim().toLowerCase()).filter(Boolean)) {
-          if (!contacts.some(c => c.email === addr)) {
-            contacts.push({ email: addr, name: '' });
-          }
-        }
-      }
-    }
-    window.SYNTHRUN_ADD_CONTACTS?.(contacts);
+    allMessages = [];
+    messageMap = new Map();
+    folderCursors = {};
+    folderExhausted = {};
+    selectedIds.clear();
+    await Promise.all([refreshCounts(), loadFolderPage(currentFolder, { render: false })]);
     window.SYNTHRUN_UPDATE_LOADING?.(4);
     renderList();
   } catch (error) {
@@ -589,11 +911,13 @@ async function saveSentMessage(to, cc, subject, body, attachments = [], htmlBody
   }
 }
 
-async function saveOutboxMessage(to, cc, bcc, subject, body, htmlBody = '') {
+async function saveOutboxMessage(to, cc, bcc, subject, body, htmlBody = '', idempotencyKey = '', inReplyTo = '') {
   try {
     const message = {
       folder: 'outbox',
       status: 'sending',
+      idempotencyKey,
+      inReplyTo,
       from: currentUser.email,
       fromName: formatSenderName(currentUser.email),
       senderEmail: currentUser.email,
@@ -634,6 +958,7 @@ async function retryOutboxMessage(id) {
   try {
     await updateOutboxStatus(id, { status: 'sending' });
     const attachments = Array.isArray(message.attachments) ? message.attachments : [];
+    const idempotencyKey = message.idempotencyKey || (window.crypto?.randomUUID ? window.crypto.randomUUID() : 'k' + Date.now().toString(36));
     const bodyWithLinks = `${message.body || ''}${buildAttachmentText(attachments)}`;
     const finalHtmlBody = `${message.htmlBody || ''}${buildAttachmentHtml(attachments)}`;
     const debugUser = globalThis.SYNTHRUN_DEBUG_USER || localStorage.getItem('synthrun-debug-user');
@@ -642,6 +967,7 @@ async function retryOutboxMessage(id) {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        'Idempotency-Key': idempotencyKey,
         ...(idToken ? { Authorization: `Bearer ${idToken}` } : {}),
         ...(debugUser ? { 'X-Debug-User': debugUser } : {}),
       },
@@ -653,6 +979,9 @@ async function retryOutboxMessage(id) {
         body: bodyWithLinks,
         htmlBody: finalHtmlBody,
         attachments,
+        idempotencyKey,
+        inReplyTo: message.inReplyTo || '',
+        fromName: window.SYNTHRUN_SENDING_IDENTITY?.displayName || undefined,
         from: currentUser.email,
       }),
     });
@@ -664,6 +993,7 @@ async function retryOutboxMessage(id) {
     const retried = messageMap.get(id);
     if (retried) retried.folder = 'sent';
     renderList();
+    refreshCounts();
     showToast('Message sent.');
   } catch (error) {
     console.error('retryOutboxMessage:', error);
@@ -754,6 +1084,35 @@ function getSenderLabel(message) {
   return formatted || 'Unknown';
 }
 
+// Per-folder empty states (Phase 5/J1): every dead end gets an explanation
+// and one primary action instead of a bare "No messages".
+function folderEmptyState(folder, hasQuery) {
+  const wrap = (title, sub, action) => `
+      <div class="empty-state">
+        <svg viewBox="0 0 24 24"><path d="M3 8l7.9 5.3a2 2 0 0 0 2.2 0L21 8M5 19h14a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2z"/></svg>
+        <p><strong>${title}</strong></p>
+        <p>${sub}</p>
+        ${action || ''}
+      </div>`;
+  const composeBtn = '<p><button type="button" class="reply-btn primary" data-empty-action="compose">Compose</button></p>';
+  if (hasQuery) {
+    return wrap('No results', 'Try different keywords or load older messages.', '<p><button type="button" class="reply-btn" data-empty-action="clear-search">Clear search</button></p>');
+  }
+  if (folder === 'inbox') return wrap('Inbox zero', "You're all caught up.", composeBtn);
+  if (folder === 'unread') return wrap('All caught up', 'No unread messages.', '');
+  if (folder === 'sent') return wrap('No sent mail yet', 'Mail you send lands here.', composeBtn);
+  if (folder === 'drafts') return wrap('No drafts', 'Unsent ideas live here.', composeBtn);
+  if (folder === 'outbox') return wrap('Outbox clear', 'Queued and failed sends appear here.', '');
+  if (folder === 'trash') return wrap('Trash is empty', 'Deleted mail is removed after 30 days.', '');
+  if (folder === 'spam') return wrap('No spam', 'Suspicious mail lands here for 30 days.', '');
+  if (folder === 'archived') return wrap('Nothing archived', 'Archived mail skips the inbox without being deleted.', '');
+  if (folder === 'flagged') return wrap('Nothing flagged', 'Flag messages to triage them here.', '');
+  if (folder === 'important') return wrap('Nothing important', 'Mark messages important to find them fast.', '');
+  if (folder === 'clients') return wrap('No client mail', 'Messages labelled "clients" appear here.', '');
+  if (folder.startsWith('label:')) return wrap(escapeHtml(folder.slice(6)), 'No messages carry this label yet.', '');
+  return wrap('Nothing here', 'Messages will appear in this view.', '');
+}
+
 function renderList() {
   const container = document.getElementById('threadItems');
   const queryText = document.getElementById('searchInput').value.trim().toLowerCase();
@@ -784,36 +1143,34 @@ function renderList() {
     });
   }
 
-  let inboxTotal = 0, inboxUnread = 0, draftCount = 0, trashCount = 0, importantCount = 0, outboxCount = 0, spamCount = 0, archivedCount = 0, sentCount = 0;
-  for (const m of allMessages) {
-    if (m.folder === 'draft') draftCount++;
-    else if (m.folder === 'trash') trashCount++;
-    else if (m.folder === 'outbox') outboxCount++;
-    else if (m.folder === 'spam') spamCount++;
-    else if (m.folder === 'archived') archivedCount++;
-    else if (m.folder === 'sent') sentCount++;
-    else { inboxTotal++; if (m.unread) inboxUnread++; }
-    if (m.important) importantCount++;
-  }
-  document.getElementById('badge-inbox').textContent = String(inboxTotal || 0);
-  document.getElementById('badge-unread').textContent = String(inboxUnread || 0);
-  document.getElementById('badge-archived').textContent = String(archivedCount || 0);
-  document.getElementById('badge-sent').textContent = String(sentCount || '—');
-  document.getElementById('badge-important').textContent = String(importantCount || 0);
-  document.getElementById('badge-drafts').textContent = String(draftCount || '—');
-  document.getElementById('badge-trash').textContent = String(trashCount || 0);
-  document.getElementById('badge-outbox').textContent = String(outboxCount || 0);
-  document.getElementById('badge-spam').textContent = String(spamCount || 0);
-  document.getElementById('statusCount').textContent = `${messages.length} message${messages.length === 1 ? '' : 's'}`;
+  // Badges come from server count() aggregations (see refreshCounts) so they
+  // stay truthful while the list itself is a paged window.
+  updateBadges();
+  const folderKey = folderQueryKey(currentFolder);
+  const fullyLoaded = Boolean(folderExhausted[folderKey]);
+  document.getElementById('statusCount').textContent =
+    `${messages.length} message${messages.length === 1 ? '' : 's'}${messages.length && !fullyLoaded ? ' · more below' : ''}`;
 
   container.innerHTML = '';
   updateSelectedCount();
+  if (queryText && !fullyLoaded) {
+    const hint = document.createElement('div');
+    hint.className = 'search-scope-hint';
+    hint.textContent = 'Searching loaded messages — load older for full results.';
+    container.appendChild(hint);
+  }
   if (!messages.length) {
-    container.innerHTML = `
-      <div class="empty-state">
-        <svg viewBox="0 0 24 24"><path d="M3 8l7.9 5.3a2 2 0 0 0 2.2 0L21 8M5 19h14a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2z"/></svg>
-        <p>No messages</p>
-      </div>`;
+    if (!(folderKey in folderCursors) && !fullyLoaded && !queryText) {
+      // Folder never fetched: fetching placeholder, never a false empty state.
+      container.innerHTML = '<div class="empty-state"><p>Fetching mail…</p></div>';
+      return;
+    }
+    container.innerHTML = folderEmptyState(currentFolder, Boolean(queryText));
+    container.querySelector('[data-empty-action="compose"]')?.addEventListener('click', () => openCompose({}));
+    container.querySelector('[data-empty-action="clear-search"]')?.addEventListener('click', () => {
+      document.getElementById('searchInput').value = '';
+      renderList();
+    });
     return;
   }
 
@@ -846,7 +1203,7 @@ function renderList() {
       <div class="thread-body">
         <div class="thread-from">${escapeHtml(senderLabel)}</div>
         <div class="thread-subject">${escapeHtml(message.subject || '(no subject)')}</div>
-        <div class="thread-preview">${escapeHtml(cleanPreviewText(stripMarkdown(fixEncoding(message.body || ''))).slice(0, 80))}</div>
+        <div class="thread-preview">${escapeHtml(cleanPreviewText(stripMarkdown(fixEncoding(message.body || ''))).slice(0, 120))}</div>
         ${message.folder === 'outbox' ? `<div class="thread-tags"><span class="thread-tag ${message.status === 'failed' ? 'tag-error' : message.status === 'sending' ? 'tag-pending' : ''}">${message.status === 'sending' ? 'Sending...' : message.status === 'failed' ? 'Failed' : 'Pending'}</span></div>` : ''}
         ${attachmentCount ? `<div class="thread-tags"><span class="thread-tag">📎 ${attachmentCount} attachment${attachmentCount === 1 ? '' : 's'}</span></div>` : ''}
         ${Array.isArray(message.labels) && message.labels.length ? `<div class="thread-tags">${message.labels.map((label) => `<span class="thread-tag">${escapeHtml(label)}</span>`).join('')}</div>` : ''}
@@ -859,9 +1216,15 @@ function renderList() {
       toggleSelected(message.id);
     });
 
-    item.addEventListener('click', () => openMessage(message.id));
+    const openItem = () => {
+      // Drafts open back in the composer (multi-draft, Phase 1/A2) —
+      // everything else opens in the reader.
+      if (message.folder === 'draft') openCompose({ draftId: message.id });
+      else openMessage(message.id);
+    };
+    item.addEventListener('click', openItem);
     item.addEventListener('keydown', (event) => {
-      if (event.key === 'Enter' || event.key === ' ') openMessage(message.id);
+      if (event.key === 'Enter' || event.key === ' ') openItem();
     });
 
     if (selectedIds.has(message.id)) {
@@ -910,11 +1273,34 @@ function renderList() {
 
     container.appendChild(item);
   });
+
+  if (messages.length && !folderExhausted[folderQueryKey(currentFolder)]) {
+    const wrap = document.createElement('div');
+    wrap.className = 'load-more-wrap';
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'load-more-btn';
+    btn.textContent = loadingMore ? 'Loading…' : 'Load older messages';
+    btn.disabled = loadingMore;
+    btn.addEventListener('click', async () => {
+      btn.disabled = true;
+      btn.textContent = 'Loading…';
+      await loadFolderPage(currentFolder);
+    });
+    wrap.appendChild(btn);
+    container.appendChild(wrap);
+  }
 }
 
-async function loadDraft() {
+async function loadDraft(draftId = null) {
   if (!currentUser) return null;
   try {
+    if (draftId) {
+      const snap = await getDoc(doc(db, 'mail', draftId));
+      if (!snap.exists() || snap.data().folder !== 'draft') return null;
+      draftDocId = snap.id;
+      return { id: snap.id, ...snap.data() };
+    }
     const snap = await getDocs(query(
       collection(db, 'mail'),
       where('recipientEmail', '==', currentUser.email)
@@ -936,8 +1322,8 @@ async function saveDraft() {
   const cc = document.getElementById('compCc').value.trim();
   const bcc = document.getElementById('compBcc').value.trim();
   const subject = document.getElementById('compSubject').value.trim();
+  // Single HTML editor (compose redesign): raw HTML in, plain text derived.
   const rawBody = String(window.SYNTHRUN_GET_COMPOSE_BODY?.() || '').trim();
-  const isHtmlMode = Boolean(window.SYNTHRUN_GET_COMPOSE_IS_HTML?.());
   if (!to && !cc && !bcc && !subject && !rawBody) return;
 
   const data = {
@@ -949,14 +1335,19 @@ async function saveDraft() {
     cc,
     bcc,
     subject,
-    body: rawBody,
-    htmlBody: isHtmlMode ? rawBody : '',
+    body: stripHtmlToText(rawBody),
+    htmlBody: rawBody,
+    // Only already-uploaded attachments persist — local File objects carry
+    // no URL yet and are re-attached from the composer (Phase 1/A2).
+    attachments: draftAttachments
+      .filter((f) => f && f.url)
+      .map((f) => ({ name: f.name, size: f.size, type: f.type, url: f.url, ...(f.fileId ? { fileId: f.fileId } : {}) })),
     senderUid: currentUser.uid,
     recipientEmail: currentUser.email,
     unread: false,
     flagged: false,
     important: false,
-    isHtml: isHtmlMode,
+    isHtml: true,
     updatedAt: serverTimestamp(),
   };
 
@@ -967,7 +1358,8 @@ async function saveDraft() {
       const ref = await addDoc(collection(db, 'mail'), data);
       draftDocId = ref.id;
     }
-    document.getElementById('composeUploadStatus').textContent = 'Draft saved';
+    document.getElementById('composeUploadStatus').textContent =
+      `Draft saved ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
   } catch (err) {
     console.warn('saveDraft:', err);
   }
@@ -988,8 +1380,39 @@ function scheduleDraftSave() {
   draftSaveTimer = setTimeout(saveDraft, 2000);
 }
 
+// Subject threading (Phase 4/L1): collapse any existing Re:/Fwd: chain
+// (case-insensitive, repeated) and apply exactly one prefix. Empty subjects
+// become "(no subject)" — never a bare "Re:".
+function normalizeSubject(subject, prefix) {
+  let s = String(subject || '').trim();
+  let prev = null;
+  while (prev !== s) {
+    prev = s;
+    s = s.replace(/^\s*(re|fwd?|fw)(\[\d+\])?:\s*/i, '');
+  }
+  if (!s) s = '(no subject)';
+  return `${prefix} ${s}`;
+}
+
+function splitEmails(value) {
+  return String(value || '').split(',').map((s) => s.trim().toLowerCase()).filter(Boolean);
+}
+
+let composeInReplyTo = '';
+
 async function openMessage(id, { updateRoute = true, replaceRoute = false } = {}) {
-  const message = messageMap.get(id);
+  let message = messageMap.get(id);
+  if (!message) {
+    // Deep link / not-yet-paged message: fetch it directly (Phase 1/A5).
+    try {
+      const snap = await getDoc(doc(db, 'mail', id));
+      if (snap.exists()) {
+        message = { id: snap.id, ...snap.data() };
+        messageMap.set(id, message);
+        allMessages.unshift(message);
+      }
+    } catch { /* fall through to not-found */ }
+  }
   if (!message) return;
   activeMessageId = id;
   setMessageOpenState(true);
@@ -1002,8 +1425,8 @@ async function openMessage(id, { updateRoute = true, replaceRoute = false } = {}
       console.warn('Could not clear unread flag:', error);
     }
     document.querySelectorAll(`.thread-item[data-id="${id}"]`).forEach(el => el.classList.remove('unread'));
-    const unreadCount = allMessages.filter(m => m.unread && m.folder !== 'sent' && m.folder !== 'draft' && m.folder !== 'trash' && m.folder !== 'outbox' && m.folder !== 'spam').length;
-    document.getElementById('badge-unread').textContent = String(unreadCount || 0);
+    if (folderCounts.inboxUnread > 0) folderCounts.inboxUnread -= 1;
+    updateBadges();
   }
 
   document.querySelectorAll('.thread-item.active').forEach(el => el.classList.remove('active'));
@@ -1015,13 +1438,19 @@ async function openMessage(id, { updateRoute = true, replaceRoute = false } = {}
   document.getElementById('viewDate').textContent = timestamp.toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' });
 
   const attachments = Array.isArray(message.attachments) ? message.attachments : [];
+  // Fresh viewer token for authed /attachment/* links (Fix E3). Fetched once
+  // per open; data: and third-party URLs are left untouched by withAuth.
+  let attachmentAuthToken = '';
+  if (attachments.length && currentUser && typeof currentUser.getIdToken === 'function') {
+    try { attachmentAuthToken = await currentUser.getIdToken(); } catch { attachmentAuthToken = ''; }
+  }
   const attachmentMarkup = attachments.length
     ? `
       <div class="mail-attachments">
         <div class="mail-attachments-title">Attachments</div>
         <div class="mail-attachments-list">
           ${attachments.map((attachment) => {
-            const rawUrl = getAttachmentUrl(attachment);
+            const rawUrl = getAttachmentUrl(attachment, attachmentAuthToken);
             const isDataUrl = rawUrl.startsWith('data:');
             const previewUrl = escapeHtml(rawUrl);
             const downloadUrl = escapeHtml(isDataUrl ? rawUrl : (rawUrl + (rawUrl.includes('?') ? '&' : '?') + 'download=1'));
@@ -1047,35 +1476,54 @@ async function openMessage(id, { updateRoute = true, replaceRoute = false } = {}
   let bodyHtml = '';
   let isBodyHtml = false;
   if (htmlBodyText && hasHtmlTags(htmlBodyText)) {
-    bodyHtml = htmlBodyText;
+    bodyHtml = sanitizeHtml(htmlBodyText);
     isBodyHtml = true;
   } else if (htmlBodyText && !hasHtmlTags(htmlBodyText)) {
     bodyHtml = escapeHtml(htmlBodyText);
   } else if (bodyText && hasHtmlTags(bodyText)) {
-    bodyHtml = bodyText;
+    bodyHtml = sanitizeHtml(bodyText);
     isBodyHtml = true;
   } else if (bodyText) {
-    if (containsMarkdown(bodyText)) {
-      bodyHtml = renderMarkdown(bodyText);
-      isBodyHtml = true;
-    } else {
-      bodyHtml = escapeHtml(bodyText);
-    }
+    // Plain text stays plain: escaped + pre-wrap CSS. The old auto-Markdown
+    // path rendered unsanitized HTML from regex substitution (XSS, Phase 3/B2).
+    bodyHtml = escapeHtml(bodyText);
   }
 
   const replyBody = htmlBodyText && hasHtmlTags(htmlBodyText) ? stripHtmlToText(htmlBodyText) : (bodyText || '');
 
+  const pendingAttachmentsNote = (message.attachmentStatus === 'pending' && attachments.length)
+    ? `<div class="mail-bubble"><div class="mail-bubble-body" style="color:var(--subtle);font-size:12px;">Processing attachments… they will appear here in a moment.</div></div>`
+    : '';
+
+  const senderId = getSenderIdentity(message);
+  const senderEmailFull = senderId.email || '';
+  const toListFull = splitEmails(message.to || currentUser.email);
+  const toShort = toListFull.length > 1 ? `${toListFull[0]} +${toListFull.length - 1}` : (toListFull[0] || '');
+  const ccFull = String(message.cc || '').trim();
+  const fullDate = timestamp.toLocaleString([], { dateStyle: 'full', timeStyle: 'long' });
+
   document.getElementById('mailBodyScroll').innerHTML = `
+    ${pendingAttachmentsNote}
     <div class="mail-bubble">
       <div class="mail-bubble-header">
         <div class="mail-sender-block">
           <div class="mail-sender-avatar">${escapeHtml(getSenderLabel(message).slice(0, 2).toUpperCase())}</div>
           <div>
             <div class="mail-sender-name">${escapeHtml(getSenderLabel(message))}</div>
-            <div class="mail-sender-addr">To: ${escapeHtml(message.to || currentUser.email)}</div>
+            <div class="mail-sender-addr">${escapeHtml(senderEmailFull)} → ${escapeHtml(toShort)}</div>
           </div>
         </div>
         <div class="mail-bubble-time">${timestamp.toLocaleString([], { dateStyle: 'long', timeStyle: 'short' })}</div>
+      </div>
+      <div class="mail-details-toggle-row"><button class="mail-details-toggle" id="mailDetailsToggle" type="button" aria-expanded="false">Show details</button></div>
+      <div class="mail-details" id="mailDetails" hidden>
+        <div class="mail-details-row"><span>From</span><span>${escapeHtml(getSenderLabel(message))} &lt;${escapeHtml(senderEmailFull) || '—'}&gt;</span></div>
+        <div class="mail-details-row"><span>To</span><span>${escapeHtml(toListFull.join(', ') || '—')}</span></div>
+        ${ccFull ? `<div class="mail-details-row"><span>Cc</span><span>${escapeHtml(ccFull)}</span></div>` : ''}
+        <div class="mail-details-row"><span>Date</span><span>${escapeHtml(fullDate)}</span></div>
+        <div class="mail-details-row"><span>Subject</span><span>${escapeHtml(message.subject || '(no subject)')}</span></div>
+        <div class="mail-details-row"><span>Mailed-by</span><span>synthrun.site</span></div>
+        <div class="mail-details-row"><span>Message-ID</span><span>${escapeHtml(message.providerMessageId || '—')}</span></div>
       </div>
       <div class="mail-bubble-body${isBodyHtml ? ' is-html' : ''}" id="mailBodyContent">${isBodyHtml ? '' : bodyHtml}</div>
       ${attachmentMarkup}
@@ -1092,14 +1540,28 @@ async function openMessage(id, { updateRoute = true, replaceRoute = false } = {}
 
   document.getElementById('emptyView').style.display = 'none';
   document.getElementById('messageView').style.display = 'flex';
+  document.getElementById('viewSubject').title = message.subject || '(no subject)';
+  const detailsToggle = document.getElementById('mailDetailsToggle');
+  detailsToggle?.addEventListener('click', () => {
+    const details = document.getElementById('mailDetails');
+    const willOpen = details.hidden;
+    details.hidden = !willOpen;
+    detailsToggle.textContent = willOpen ? 'Hide details' : 'Show details';
+    detailsToggle.setAttribute('aria-expanded', String(willOpen));
+  });
   const replyTarget = getSenderIdentity(message).email || message.from || '';
-  document.getElementById('replyBtn').onclick = () => openCompose({ to: replyTarget, subject: `Re: ${message.subject || ''}`, prefill: `\n\n---\nFrom: ${getSenderLabel(message) || ''}\n${replyBody}` });
+  const replyQuote = `\n\n---\nFrom: ${getSenderLabel(message) || ''}\n${replyBody}`;
+  document.getElementById('replyBtn').onclick = () => openCompose({ to: replyTarget, subject: normalizeSubject(message.subject, 'Re:'), prefill: replyQuote, inReplyTo: message.providerMessageId || message.id });
   const hasHtmlContent = htmlBodyText && hasHtmlTags(htmlBodyText);
-  document.getElementById('forwardBtn').onclick = () => openCompose({ subject: `Fwd: ${message.subject || ''}`, prefill: `\n\n---\nFrom: ${getSenderLabel(message) || ''}\n${replyBody}`, htmlBody: hasHtmlContent ? buildForwardedHtml(message, bodyHtml, timestamp) : '' });
+  document.getElementById('forwardBtn').onclick = () => openCompose({ subject: normalizeSubject(message.subject, 'Fwd:'), prefill: replyQuote, htmlBody: hasHtmlContent ? buildForwardedHtml(message, bodyHtml, timestamp) : '' });
+  // Reply-all: sender in To, everyone else from To/Cc except me and sender.
+  const meLower = (currentUser.email || '').toLowerCase();
+  const replyAllCc = [...new Set([...toListFull, ...splitEmails(ccFull)].filter((a) => a && a !== meLower && a !== replyTarget.toLowerCase()))];
+  document.getElementById('replyAllBtn').onclick = () => openCompose({ to: replyTarget, cc: replyAllCc.join(', '), subject: normalizeSubject(message.subject, 'Re:'), prefill: replyQuote, inReplyTo: message.providerMessageId || message.id });
   const isTrash = message.folder === 'trash';
   const isOutbox = message.folder === 'outbox';
   const isSpam = message.folder === 'spam';
-  document.getElementById('deleteBtn').onclick = () => isTrash ? deleteForever(id) : trashMessage(id);
+  document.getElementById('deleteBtn').onclick = () => (isTrash || isOutbox) ? deleteForever(id) : trashMessage(id);
   document.getElementById('deleteBtn').title = isTrash ? 'Delete forever' : isSpam ? 'Move to trash' : 'Trash';
   document.getElementById('deleteBtn').setAttribute('aria-label', isTrash ? 'Delete forever' : isSpam ? 'Move to trash' : 'Move to trash');
   document.getElementById('archiveBtn').onclick = () => isSpam ? markAsNotSpam(id) : toggleArchive(id);
@@ -1138,10 +1600,11 @@ async function openMessage(id, { updateRoute = true, replaceRoute = false } = {}
   }
 
   document.getElementById('replyBtn').style.display = isTrash || isOutbox || isSpam ? 'none' : '';
+  document.getElementById('replyAllBtn').style.display = (isTrash || isOutbox || isSpam || !replyAllCc.length) ? 'none' : '';
   document.getElementById('forwardBtn').style.display = isTrash || isOutbox || isSpam ? 'none' : '';
   document.getElementById('notSpamBtn').style.display = isSpam ? '' : 'none';
   document.getElementById('restoreBtn').style.display = isTrash ? '' : 'none';
-  document.getElementById('deleteForeverBtn').style.display = isTrash || isSpam ? '' : 'none';
+  document.getElementById('deleteForeverBtn').style.display = (isTrash || isSpam || isOutbox) ? '' : 'none';
   document.getElementById('retryBtn').style.display = isOutbox && message.status === 'failed' ? '' : 'none';
 
   if (isSpam) {
@@ -1159,8 +1622,10 @@ async function deleteMessage(id) {
   try {
     await deleteDoc(doc(db, 'mail', id));
     allMessages = allMessages.filter((message) => message.id !== id);
+    messageMap.delete(id);
     closeMessageView({ replaceRoute: true });
     renderList();
+    refreshCounts();
     showToast('Message deleted.');
   } catch (error) {
     console.error('deleteMessage:', error);
@@ -1196,6 +1661,7 @@ async function moveMessageFolder(id, folder, successToast, failureToast) {
     showFolderView({ folder, replaceRoute: true });
     syncArchiveButtonState(folder === 'archived');
     renderList();
+    refreshCounts();
     showToast(successToast);
   } catch (error) {
     console.error('moveMessageFolder:', error);
@@ -1258,13 +1724,24 @@ function syncImportantButtonState(isImportant) {
   btn.setAttribute('aria-pressed', String(Boolean(isImportant)));
 }
 
+// Retention (Phase 1): every trash/spam/archive move records where the
+// message came from and when, so restore returns it correctly and the
+// nightly purge can expire it after 30 days.
+function restoreTargetFolder(prev) {
+  if (prev && !['trash', 'spam', 'outbox'].includes(prev)) return prev;
+  return 'inbox';
+}
+
 async function trashMessage(id) {
+  const message = messageMap.get(id);
+  const prev = message?.folder || currentFolder;
   try {
-    await updateDoc(doc(db, 'mail', id), { folder: 'trash' });
+    await updateDoc(doc(db, 'mail', id), { folder: 'trash', previousFolder: prev, trashedAt: serverTimestamp() });
     const moved = messageMap.get(id);
-    if (moved) moved.folder = 'trash';
+    if (moved) { moved.folder = 'trash'; moved.previousFolder = prev; }
     closeMessageView({ replaceRoute: true });
     renderList();
+    refreshCounts();
     showToast('Moved to trash.');
   } catch (error) {
     console.error('trashMessage:', error);
@@ -1273,13 +1750,15 @@ async function trashMessage(id) {
 }
 
 async function restoreMessage(id) {
+  const target = restoreTargetFolder(messageMap.get(id)?.previousFolder);
   try {
-    await updateDoc(doc(db, 'mail', id), { folder: 'inbox' });
+    await updateDoc(doc(db, 'mail', id), { folder: target, previousFolder: null, trashedAt: null, spamAt: null });
     const restored = messageMap.get(id);
-    if (restored) restored.folder = 'inbox';
+    if (restored) restored.folder = target;
     closeMessageView({ replaceRoute: true });
     renderList();
-    showToast('Restored to inbox.');
+    refreshCounts();
+    showToast(target === 'inbox' ? 'Restored to inbox.' : 'Restored.');
   } catch (error) {
     console.error('restoreMessage:', error);
     showToast('Could not restore message.', true);
@@ -1287,12 +1766,14 @@ async function restoreMessage(id) {
 }
 
 async function markAsNotSpam(id) {
+  const target = restoreTargetFolder(messageMap.get(id)?.previousFolder);
   try {
-    await updateDoc(doc(db, 'mail', id), { folder: 'inbox' });
+    await updateDoc(doc(db, 'mail', id), { folder: target, previousFolder: null, trashedAt: null, spamAt: null });
     const msg = messageMap.get(id);
-    if (msg) msg.folder = 'inbox';
+    if (msg) msg.folder = target;
     closeMessageView({ replaceRoute: true });
     renderList();
+    refreshCounts();
     showToast('Moved to inbox.');
   } catch (error) {
     console.error('markAsNotSpam:', error);
@@ -1301,11 +1782,14 @@ async function markAsNotSpam(id) {
 }
 
 async function deleteForever(id) {
+  if (!confirm('Permanently delete this message? This cannot be undone.')) return;
   try {
     await deleteDoc(doc(db, 'mail', id));
     allMessages = allMessages.filter((m) => m.id !== id);
+    messageMap.delete(id);
     closeMessageView({ replaceRoute: true });
     renderList();
+    refreshCounts();
     showToast('Permanently deleted.');
   } catch (error) {
     console.error('deleteForever:', error);
@@ -1370,10 +1854,13 @@ function setAppLoading(isLoading) {
   if (!loadingOverlay) return;
   if (!isLoading) {
     window.SYNTHRUN_UPDATE_LOADING?.(5);
+    // Minimum display so the loader is actually seen (3s animation loop);
+    // emails are already painted underneath by the time this runs.
+    const elapsed = Date.now() - (window.__bootStart || Date.now());
+    const wait = Math.max(0, 1100 - elapsed);
     setTimeout(() => {
       window.__hideLoader?.();
-      sessionStorage.setItem('synthrun-booted', 'true');
-    }, 600);
+    }, wait);
   } else {
     loadingOverlay.classList.remove('hidden');
     loadingOverlay.setAttribute('aria-busy', 'true');
@@ -1381,18 +1868,17 @@ function setAppLoading(isLoading) {
 }
 
 function clearComposeValidation() {
-  ['compTo', 'compSubject', 'compBody', 'composePlainBody', 'composeHtmlBody'].forEach((id) => {
+  ['compTo', 'compSubject', 'compHtmlBody', 'composeHtmlBody'].forEach((id) => {
     const element = document.getElementById(id);
     if (element) element.classList.remove('invalid');
   });
 }
 
-function markComposeValidation({ to = false, subject = false, body = false, htmlBody = false } = {}) {
+function markComposeValidation({ to = false, subject = false, htmlBody = false } = {}) {
   const fieldMap = {
     compTo: to,
     compSubject: subject,
-    compBody: body,
-    composePlainBody: body && !htmlBody,
+    compHtmlBody: htmlBody,
     composeHtmlBody: htmlBody,
   };
 
@@ -1400,6 +1886,11 @@ function markComposeValidation({ to = false, subject = false, body = false, html
     const element = document.getElementById(id);
     if (element) element.classList.toggle('invalid', Boolean(invalid));
   });
+}
+
+// Plain text → minimal HTML for the single compose editor (compose redesign).
+function textToHtml(text) {
+  return escapeHtml(String(text || '')).replace(/\n/g, '<br>');
 }
 
 function stripHtmlToText(html) {
@@ -1434,49 +1925,57 @@ function buildForwardedHtml(message, bodyHtml, timestamp) {
 </div>`;
 }
 
-async function openCompose({ to = '', cc = '', bcc = '', subject = '', prefill = '', htmlBody = '' } = {}) {
-  const isReply = Boolean(to || cc || bcc || subject || prefill);
+async function openCompose({ to = '', cc = '', bcc = '', subject = '', prefill = '', htmlBody = '', draftId = null, inReplyTo = '' } = {}) {
+  composeInReplyTo = String(inReplyTo || '');
+  // Opening an existing draft from the Drafts folder (multi-draft, A2).
+  let editingDraft = null;
+  if (draftId) {
+    editingDraft = messageMap.get(draftId) || null;
+    if (!editingDraft || editingDraft.folder !== 'draft') {
+      editingDraft = await loadDraft(draftId);
+    }
+    if (!editingDraft) {
+      showToast('Draft not found.', true);
+      return;
+    }
+    draftDocId = editingDraft.id;
+  }
+  const isReply = Boolean(draftId || to || cc || bcc || subject || prefill);
   document.getElementById('compTo').value = to;
   document.getElementById('compCc').value = cc;
   document.getElementById('compBcc').value = bcc;
   if (!isReply) {
-    const draft = await loadDraft();
-    if (draft) {
-      document.getElementById('compTo').value = draft.to || '';
-      document.getElementById('compCc').value = draft.cc || '';
-      document.getElementById('compBcc').value = draft.bcc || '';
-      if (draft.cc) window.SYNTHRUN_OPEN_CC?.();
-      if (draft.bcc) window.SYNTHRUN_OPEN_BCC?.();
-      document.getElementById('compSubject').value = draft.subject || '';
-      if (draft.isHtml && draft.htmlBody) {
-        const modeTemplateBtn = document.getElementById('modeTemplateBtn');
-        if (modeTemplateBtn) modeTemplateBtn.click();
-        const htmlBodyTA = document.getElementById('compHtmlBody');
-        if (htmlBodyTA) htmlBodyTA.value = draft.htmlBody;
-      } else {
-        document.getElementById('compBody').value = draft.body || '';
-      }
-      setComposeStatus('Draft restored');
-    }
-    if (!draft) {
-      document.getElementById('compSubject').value = '';
-      document.getElementById('compBody').value = '';
-    }
+    // Fresh compose is always blank — drafts live in the Drafts folder and
+    // reopen from there (no more single-draft auto-restore).
+    draftDocId = null;
+    document.getElementById('compSubject').value = '';
+    document.getElementById('compHtmlBody').value = '';
+    setComposeStatus('');
+  } else if (editingDraft) {
+    document.getElementById('compTo').value = editingDraft.to || '';
+    document.getElementById('compCc').value = editingDraft.cc || '';
+    document.getElementById('compBcc').value = editingDraft.bcc || '';
+    if (editingDraft.cc) window.SYNTHRUN_OPEN_CC?.();
+    if (editingDraft.bcc) window.SYNTHRUN_OPEN_BCC?.();
+    document.getElementById('compSubject').value = editingDraft.subject || '';
+    // Single HTML editor: stored HTML goes in raw, legacy plain drafts are
+    // escaped so they render exactly as written.
+    document.getElementById('compHtmlBody').value =
+      editingDraft.htmlBody || textToHtml(editingDraft.body || '');
+    draftAttachments = Array.isArray(editingDraft.attachments)
+      ? editingDraft.attachments.map((a) => ({ name: a.name, size: a.size, type: a.type, url: a.url, fileId: a.fileId }))
+      : [];
+    setComposeStatus(draftAttachments.length ? `Draft restored · ${draftAttachments.length} attachment${draftAttachments.length === 1 ? '' : 's'}` : 'Draft restored');
   } else {
     document.getElementById('compSubject').value = subject;
-    if (htmlBody) {
-      const modeTemplateBtn = document.getElementById('modeTemplateBtn');
-      if (modeTemplateBtn) modeTemplateBtn.click();
-      const htmlBodyTA = document.getElementById('compHtmlBody');
-      if (htmlBodyTA) htmlBodyTA.value = htmlBody;
-      document.getElementById('compBody').value = '';
-    } else {
-      document.getElementById('compBody').value = prefill;
-    }
+    document.getElementById('compHtmlBody').value = htmlBody || textToHtml(prefill);
+    // Reply-all (and any reply carrying Cc/Bcc) must reveal those fields.
+    if (cc) window.SYNTHRUN_OPEN_CC?.();
+    if (bcc) window.SYNTHRUN_OPEN_BCC?.();
     setComposeStatus('');
   }
   document.getElementById('attachmentInput').value = '';
-  draftAttachments = [];
+  if (!editingDraft) draftAttachments = [];
   renderDraftAttachments();
   window.SYNTHRUN_RESET_COMPOSE_MODAL?.();
   clearComposeValidation();
@@ -1487,11 +1986,15 @@ async function openCompose({ to = '', cc = '', bcc = '', subject = '', prefill =
   document.getElementById('toChips').querySelector('.chip-input')?.focus();
 }
 
-async function closeCompose() {
+async function closeCompose({ discard = false } = {}) {
   if (composeBusy) return;
-  await clearDraft();
+  if (discard) {
+    if (!confirm('Discard this draft? This cannot be undone.')) return;
+    await clearDraft();
+  }
   if (draftSaveTimer) clearTimeout(draftSaveTimer);
   draftSaveTimer = null;
+  composeInReplyTo = '';
   document.getElementById('composeOverlay').classList.remove('show');
   document.getElementById('attachmentInput').value = '';
   draftAttachments = [];
@@ -1633,25 +2136,44 @@ async function sendMessage() {
   const cc = document.getElementById('compCc').value.trim();
   const bcc = document.getElementById('compBcc').value.trim();
   const subject = document.getElementById('compSubject').value.trim();
-  const isHtmlMode = Boolean(window.SYNTHRUN_GET_COMPOSE_IS_HTML?.());
+  // Single HTML editor (compose redesign): HTML is the source of truth,
+  // plain text is derived for the text part, search and previews.
   const rawBody = String(window.SYNTHRUN_GET_COMPOSE_BODY?.() || '').trim();
-  const body = isHtmlMode ? stripHtmlToText(rawBody) : rawBody;
-  const htmlBody = isHtmlMode ? rawBody : escapeHtml(body);
+  // Flush may leave an invalid address as red text — block send until fixed.
+  const badBox = ['toChips', 'ccChips', 'bccChips']
+    .map((cid) => document.getElementById(cid))
+    .find((box) => box && box.classList.contains('invalid'));
+  if (badBox) {
+    clearComposeValidation();
+    showToast('Fix the highlighted email address before sending.', true);
+    badBox.querySelector('.chip-input')?.focus();
+    return;
+  }
+  let body = stripHtmlToText(rawBody);
+  let htmlBody = rawBody;
 
   clearComposeValidation();
 
   const invalid = {
     to: !to,
     subject: !subject,
-    body: !body && !draftAttachments.length && !(isHtmlMode && rawBody),
-    htmlBody: isHtmlMode && !rawBody && !draftAttachments.length,
+    htmlBody: !rawBody && !draftAttachments.length,
   };
 
-  if (invalid.to || invalid.subject || invalid.body) {
+  if (invalid.to || invalid.subject || invalid.htmlBody) {
     markComposeValidation(invalid);
-    document.getElementById(invalid.to ? 'compTo' : invalid.subject ? 'compSubject' : isHtmlMode ? 'compHtmlBody' : 'compBody')?.focus();
+    document.getElementById(invalid.to ? 'compTo' : invalid.subject ? 'compSubject' : 'compHtmlBody')?.focus();
     showToast('Fill in To, Subject, and add body text or an attachment.', true);
     return;
+  }
+
+  // Sending identity (Phase 6): display name travels as From, signature is
+  // appended after validation so it can't satisfy the "has body" check.
+  const sendingIdentity = window.SYNTHRUN_SENDING_IDENTITY || {};
+  const signatureText = sendingIdentity.signature?.enabled ? String(sendingIdentity.signature.text || '').trim() : '';
+  if (signatureText) {
+    body += `\n\n-- \n${signatureText}`;
+    htmlBody += `<br><div>--</div><div>${escapeHtml(signatureText).replace(/\n/g, '<br>')}</div>`;
   }
 
   const button = document.getElementById('sendBtn');
@@ -1667,14 +2189,14 @@ async function sendMessage() {
   let uploadedAttachments = [];
 
   try {
-    const failedOutboxMessages = allMessages.filter((m) => m.folder === 'outbox' && m.status === 'failed');
-    for (const msg of failedOutboxMessages) {
-      deleteDoc(doc(db, 'mail', msg.id)).catch(() => {});
-    }
+    // NOTE (retention fix A3 / Phase 0): failed outbox messages are never
+    // auto-deleted. The user retries or discards each one explicitly from
+    // the Outbox view.
     setComposeStatus('Saving to outbox...');
-    outboxId = await saveOutboxMessage(to, cc, bcc, subject, body, htmlBody);
+    const idempotencyKey = window.crypto?.randomUUID ? window.crypto.randomUUID() : 'k' + Date.now().toString(36) + Math.random().toString(36).slice(2);
+    outboxId = await saveOutboxMessage(to, cc, bcc, subject, body, htmlBody, idempotencyKey, composeInReplyTo);
     if (outboxId) {
-      const outboxEntry = { id: outboxId, folder: 'outbox', status: 'sending', from: currentUser.email, to, cc, bcc, subject, body, htmlBody, attachments: [], senderUid: currentUser.uid, recipientEmail: currentUser.email, unread: false, flagged: false, important: false };
+      const outboxEntry = { id: outboxId, folder: 'outbox', status: 'sending', idempotencyKey, inReplyTo: composeInReplyTo, from: currentUser.email, to, cc, bcc, subject, body, htmlBody, attachments: [], senderUid: currentUser.uid, recipientEmail: currentUser.email, unread: false, flagged: false, important: false };
       allMessages.unshift(outboxEntry);
       messageMap.set(outboxId, outboxEntry);
     }
@@ -1689,10 +2211,11 @@ async function sendMessage() {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        'Idempotency-Key': idempotencyKey,
         ...(idToken ? { Authorization: `Bearer ${idToken}` } : {}),
         ...(debugUser ? { 'X-Debug-User': debugUser } : {}),
       },
-      body: JSON.stringify({ to, cc, bcc, subject, body: bodyWithLinks, htmlBody: finalHtmlBody, attachments: uploadedAttachments, from: currentUser.email }),
+      body: JSON.stringify({ to, cc, bcc, subject, body: bodyWithLinks, htmlBody: finalHtmlBody, attachments: uploadedAttachments, idempotencyKey, inReplyTo: composeInReplyTo, fromName: sendingIdentity.displayName || undefined, from: currentUser.email }),
     });
 
     if (!response.ok) {
@@ -1702,6 +2225,7 @@ async function sendMessage() {
 
     await updateOutboxStatus(outboxId, { folder: 'sent', status: 'sent', attachments: uploadedAttachments });
     await clearDraft();
+    composeInReplyTo = '';
     if (draftSaveTimer) clearTimeout(draftSaveTimer);
     draftSaveTimer = null;
     composeBusy = false;
@@ -1709,6 +2233,7 @@ async function sendMessage() {
     const msg = messageMap.get(outboxId);
     if (msg) { msg.folder = 'sent'; msg.status = 'sent'; }
     renderList();
+    refreshCounts();
     showToast('Message sent.');
     window.SYNTHRUN_ADD_CONTACTS?.([to, cc, bcc].filter(Boolean).flatMap(s => s.split(',').map(a => ({ email: a.trim(), name: '' }))));
   } catch (error) {
@@ -1734,18 +2259,26 @@ async function sendMessage() {
   }
 }
 
-function getAttachmentUrl(attachment) {
+function getAttachmentUrl(attachment, authToken = '') {
   if (!attachment) return '';
+  // /attachment/* requires auth (Fix E3). The viewer's fresh token is
+  // appended for in-app reading only — never embed it in outgoing mail HTML
+  // (it would leak the sender's token to recipients and expire in ~1h).
+  const withAuth = (url) => {
+    if (!authToken || url.startsWith('data:') || url.includes('api.telegram.org')) return url;
+    const sep = url.includes('?') ? '&' : '?';
+    return url + sep + 'auth=' + encodeURIComponent(authToken);
+  };
   // Has a proxy URL (telegram fileId stored) — use it with filename
   if (attachment.url && attachment.url.startsWith('/attachment/')) {
     const name = attachment.name || 'attachment';
     const sep = attachment.url.includes('?') ? '&' : '?';
-    return attachment.url + sep + 'name=' + encodeURIComponent(name);
+    return withAuth(attachment.url + sep + 'name=' + encodeURIComponent(name));
   }
   // Has a telegram CDN URL and fileId — build proxy URL
   if (attachment.url && attachment.url.includes('api.telegram.org') && attachment.fileId) {
     const base = '/attachment/' + attachment.fileId;
-    return base + '?name=' + encodeURIComponent(attachment.name || 'attachment');
+    return withAuth(base + '?name=' + encodeURIComponent(attachment.name || 'attachment'));
   }
   // Has raw Brevo base64 content (no fileId) — inline data URL fallback
   if (attachment.content && typeof attachment.content === 'string' && attachment.content.length > 50) {
@@ -1763,6 +2296,10 @@ function buildAttachmentText(attachments) {
 
 function buildAttachmentHtml(attachments) {
   if (!attachments.length) return '';
+  // Intentionally bare proxy URLs (no ?auth=): the sender's token must never
+  // be embedded in mail read by recipients. In-app clicks resolve via the
+  // reader; external recipients hit the login-required endpoint (E3).
+  // Phase 7 replaces this with signed Storage URLs.
   return `
     <div style="margin-top:16px;border-top:1px solid #e0dfd9;padding-top:12px;">
       <div style="font-size:11px;letter-spacing:0.08em;text-transform:uppercase;margin-bottom:8px;">Attachments</div>
@@ -1771,11 +2308,15 @@ function buildAttachmentHtml(attachments) {
 }
 
 function getSendEndpoint() {
-  const configuredUrl =
+  // A stored override can redirect the Firebase ID token to an arbitrary
+  // host, so it is only honored on local dev (Fix E2 / Phase 0).
+  const isLocalDev = ['localhost', '127.0.0.1'].includes(window.location.hostname);
+  const configuredUrl = isLocalDev ? (
     globalThis.SYNTHRUN_SEND_ENDPOINT ||
     globalThis.SYNTHRUN_SEND_WORKER_URL ||
     localStorage.getItem('synthrun-send-endpoint') ||
-    localStorage.getItem('synthrun-send-worker-url');
+    localStorage.getItem('synthrun-send-worker-url')
+  ) : '';
   if (configuredUrl) return configuredUrl;
   return '/send';
 }
@@ -1812,7 +2353,7 @@ function cleanPreviewText(text) {
   return String(text)
     .replace(/\u00c2/g, '')
     .replace(/\u00a0/g, ' ')
-    .replace(/https?:\/\/\S+/g, '')
+    .replace(/https?:\/\/([^\s/]+)[^\s]*/g, '$1/…')
     .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
     .replace(/\s+/g, ' ')
     .trim();
@@ -1842,15 +2383,10 @@ function fixEncoding(text) {
   s = s.replace(/\u00c3\u0093/g, '\u00d3'); // Ó
   s = s.replace(/\u00c3\u009a/g, '\u00da'); // Ú
   s = s.replace(/\u00c3\u0091/g, '\u00d1'); // Ñ
-  // Fix smart quotes and dashes
-  s = s.replace(/\u2019/g, "'");
-  s = s.replace(/\u2018/g, "'");
-  s = s.replace(/\u201c/g, '"');
-  s = s.replace(/\u201d/g, '"');
-  s = s.replace(/\u2013/g, '-');
-  s = s.replace(/\u2014/g, '--');
+  // NOTE (Phase 3/B1): smart quotes, em/en dashes and other typography are
+  // preserved as-is (UTF-8 end-to-end). Only control chars are stripped.
   // Fix remaining control chars
-  s = s.replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/g, '');
+  s = s.replace(/[ --]/g, '');
   return s;
 }
 
@@ -1887,41 +2423,31 @@ function hasHtmlTags(text) {
   return /<[a-z][\s\S]*>/i.test(String(text));
 }
 
-function containsMarkdown(text) {
-  return /(\*\*|__|~~|`|^#{1,3}\s|^\[.+\]\(|^[-*]\s|^\d+\.\s|^>\s)/m.test(String(text));
-}
-
-function renderMarkdown(text) {
-  let html = String(text);
-
-  html = html.replace(/^### (.+)$/gm, '<h3>$1</h3>');
-  html = html.replace(/^## (.+)$/gm, '<h2>$1</h2>');
-  html = html.replace(/^# (.+)$/gm, '<h1>$1</h1>');
-
-  html = html.replace(/^> (.+)$/gm, '<blockquote>$1</blockquote>');
-
-  html = html.replace(/^[\d]+\. (.+)$/gm, '<ol><li>$1</li></ol>');
-  html = html.replace(/^[-*] (.+)$/gm, '<ul><li>$1</li></ul>');
-
-  html = html.replace(/```([\s\S]*?)```/g, '<pre><code>$1</code></pre>');
-
-  html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
-
-  html = html.replace(/~~(.+?)~~/g, '<del>$1</del>');
-
-  html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
-  html = html.replace(/__(.+?)__/g, '<strong>$1</strong>');
-
-  html = html.replace(/\*(.+?)\*/g, '<em>$1</em>');
-  html = html.replace(/(?<!\w)_(.+?)_(?!\w)/g, '<em>$1</em>');
-
-  html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noreferrer">$1</a>');
-
-  html = html.replace(/\n{2,}/g, '</p><p>');
-  html = html.replace(/\n/g, '<br>');
-  html = '<p>' + html + '</p>';
-
-  return html;
+// Lightweight HTML sanitizer for inbound mail (Phase 3/B3). Parses with
+// DOMParser and strips scripts, plugins, forms, event handlers, and
+// javascript: URLs; forces safe link targets. Runs before shadow-DOM inject.
+function sanitizeHtml(dirty) {
+  const markup = String(dirty || '');
+  if (!markup) return '';
+  const parser = new DOMParser();
+  const parsedDoc = parser.parseFromString(markup, 'text/html');
+  const dangerousTags = new Set(['SCRIPT', 'OBJECT', 'EMBED', 'APPLET', 'FORM', 'INPUT', 'BUTTON', 'TEXTAREA', 'SELECT', 'OPTION', 'META', 'LINK', 'STYLE', 'IFRAME', 'FRAME', 'BASE']);
+  parsedDoc.querySelectorAll([...dangerousTags].join(',')).forEach((el) => el.remove());
+  parsedDoc.querySelectorAll('*').forEach((el) => {
+    for (const attr of [...el.attributes]) {
+      const name = attr.name.toLowerCase();
+      if (name.startsWith('on')) { el.removeAttribute(attr.name); continue; }
+      if ((name === 'href' || name === 'src' || name === 'xlink:href') && /^\s*javascript:/i.test(attr.value)) {
+        el.removeAttribute(attr.name); continue;
+      }
+      if (name === 'srcdoc') el.removeAttribute(attr.name);
+    }
+    if (el.tagName === 'A') {
+      el.setAttribute('target', '_blank');
+      el.setAttribute('rel', 'noopener noreferrer');
+    }
+  });
+  return parsedDoc.body ? parsedDoc.body.innerHTML : '';
 }
 
 function showToast(message, isError = false) {
@@ -1940,6 +2466,58 @@ function setComposeStatus(message) {
 
 function tick() {
   document.getElementById('statusTime').textContent = new Date().toLocaleTimeString();
+}
+
+// Keyboard shortcuts (Phase 5/J10): c compose · / search · j/k navigate ·
+// e archive · # trash · u unread · r reply · f forward · Esc back · ? help.
+// Never fires while typing in a field.
+function isTypingTarget(el) {
+  if (!el) return false;
+  const tag = String(el.tagName || '').toLowerCase();
+  if (tag === 'input' || tag === 'textarea' || tag === 'select') return true;
+  return Boolean(el.isContentEditable);
+}
+
+function focusThreadItem(offset) {
+  const items = [...document.querySelectorAll('#threadItems .thread-item')];
+  if (!items.length) return;
+  const idx = items.findIndex((el) => el.classList.contains('active'));
+  const next = items[idx < 0 ? 0 : Math.min(items.length - 1, Math.max(0, idx + offset))] || items[0];
+  if (next) {
+    next.focus();
+    next.click();
+    next.scrollIntoView({ block: 'nearest' });
+  }
+}
+
+function handleGlobalShortcuts(event) {
+  if (event.defaultPrevented) return;
+  const overlayOpen = document.getElementById('composeOverlay')?.classList.contains('show');
+  if (event.key === 'Escape') {
+    if (overlayOpen && !composeBusy) { closeCompose(); return; }
+    if (window.SYNTHRUN_TOGGLE_SHORTCUTS?.isOpen()) { window.SYNTHRUN_TOGGLE_SHORTCUTS(false); return; }
+    if (activeMessageId) { closeMessageView(); return; }
+    return;
+  }
+  if (isTypingTarget(event.target)) return;
+  if (event.metaKey || event.ctrlKey || event.altKey) return;
+
+  const key = event.key;
+  if (key === 'c' || key === 'C') { event.preventDefault(); openCompose({}); }
+  else if (key === '/') { event.preventDefault(); document.getElementById('searchInput')?.focus(); }
+  else if (key === '?') { event.preventDefault(); window.SYNTHRUN_TOGGLE_SHORTCUTS?.(); }
+  else if (key === 'j' || key === 'J') { event.preventDefault(); focusThreadItem(1); }
+  else if (key === 'k' || key === 'K') { event.preventDefault(); focusThreadItem(-1); }
+  else if (key === 'e' || key === 'E') { if (activeMessageId) { event.preventDefault(); toggleArchive(activeMessageId); } }
+  else if (key === '#') { if (activeMessageId) { event.preventDefault(); trashMessage(activeMessageId); } }
+  else if (key === 'u' || key === 'U') { if (activeMessageId) { event.preventDefault(); markUnread(activeMessageId); } }
+  else if (key === 'r' || key === 'R') {
+    const btn = document.getElementById('replyBtn');
+    if (activeMessageId && btn && btn.style.display !== 'none') { event.preventDefault(); btn.click(); }
+  } else if (key === 'f' || key === 'F') {
+    const btn = document.getElementById('forwardBtn');
+    if (activeMessageId && btn && btn.style.display !== 'none') { event.preventDefault(); btn.click(); }
+  }
 }
 
 function toDate(value) {

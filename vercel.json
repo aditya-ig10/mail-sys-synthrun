@@ -5,6 +5,30 @@
       "destination": "https://mail-sys-synthrun.onrender.com/send"
     },
     {
+      "source": "/upload",
+      "destination": "https://mail-sys-synthrun.onrender.com/upload"
+    },
+    {
+      "source": "/attachment/:fileId",
+      "destination": "https://mail-sys-synthrun.onrender.com/attachment/:fileId"
+    },
+    {
+      "source": "/send-backup-code",
+      "destination": "https://mail-sys-synthrun.onrender.com/send-backup-code"
+    },
+    {
+      "source": "/verify-backup-code",
+      "destination": "https://mail-sys-synthrun.onrender.com/verify-backup-code"
+    },
+    {
+      "source": "/backup-email",
+      "destination": "https://mail-sys-synthrun.onrender.com/backup-email"
+    },
+    {
+      "source": "/send-custom-reset",
+      "destination": "https://mail-sys-synthrun.onrender.com/send-custom-reset"
+    },
+    {
       "source": "/firebase-config.js",
       "destination": "https://mail-sys-synthrun.onrender.com/firebase-config.js"
     },

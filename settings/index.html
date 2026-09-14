@@ -1,0 +1,2213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>Settings — Synthrun Mail</title>
+<script>(function(){var t=localStorage.getItem('synthrun-theme');if(!t){try{t=(document.cookie.match(/(?:^|;\s*)synthrun-theme=([^;]*)/)||[])[1]||''}catch(e){}}
+var d=t==='dark'?t:t==='light'?t:(window.matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light');
+document.documentElement.setAttribute('data-theme',d);})();</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="preconnect" href="https://www.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,200;0,300;1,200;1,300&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --white: #fafaf8; --off: #f2f1ee; --ink: #111110; --ink2: #2e2e2c;
+  --ink3: #545450; --ink4: #6b6b66; --rule: #e0dfd9;
+  --surface: rgba(255,255,255,0.75); --nav-bg: rgba(250,250,248,0.94);
+  --overlay: rgba(0,0,0,0.45);
+  --green: #2b7a4b; --red: #c04a3a; --amber: #b8860b;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --white: #121210; --off: #191917; --ink: #efeee9; --ink2: #c9c8c2;
+    --ink3: #b0afaa; --ink4: #8f8e88; --rule: #2b2b28;
+    --surface: rgba(18,18,16,0.82); --nav-bg: rgba(18,18,16,0.9);
+    --overlay: rgba(0,0,0,0.65);
+    --green: #4caf7a; --red: #e06050; --amber: #d4a030;
+  }
+}
+html[data-theme="light"], body[data-theme="light"] {
+  --white: #fafaf8; --off: #f2f1ee; --ink: #111110; --ink2: #2e2e2c;
+  --ink3: #545450; --ink4: #6b6b66; --rule: #e0dfd9;
+  --surface: rgba(255,255,255,0.75); --nav-bg: rgba(250,250,248,0.94);
+  --overlay: rgba(0,0,0,0.45);
+  --green: #2b7a4b; --red: #c04a3a; --amber: #b8860b;
+}
+html[data-theme="dark"], body[data-theme="dark"] {
+  --white: #121210; --off: #191917; --ink: #efeee9; --ink2: #c9c8c2;
+  --ink3: #b0afaa; --ink4: #8f8e88; --rule: #2b2b28;
+  --surface: rgba(18,18,16,0.82); --nav-bg: rgba(18,18,16,0.9);
+  --overlay: rgba(0,0,0,0.65);
+  --green: #4caf7a; --red: #e06050; --amber: #d4a030;
+}
+html { font-size: 16px; scroll-behavior: smooth; }
+body {
+  background: var(--white); color: var(--ink);
+  font-family: 'DM Mono', monospace; font-weight: 300;
+  min-height: 100vh; transition: background 0.4s ease, color 0.4s ease;
+}
+body::after { content: ''; position: fixed; inset: 0; z-index: 2000; pointer-events: none; opacity: 0.028;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='512' height='512' filter='url(%23n)'/%3E%3C/svg%3E"); }
+nav {
+  border-bottom: 1px solid var(--rule); background: var(--nav-bg);
+  backdrop-filter: blur(12px); display: flex; align-items: center;
+  justify-content: space-between; padding: 0 1.5rem; height: 52px;
+  position: sticky; top: 0; z-index: 100;
+}
+.nav-logo { display: inline-flex; align-items: center; gap: 0.5rem; font-size: 0.66rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink); text-decoration: none; }
+.nav-logo svg { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 1.4; }
+.nav-title { font-family: 'Fraunces', serif; font-style: italic; font-weight: 200; font-size: 1.15rem; letter-spacing: -0.02em; color: var(--ink3); }
+.nav-actions { display: flex; align-items: center; gap: 0.5rem; }
+.theme-btn { border: 1px solid var(--rule); background: transparent; color: var(--ink3); font-family: 'DM Mono', monospace; font-size: 0.56rem; letter-spacing: 0.1em; text-transform: uppercase; padding: 0.37rem 0.6rem; cursor: pointer; display: inline-flex; align-items: center; gap: 0.35rem; transition: border-color 0.2s, color 0.2s; }
+.theme-btn svg { width: 12px; height: 12px; stroke: currentColor; fill: none; }
+.theme-btn:hover { color: var(--ink); border-color: var(--ink3); }
+.user-chip { position: relative; display: flex; align-items: center; gap: 9px; border: 1px solid var(--rule); padding: 5px 10px; min-width: 160px; max-width: 200px; background: var(--white); cursor: pointer; user-select: none; }
+.user-avatar { width: 26px; height: 26px; display: grid; place-items: center; border-radius: 50%; background: var(--ink); color: var(--white); font-size: 10px; flex-shrink: 0; }
+.user-chip-email { font-size: 11px; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.user-chip-caret { width: 12px; height: 12px; stroke: var(--ink3); fill: none; stroke-width: 1.6; flex-shrink: 0; }
+.user-menu { position: absolute; right: 0; top: calc(100% + 6px); min-width: 180px; background: var(--white); border: 1px solid var(--rule); box-shadow: 0 16px 40px rgba(0,0,0,0.13); padding: 6px; display: none; z-index: 40; }
+.user-menu.show { display: block; }
+.user-menu-item { width: 100%; display: flex; align-items: center; gap: 9px; padding: 9px 10px; text-align: left; font-size: 11px; font-family: inherit; border: 1px solid transparent; background: transparent; cursor: pointer; color: var(--ink); }
+.user-menu-item:hover { background: var(--off); border-color: var(--rule); }
+.user-menu-item svg { width: 13px; height: 13px; stroke: currentColor; fill: none; stroke-width: 1.6; flex-shrink: 0; }
+
+main.content { max-width: 720px; margin: 0 auto; padding: 2rem 1.5rem 4rem; }
+.settings-pane { display: none; }
+.settings-pane.active { display: block; animation: paneIn 0.25s ease both; }
+@keyframes paneIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+
+/* ── Cards overview (landing) ─────────────────────────────── */
+.home-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 12px; }
+.home-card {
+  border: 1px solid var(--rule); background: var(--surface);
+  padding: 20px; display: flex; gap: 14px; align-items: flex-start;
+  cursor: pointer; text-align: left; font: inherit; color: inherit; width: 100%;
+  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.3s ease, background 0.2s ease;
+}
+.home-card:hover { transform: translateY(-2px); box-shadow: 0 14px 30px -20px rgba(17,17,16,0.4); background: var(--white); }
+.home-card-icon {
+  width: 40px; height: 40px; flex-shrink: 0;
+  display: grid; place-items: center;
+  border: 1px solid var(--rule); border-radius: 50%;
+  background: var(--off); color: var(--ink);
+}
+.home-card-icon svg { width: 18px; height: 18px; stroke: currentColor; fill: none; stroke-width: 1.5; }
+.home-card-body { flex: 1; min-width: 0; }
+.home-card-title { font-family: 'Fraunces', serif; font-weight: 300; font-size: 1.1rem; letter-spacing: -0.02em; }
+.home-card-desc { font-size: 0.62rem; color: var(--ink3); margin-top: 2px; line-height: 1.6; }
+.home-card-go { font-size: 0.6rem; color: var(--ink3); margin-top: 8px; letter-spacing: 0.08em; }
+.home-card:hover .home-card-go { color: var(--ink); }
+
+.section { margin-bottom: 3rem; }
+.section-header { margin-bottom: 1.5rem; }
+.section-title { font-family: 'Fraunces', serif; font-weight: 300; font-size: 1.3rem; letter-spacing: -0.02em; color: var(--ink); }
+.section-eyebrow { font-size: 0.6rem; letter-spacing: 0.2em; text-transform: uppercase; color: var(--ink4); margin-bottom: 0.4rem; }
+.crumbs { display: flex; align-items: center; gap: 8px; margin-bottom: 1.25rem; font-size: 0.68rem; color: var(--ink4); }
+.crumbs button { border: 0; background: transparent; color: var(--ink3); font-family: inherit; font-size: inherit; cursor: pointer; padding: 0; }
+.crumbs button:hover { color: var(--ink); }
+.crumb-sep { opacity: 0.6; }
+.crumb-here { color: var(--ink); }
+.section-desc { font-size: 0.6rem; color: var(--ink3); margin-top: 0.3rem; }
+.card { border: 1px solid var(--rule); margin-bottom: 0.75rem; background: var(--surface); }
+.card-pad { padding: 1.25rem 1.5rem; }
+.card-row { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
+.card-left { display: flex; align-items: center; gap: 1rem; flex: 1; }
+.card-avatar { width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center; background: var(--ink); color: var(--white); font-size: 0.75rem; letter-spacing: 0.08em; flex-shrink: 0; }
+.card-info { flex: 1; }
+.card-label { font-size: 0.58rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink3); margin-bottom: 0.15rem; }
+.card-value { font-size: 0.8rem; color: var(--ink); word-break: break-word; }
+.card-hint { font-size: 0.55rem; color: var(--ink4); margin-top: 0.2rem; }
+.card-detail { font-size: 0.65rem; color: var(--ink3); line-height: 1.6; margin-top: 1rem; }
+.form-group { margin-bottom: 1rem; }
+.form-group:last-child { margin-bottom: 0; }
+.form-label-sm { display: block; font-size: 0.55rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink3); margin-bottom: 0.35rem; }
+.form-label { display: block; font-size: 0.55rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--ink3); margin-bottom: 4px; }
+.form-input { width: 100%; max-width: 380px; border: 1px solid var(--rule); background: var(--white); color: var(--ink); font-family: 'DM Mono', monospace; font-size: 0.72rem; font-weight: 300; padding: 0.55rem 0.8rem; outline: none; transition: border-color 0.2s ease; -webkit-appearance: none; appearance: none; }
+.form-input:focus { border-color: var(--ink3); }
+.form-input::placeholder { color: var(--ink4); }
+textarea.form-input { resize: vertical; min-height: 90px; line-height: 1.6; }
+select.form-input { appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%23888884' stroke-width='1.5'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 10px center; padding-right: 28px; }
+.btn { border: 1px solid var(--rule); background: transparent; color: var(--ink3); font-family: 'DM Mono', monospace; font-size: 0.58rem; letter-spacing: 0.08em; text-transform: uppercase; padding: 0.5rem 0.9rem; cursor: pointer; display: inline-flex; align-items: center; gap: 0.45rem; transition: border-color 0.2s, color 0.2s, background 0.2s; white-space: nowrap; }
+.btn svg { width: 11px; height: 11px; stroke: currentColor; fill: none; stroke-width: 1.7; }
+.btn:hover { color: var(--ink); border-color: var(--ink3); }
+.btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.btn-primary { background: var(--ink); color: var(--white); border-color: var(--ink); }
+.btn-primary:hover { opacity: 0.88; color: var(--white); }
+.btn.active { background: var(--ink); color: var(--white); border-color: var(--ink); }
+.btn-danger { color: var(--red); border-color: var(--red); }
+.btn-danger:hover { background: var(--red); color: var(--white); }
+.btn-sm { padding: 0.35rem 0.65rem; font-size: 0.52rem; }
+.btn-success { color: var(--green); border-color: var(--green); }
+.btn-success:hover { background: var(--green); color: var(--white); }
+.btn-outline { background: transparent; color: var(--ink); border: 1px solid var(--rule); }
+.btn-outline:hover { background: var(--off); }
+.hint { font-size: 0.6rem; color: var(--ink3); }
+.toggle { position: relative; display: inline-block; width: 40px; height: 22px; flex-shrink: 0; cursor: pointer; }
+.toggle input { opacity: 0; width: 0; height: 0; }
+.toggle-slider { position: absolute; inset: 0; background: var(--ink4); border-radius: 22px; transition: background 0.25s; }
+.toggle-slider::before { content: ''; position: absolute; left: 2px; bottom: 2px; width: 18px; height: 18px; border-radius: 50%; background: var(--white); transition: transform 0.25s; }
+.toggle input:checked + .toggle-slider { background: var(--green); }
+.toggle input:checked + .toggle-slider::before { transform: translateX(18px); }
+.toggle-sm { position: relative; display: inline-block; width: 32px; height: 18px; flex-shrink: 0; cursor: pointer; }
+.toggle-sm input { position: absolute; opacity: 0; width: 0; height: 0; }
+.toggle-sm .slider { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: var(--ink4); border-radius: 18px; transition: background 0.2s; }
+.toggle-sm .slider::after { content: ''; position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; background: var(--white); border-radius: 50%; transition: transform 0.2s; }
+.toggle-sm input:checked + .slider { background: var(--ink); }
+.toggle-sm input:checked + .slider::after { transform: translateX(14px); }
+.toggle-row { display: flex; align-items: center; gap: 10px; cursor: pointer; }
+.toggle-label { font-size: 0.75rem; color: var(--ink); user-select: none; }
+.setting-status { display: flex; align-items: center; gap: 0.5rem; font-size: 0.65rem; color: var(--ink2); }
+.status-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+.status-dot.on { background: var(--green); }
+.status-dot.off { background: var(--ink4); }
+.badge { display: inline-flex; align-items: center; gap: 0.3rem; font-size: 0.5rem; letter-spacing: 0.08em; text-transform: uppercase; padding: 0.2rem 0.45rem; border: 1px solid; }
+.badge-green { border-color: var(--green); color: var(--green); }
+.qr-box { display: flex; flex-direction: column; align-items: center; gap: 1rem; padding: 1.5rem; border: 1px solid var(--rule); background: var(--white); }
+.qr-box img { image-rendering: pixelated; }
+.qr-secret { font-size: 0.55rem; color: var(--ink3); max-width: 240px; word-break: break-all; text-align: center; }
+.modal-overlay { position: fixed; inset: 0; z-index: 200; background: var(--overlay); backdrop-filter: blur(4px); display: none; align-items: center; justify-content: center; padding: 1rem; }
+.modal-overlay.open { display: flex; }
+.modal { background: var(--white); border: 1px solid var(--rule); width: 100%; max-width: 440px; max-height: 90vh; overflow-y: auto; }
+.modal-head { padding: 1.25rem 1.5rem; border-bottom: 1px solid var(--rule); display: flex; align-items: center; justify-content: space-between; }
+.modal-title { font-size: 0.8rem; letter-spacing: -0.01em; color: var(--ink); }
+.modal-close { border: none; background: transparent; color: var(--ink4); cursor: pointer; padding: 0.25rem; line-height: 1; }
+.modal-close svg { width: 14px; height: 14px; stroke: currentColor; stroke-width: 1.5; }
+.modal-body { padding: 1.5rem; }
+.modal-foot { padding: 1rem 1.5rem; border-top: 1px solid var(--rule); display: flex; justify-content: flex-end; gap: 0.5rem; }
+.session-item { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: 0.75rem 0; border-bottom: 1px solid var(--rule); }
+.session-item:last-child { border-bottom: none; }
+.session-icon { width: 28px; height: 28px; flex-shrink: 0; color: var(--ink3); }
+.session-icon svg { width: 100%; height: 100%; stroke: currentColor; fill: none; stroke-width: 1.5; }
+.session-name { font-size: 0.7rem; color: var(--ink); }
+.session-meta { font-size: 0.55rem; color: var(--ink4); margin-top: 0.15rem; }
+.empty-state { padding: 2rem 0; text-align: center; color: var(--ink4); font-size: 0.65rem; }
+.toast { position: fixed; bottom: 1.5rem; right: 1.5rem; z-index: 999; background: var(--ink); color: var(--white); padding: 0.75rem 1.2rem; font-size: 0.65rem; letter-spacing: 0.06em; max-width: 320px; opacity: 0; transform: translateY(8px); transition: opacity 0.3s ease, transform 0.3s ease; pointer-events: none; }
+.toast.show { opacity: 1; transform: translateY(0); }
+.toast.error { background: var(--red); }
+/* Labels & rules */
+.label-color-opt { width: 22px; height: 22px; border-radius: 50%; border: 2px solid transparent; cursor: pointer; transition: border-color 0.15s; flex-shrink: 0; }
+.label-color-opt:hover { border-color: var(--ink); }
+.label-color-opt.active { border-color: var(--ink); box-shadow: 0 0 0 1px var(--ink); }
+.rule-list { display: flex; flex-direction: column; gap: 2px; }
+.rule-row { display: flex; align-items: center; gap: 10px; padding: 0.6rem 0; border-bottom: 1px solid var(--rule); }
+.rule-row:last-child { border-bottom: none; }
+.rule-enabled { flex-shrink: 0; }
+.rule-type { font-size: 0.55rem; text-transform: uppercase; letter-spacing: 0.03em; color: var(--ink3); min-width: 48px; }
+.rule-value { flex: 1; font-size: 0.75rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rule-label { font-size: 0.65rem; display: flex; align-items: center; gap: 4px; }
+.rule-label .dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.rule-actions { display: flex; gap: 4px; }
+.rule-actions button { background: none; border: none; cursor: pointer; padding: 4px; border-radius: 3px; color: var(--ink3); font-size: 0.7rem; font-family: inherit; transition: color 0.1s, background 0.1s; }
+.rule-actions button:hover { color: var(--ink); background: var(--surface); }
+.rule-actions .del:hover { color: var(--red); background: rgba(193,60,60,0.08); }
+.rule-create { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.rule-match { font-size: 0.6rem; color: var(--ink3); min-width: 20px; text-align: center; }
+.compose-area { resize: vertical; min-height: 140px; font-family: inherit; line-height: 1.6; }
+.char-count { font-size: 0.6rem; color: var(--ink3); text-align: right; margin-top: 2px; }
+.date-range { display: flex; gap: 8px; align-items: center; }
+.date-range .sep { font-size: 0.7rem; color: var(--ink3); }
+.reply-preview { background: var(--surface); padding: 0.9rem 1.1rem; border-radius: 4px; font-size: 0.75rem; line-height: 1.6; white-space: pre-wrap; border-left: 3px solid var(--ink2); margin-top: 0.5rem; }
+.reply-preview .preview-subject { font-weight: 500; margin-bottom: 0.5rem; }
+.reply-preview .preview-body { color: var(--ink2); }
+.reply-preview .preview-foot { font-size: 0.6rem; color: var(--ink3); margin-top: 0.75rem; padding-top: 0.5rem; border-top: 1px solid var(--rule); }
+/* Auto-reply HTML editor (same Write/Preview model as compose) */
+.ar-editor-tabs { display: flex; border-bottom: 1px solid var(--rule); margin-bottom: 0.5rem; }
+.ar-tab-btn { border: 0; background: transparent; color: var(--ink3); font-family: inherit; font-size: 0.62rem; letter-spacing: 0.08em; text-transform: uppercase; padding: 0.45rem 0.2rem; margin-right: 1.1rem; margin-bottom: -1px; border-bottom: 2px solid transparent; cursor: pointer; opacity: 0.55; transition: opacity 0.15s, border-color 0.15s, color 0.15s; }
+.ar-tab-btn:hover { opacity: 0.85; }
+.ar-tab-btn.active { opacity: 1; color: var(--ink); border-bottom-color: var(--ink); }
+.ar-code-pane { display: none; }
+.ar-code-pane.active { display: block; }
+.ar-preview-pane { display: none; width: 100%; height: 240px; border: 1px solid var(--rule); background: #ffffff; }
+.ar-preview-pane.active { display: block; }
+/* Skeleton */
+.skeleton-overlay { position: fixed; inset: 0; z-index: 200; background: var(--white); display: flex; flex-direction: column; transition: opacity 0.4s ease, visibility 0.4s ease; animation: skFadeIn 0.3s ease; }
+.skeleton-overlay.hidden { opacity: 0; visibility: hidden; pointer-events: none; }
+@keyframes skFadeIn { from { opacity: 0; } to { opacity: 1; } }
+.sq-loader { margin: auto; display: flex; flex-direction: column; align-items: center; gap: 26px; }
+.sq-label { font-family: 'Fraunces', serif; font-style: italic; font-weight: 200; font-size: 20px; letter-spacing: -0.02em; color: var(--muted); }
+.sq {
+  position: relative;
+  width: 96px;
+  height: 96px;
+  transform: rotate(45deg);
+}
+.sq-square {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 28px;
+  height: 28px;
+  margin: 2px;
+  border-radius: 0px;
+  background: var(--accent);
+  animation: sq-square-animation 10s ease-in-out infinite both;
+}
+.sq-square:nth-of-type(2) { animation-delay: -1.4285714286s; }
+.sq-square:nth-of-type(3) { animation-delay: -2.8571428571s; }
+.sq-square:nth-of-type(4) { animation-delay: -4.2857142857s; }
+.sq-square:nth-of-type(5) { animation-delay: -5.7142857143s; }
+.sq-square:nth-of-type(6) { animation-delay: -7.1428571429s; }
+.sq-square:nth-of-type(7) { animation-delay: -8.5714285714s; }
+@keyframes sq-square-animation {
+  0% { left: 0; top: 0; }
+  10.5% { left: 0; top: 0; }
+  12.5% { left: 32px; top: 0; }
+  23% { left: 32px; top: 0; }
+  25% { left: 64px; top: 0; }
+  35.5% { left: 64px; top: 0; }
+  37.5% { left: 64px; top: 32px; }
+  48% { left: 64px; top: 32px; }
+  50% { left: 32px; top: 32px; }
+  60.5% { left: 32px; top: 32px; }
+  62.5% { left: 32px; top: 64px; }
+  73% { left: 32px; top: 64px; }
+  75% { left: 0; top: 64px; }
+  85.5% { left: 0; top: 64px; }
+  87.5% { left: 0; top: 32px; }
+  98% { left: 0; top: 32px; }
+  100% { left: 0; top: 0; }
+}
+
+@media (max-width: 768px) {
+  main.content { padding: 1.5rem 1.25rem 3rem; }
+  .card-row { flex-direction: column; align-items: flex-start; }
+  .modal { max-width: 100%; margin: 0.5rem; }
+  .date-range { flex-direction: column; align-items: stretch; }
+  .date-range .sep { text-align: center; }
+  .rule-create { flex-direction: column; align-items: stretch; }
+}
+</style>
+</head>
+<body>
+
+<div class="skeleton-overlay" id="skeletonOverlay">
+  <div class="sq-loader" role="status" aria-label="Loading settings">
+    <div class="sq">
+      <div class="sq-square"></div>
+      <div class="sq-square"></div>
+      <div class="sq-square"></div>
+      <div class="sq-square"></div>
+      <div class="sq-square"></div>
+      <div class="sq-square"></div>
+      <div class="sq-square"></div>
+    </div>
+    <p class="sq-label">Loading settings…</p>
+  </div>
+</div>
+
+<nav>
+  <a href="/" class="nav-logo" data-spa-link>
+    <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"></circle><path d="M7 14c1.4-2.6 3.1-4 5.1-4s3.8 1.4 5.2 4"></path></svg>
+    Mail
+  </a>
+  <span class="nav-title">Settings</span>
+  <div class="nav-actions">
+    <button class="theme-btn" id="themeBtn" title="Toggle theme" aria-label="Toggle theme">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"></path></svg>
+    </button>
+    <div class="user-chip" id="userChip" role="button" tabindex="0" aria-haspopup="true" aria-expanded="false">
+      <div class="user-avatar" id="userAvatar">??</div>
+      <span class="user-chip-email" id="userEmail">Loading…</span>
+      <svg class="user-chip-caret" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"></path></svg>
+      <div class="user-menu" id="userMenu" role="menu">
+        <button class="user-menu-item" data-spa-link="mail" type="button" role="menuitem" href="/">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 8l7.9 5.3a2 2 0 0 0 2.2 0L21 8M5 19h14a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2z"></path></svg>
+          Back to mail
+        </button>
+        <button class="user-menu-item" id="signOutBtn" type="button" role="menuitem">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M17 16l4-4-4-4M21 12H9M13 3H5a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1h8"></path></svg>
+          Sign out
+        </button>
+      </div>
+    </div>
+  </div>
+</nav>
+
+<div id="app-content">
+<main class="content">
+
+  <!-- ─── OVERVIEW (cards landing) ───────────────────────────── -->
+  <div class="settings-pane active" data-pane="overview">
+    <section class="section">
+      <div class="section-header">
+        <p class="section-eyebrow">Settings</p>
+        <h2 class="section-title">What do you want to change?</h2>
+        <p class="section-desc">One home for identity, security, organisation and data.</p>
+      </div>
+      <div class="home-grid">
+        <button class="home-card" data-goto="identity" type="button">
+          <span class="home-card-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9"></path><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"></path></svg></span>
+          <span class="home-card-body"><span class="home-card-title">Identity</span><span class="home-card-desc" style="display:block;">Display name &amp; email signature.</span><span class="home-card-go" style="display:block;">Open →</span></span>
+        </button>
+        <button class="home-card" data-goto="profile" type="button">
+          <span class="home-card-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"></circle><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"></path></svg></span>
+          <span class="home-card-body"><span class="home-card-title">Profile</span><span class="home-card-desc" style="display:block;">Account details &amp; membership.</span><span class="home-card-go" style="display:block;">Open →</span></span>
+        </button>
+        <button class="home-card" data-goto="security" type="button">
+          <span class="home-card-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2L2 7v5c0 8 4 12 10 14 6-2 10-6 10-14V7l-10-5z"></path><path d="M9 12l2 2 4-4"></path></svg></span>
+          <span class="home-card-body"><span class="home-card-title">Security</span><span class="home-card-desc" style="display:block;">Password, backup email &amp; 2FA.</span><span class="home-card-go" style="display:block;">Open →</span></span>
+        </button>
+        <button class="home-card" data-goto="sessions" type="button">
+          <span class="home-card-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="2"></rect><path d="M9 9h6v6H9z"></path><path d="M9 1v3M15 1v3M9 20v3M15 20v3"></path></svg></span>
+          <span class="home-card-body"><span class="home-card-title">Sessions</span><span class="home-card-desc" style="display:block;">Devices signed in to your mail.</span><span class="home-card-go" style="display:block;">Open →</span></span>
+        </button>
+        <button class="home-card" data-goto="appearance" type="button">
+          <span class="home-card-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"></path></svg></span>
+          <span class="home-card-body"><span class="home-card-title">Appearance</span><span class="home-card-desc" style="display:block;">Theme, layout &amp; density.</span><span class="home-card-go" style="display:block;">Open →</span></span>
+        </button>
+        <button class="home-card" data-goto="labels" type="button">
+          <span class="home-card-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.6 12.6l-7 7a2 2 0 0 1-2.8 0L3 12V3h9l8.6 8.6a2 2 0 0 1 0 2.8z"></path><circle cx="7.5" cy="7.5" r="1.5" fill="currentColor"></circle></svg></span>
+          <span class="home-card-body"><span class="home-card-title">Labels</span><span class="home-card-desc" style="display:block;">Create &amp; manage mail labels.</span><span class="home-card-go" style="display:block;">Open →</span></span>
+        </button>
+        <button class="home-card" data-goto="autoreply" type="button">
+          <span class="home-card-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M22 2L11 13"></path><path d="M22 2l-7 20-4-9-9-4 20-7z"></path></svg></span>
+          <span class="home-card-body"><span class="home-card-title">Auto-Reply</span><span class="home-card-desc" style="display:block;">Vacation responder &amp; timing.</span><span class="home-card-go" style="display:block;">Open →</span></span>
+        </button>
+        <button class="home-card" data-goto="rules" type="button">
+          <span class="home-card-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M22 3H2l8 9.5V19l4 2v-8.5L22 3z"></path></svg></span>
+          <span class="home-card-body"><span class="home-card-title">Rules</span><span class="home-card-desc" style="display:block;">Automatic labelling rules.</span><span class="home-card-go" style="display:block;">Open →</span></span>
+        </button>
+        <button class="home-card" data-goto="data" type="button">
+          <span class="home-card-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><ellipse cx="12" cy="5" rx="9" ry="3"></ellipse><path d="M3 5v14c0 1.7 4 3 9 3s9-1.3 9-3V5"></path><path d="M3 12c0 1.7 4 3 9 3s9-1.3 9-3"></path></svg></span>
+          <span class="home-card-body"><span class="home-card-title">Data</span><span class="home-card-desc" style="display:block;">Export, retention &amp; danger zone.</span><span class="home-card-go" style="display:block;">Open →</span></span>
+        </button>
+      </div>
+    </section>
+  </div>
+
+  <!-- ─── IDENTITY ─────────────────────────────────────────── -->
+  <div class="settings-pane" data-pane="identity">
+    <section class="section">
+      <div class="section-header">
+        <h2 class="section-title">Sending identity</h2>
+        <p class="section-desc">Shown on every message you send, in place of the automatic “Name from address”.</p>
+      </div>
+      <div class="card">
+        <div class="card-pad">
+          <div class="form-group">
+            <label class="form-label-sm" for="displayNameInput">Display name</label>
+            <input type="text" id="displayNameInput" class="form-input" placeholder="e.g. Aditya Sharma" maxlength="80" autocomplete="off">
+          </div>
+          <div class="form-group">
+            <label class="toggle-row">
+              <span class="toggle-sm"><input type="checkbox" id="signatureEnabled"><span class="slider"></span></span>
+              <span class="toggle-label">Append signature to new mail</span>
+            </label>
+          </div>
+          <div class="form-group">
+            <label class="form-label-sm" for="signatureInput">Signature (plain text)</label>
+            <textarea id="signatureInput" class="form-input" maxlength="1000" placeholder="Aditya Sharma&#10;Synthrun — Architecture Studio&#10;hello@synthrun.site"></textarea>
+          </div>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <button class="btn btn-primary" id="saveIdentityBtn" type="button">Save identity</button>
+            <span class="card-hint" id="identityStatus"></span>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <!-- ─── PROFILE ──────────────────────────────────────────── -->
+  <div class="settings-pane" data-pane="profile">
+    <section class="section">
+      <div class="section-header">
+        <h2 class="section-title">Profile</h2>
+        <p class="section-desc">Your Synthrun identity and account details.</p>
+      </div>
+      <div class="card">
+        <div class="card-pad card-row">
+          <div class="card-left">
+            <div class="card-avatar" id="settingsAvatar">??</div>
+            <div class="card-info">
+              <div class="card-label">Account</div>
+              <div class="card-value" id="settingsName">Loading...</div>
+              <div class="card-hint" id="settingsEmail">—</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-pad card-row">
+          <div class="card-left">
+            <div class="card-info">
+              <div class="card-label">Member since</div>
+              <div class="card-value" id="settingsJoined">—</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <!-- ─── SECURITY ─────────────────────────────────────────── -->
+  <div class="settings-pane" data-pane="security">
+    <section class="section">
+      <div class="section-header">
+        <h2 class="section-title">Security</h2>
+        <p class="section-desc">Password, recovery email, and two-factor authentication.</p>
+      </div>
+      <div class="card">
+        <div class="card-pad card-row">
+          <div class="card-left">
+            <div class="card-info">
+              <div class="card-label">Password</div>
+              <div class="card-value">Change your sign-in password</div>
+            </div>
+          </div>
+          <button class="btn" type="button" id="changePasswordBtn">Change</button>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-pad card-row">
+          <div class="card-left">
+            <div class="card-info">
+              <div class="card-label">Backup Email</div>
+              <div class="card-value" id="backupEmailDisplay">Not set</div>
+              <div class="card-hint">Password reset links will be sent to this address too.</div>
+            </div>
+          </div>
+          <div style="display:flex;gap:0.35rem;">
+            <button class="btn btn-danger" type="button" id="removeBackupEmailBtn" style="display:none;">Remove</button>
+            <button class="btn" type="button" id="backupEmailBtn">Edit</button>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-pad card-row">
+          <div class="card-left">
+            <div class="card-info">
+              <div class="card-label">Two-Factor Authentication</div>
+              <div class="setting-status" id="tfaStatus">
+                <span class="status-dot off"></span>
+                <span id="tfaLabel">Not enabled</span>
+              </div>
+              <div class="card-hint">Add an extra layer of security with an authenticator app.</div>
+            </div>
+          </div>
+          <label class="toggle" id="tfaToggle">
+            <input type="checkbox" id="tfaCheckbox">
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <!-- ─── SESSIONS ─────────────────────────────────────────── -->
+  <div class="settings-pane" data-pane="sessions">
+    <section class="section">
+      <div class="section-header">
+        <h2 class="section-title">Sessions</h2>
+        <p class="section-desc">Active login sessions across your devices.</p>
+      </div>
+      <div class="card">
+        <div class="card-pad" id="sessionsContainer">
+          <div class="empty-state">Loading sessions...</div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <!-- ─── APPEARANCE ───────────────────────────────────────── -->
+  <div class="settings-pane" data-pane="appearance">
+    <section class="section">
+      <div class="section-header">
+        <h2 class="section-title">Appearance</h2>
+        <p class="section-desc">Theme, layout and density.</p>
+      </div>
+      <div class="card">
+        <div class="card-pad card-row">
+          <div class="card-left">
+            <div class="card-info">
+              <div class="card-label">Theme</div>
+              <div class="card-value" id="themeDisplay">System</div>
+              <div class="card-hint">Light, dark, or follow your system settings.</div>
+            </div>
+          </div>
+          <div style="display:flex;gap:0.35rem;">
+            <button class="btn btn-sm" data-theme-opt="system" type="button">Auto</button>
+            <button class="btn btn-sm" data-theme-opt="light" type="button">Light</button>
+            <button class="btn btn-sm" data-theme-opt="dark" type="button">Dark</button>
+          </div>
+        </div>
+        <div class="card-pad card-row">
+          <div class="card-left">
+            <div class="card-info">
+              <div class="card-label">Layout</div>
+              <div class="card-value" id="layoutDisplay">Synthrun</div>
+              <div class="card-hint">Choose how your mailbox is arranged.</div>
+            </div>
+          </div>
+          <div style="display:flex;gap:0.35rem;">
+            <button class="btn btn-sm" data-layout-opt="synthrun" type="button">Synthrun</button>
+            <button class="btn btn-sm" data-layout-opt="gmail" type="button">Gmail</button>
+          </div>
+        </div>
+        <div class="card-pad card-row">
+          <div class="card-left">
+            <div class="card-info">
+              <div class="card-label">Density</div>
+              <div class="card-value" id="densityDisplay">Compact</div>
+              <div class="card-hint">Control the spacing of your message list.</div>
+            </div>
+          </div>
+          <div style="display:flex;gap:0.35rem;">
+            <button class="btn btn-sm" data-density-opt="comfortable" type="button">Comfortable</button>
+            <button class="btn btn-sm" data-density-opt="compact" type="button">Compact</button>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <!-- ─── LABELS ───────────────────────────────────────────── -->
+  <div class="settings-pane" data-pane="labels">
+    <section class="section">
+      <div class="section-header">
+        <h2 class="section-title">Labels</h2>
+        <p class="section-desc">Create and manage custom labels to organise your mail.</p>
+      </div>
+      <div class="card">
+        <div class="card-pad">
+          <div class="form-group">
+            <label class="form-label">Create new label</label>
+            <div class="rule-create">
+              <input type="text" id="newLabelInput" class="form-input" placeholder="Label name" maxlength="40" style="flex:1;min-width:120px;">
+              <div class="label-color-picker" id="labelColorPicker" style="display:flex;gap:4px;"></div>
+              <button class="btn" id="createLabelBtn" type="button">Create</button>
+            </div>
+            <div style="margin-top:6px;display:flex;gap:8px;align-items:center;">
+              <input type="text" id="newLabelDesc" class="form-input" placeholder="Description (optional)" maxlength="80" style="flex:1;min-width:140px;">
+              <label class="toggle-sm" style="display:flex;align-items:center;gap:4px;font-size:0.6rem;color:var(--ink3);white-space:nowrap;">
+                <input type="checkbox" id="newLabelVisible" checked>
+                <span class="slider"></span>
+                Show in sidebar
+              </label>
+            </div>
+          </div>
+          <div id="labelList" class="rule-list">
+            <div class="hint" style="padding:0.5rem 0;">No labels yet. Create one above.</div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <!-- ─── AUTO-REPLY ───────────────────────────────────────── -->
+  <div class="settings-pane" data-pane="autoreply">
+    <section class="section">
+      <div class="section-header">
+        <h2 class="section-title">Auto-Reply</h2>
+        <p class="section-desc">Automatically reply to incoming mail when you are away.</p>
+      </div>
+      <div class="card">
+        <div class="card-pad card-row">
+          <div class="card-left">
+            <div class="card-info">
+              <div class="card-label">Vacation responder</div>
+              <div class="card-value" id="autoReplyStatus">Off</div>
+            </div>
+          </div>
+          <label class="toggle" id="autoReplyToggleWrap">
+            <input type="checkbox" id="autoReplyToggle">
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+      </div>
+      <div class="card" id="autoReplyConfig" style="display:none;">
+        <div class="card-pad">
+          <div class="form-group">
+            <label class="form-label" for="autoReplySubject">Subject line</label>
+            <input type="text" id="autoReplySubject" class="form-input" placeholder="e.g. Out of office — returning Aug 15" maxlength="200">
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="autoReplyMessage">Message (plain text or HTML)</label>
+            <div class="ar-editor-tabs" role="tablist" aria-label="Auto-reply editor view">
+              <button class="ar-tab-btn active" id="arTabCode" role="tab" aria-selected="true" type="button">Write</button>
+              <button class="ar-tab-btn" id="arTabPreview" role="tab" aria-selected="false" type="button">Preview</button>
+            </div>
+            <div class="ar-code-pane active" id="arCodePane">
+              <textarea id="autoReplyMessage" class="form-input compose-area" rows="8" placeholder="Hi,&#10;&#10;Thanks for your email. I'm currently out of the office and will respond when I return.&#10;&#10;Tip: paste HTML for a designed reply." maxlength="5000"></textarea>
+            </div>
+            <iframe class="ar-preview-pane" id="arPreviewPane" title="Auto-reply preview" sandbox="allow-same-origin"></iframe>
+            <div class="char-count"><span id="autoReplyCharCount">0</span> / 5000</div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Date range (optional)</label>
+            <div class="date-range">
+              <input type="date" id="autoReplyStartDate" class="form-input" style="flex:1;">
+              <span class="sep">to</span>
+              <input type="date" id="autoReplyEndDate" class="form-input" style="flex:1;">
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="toggle-row">
+              <span class="toggle-sm"><input type="checkbox" id="autoReplyOnlyContacts"><span class="slider"></span></span>
+              <span class="toggle-label">Only reply to known contacts</span>
+            </label>
+          </div>
+          <div class="form-group">
+            <label class="toggle-row">
+              <span class="toggle-sm"><input type="checkbox" id="autoReplyOncePerSender" checked><span class="slider"></span></span>
+              <span class="toggle-label">Only reply once per sender</span>
+            </label>
+          </div>
+          <div class="form-group">
+            <label class="toggle-row">
+              <span class="toggle-sm"><input type="checkbox" id="autoReplyIncludeOriginal"><span class="slider"></span></span>
+              <span class="toggle-label">Include original message in reply</span>
+            </label>
+          </div>
+          <div class="form-group" style="margin-bottom:1.25rem;">
+            <label class="form-label">Subject &amp; schedule</label>
+            <div id="autoReplyPreview" class="reply-preview">
+              <div class="preview-subject">Subject: Out of office</div>
+              <div class="preview-body">Thanks for your email. I'll respond when I return.</div>
+              <div class="preview-foot">Auto-reply enabled until Aug 15, 2026</div>
+            </div>
+          </div>
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+            <button class="btn" id="saveAutoReplyBtn" type="button">Save Changes</button>
+            <button class="btn btn-outline" id="testAutoReplyBtn" type="button">Send Test</button>
+            <span id="autoReplySavedHint" class="hint" style="display:none;">Saved</span>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <!-- ─── RULES ────────────────────────────────────────────── -->
+  <div class="settings-pane" data-pane="rules">
+    <section class="section">
+      <div class="section-header">
+        <h2 class="section-title">Auto-Labels</h2>
+        <p class="section-desc">Automatically label incoming mail based on keywords or sender domain.</p>
+      </div>
+      <div class="card">
+        <div class="card-pad">
+          <div class="form-group">
+            <label class="form-label">New rule</label>
+            <div class="rule-create">
+              <select id="newRuleLabel" class="form-input" style="min-width:120px;flex:1;">
+                <option value="">Select label…</option>
+              </select>
+              <select id="newRuleType" class="form-input" style="min-width:90px;width:auto;">
+                <option value="keyword">Keyword (body)</option>
+                <option value="domain">Domain</option>
+                <option value="sender">Sender</option>
+                <option value="subject">Subject</option>
+                <option value="recipient">Recipient</option>
+              </select>
+              <select id="newRuleMatch" class="form-input" style="min-width:75px;width:auto;">
+                <option value="contains">contains</option>
+                <option value="exact">exactly</option>
+              </select>
+              <input type="text" id="newRuleValue" class="form-input" placeholder="value" style="min-width:120px;flex:2;">
+              <button class="btn" id="addRuleBtn" type="button">Add Rule</button>
+            </div>
+          </div>
+          <div id="ruleList" class="rule-list">
+            <div class="hint" style="padding:0.5rem 0;">No rules yet. Create one above.</div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <!-- ─── DATA ─────────────────────────────────────────────── -->
+  <div class="settings-pane" data-pane="data">
+    <section class="section">
+      <div class="section-header">
+        <h2 class="section-title">Storage &amp; export</h2>
+        <p class="section-desc">Messages in Trash and Spam are automatically deleted after 30 days. Drafts, Sent and Archive are kept until you delete them.</p>
+      </div>
+      <div class="card">
+        <div class="card-pad card-row">
+          <div class="card-left">
+            <div class="card-info">
+              <div class="card-label">Mailbox export</div>
+              <div class="card-value" id="exportStatus">Download up to 500 recent messages as JSON.</div>
+            </div>
+          </div>
+          <button class="btn" type="button" id="exportBtn">Export</button>
+        </div>
+      </div>
+    </section>
+    <section class="section">
+      <div class="section-header">
+        <h2 class="section-title" style="color:var(--red);">Danger Zone</h2>
+        <p class="section-desc">Irreversible actions for your account.</p>
+      </div>
+      <div class="card" style="border-color:var(--red);">
+        <div class="card-pad card-row">
+          <div class="card-left">
+            <div class="card-info">
+              <div class="card-label">Sign out</div>
+              <div class="card-value">Sign out of Synthrun Mail on this device</div>
+            </div>
+          </div>
+          <button class="btn" type="button" id="signOutBtnSettings">Sign out</button>
+        </div>
+      </div>
+      <div class="card" style="border-color:var(--red);">
+        <div class="card-pad card-row">
+          <div class="card-left">
+            <div class="card-info">
+              <div class="card-label">Delete account</div>
+              <div class="card-value">Permanently delete your account and all data</div>
+              <div class="card-hint">This cannot be undone.</div>
+            </div>
+          </div>
+          <button class="btn btn-danger" type="button" id="deleteAccountBtn">Delete</button>
+        </div>
+      </div>
+    </section>
+  </div>
+
+</main>
+</div>
+
+<!-- ─── MODALS ─────────────────────────────────────────────── -->
+
+<div class="modal-overlay" id="backupEmailModal">
+  <div class="modal">
+    <div class="modal-head">
+      <span class="modal-title">Backup Email</span>
+      <button class="modal-close" data-close="backupEmailModal" type="button"><svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+    </div>
+    <div class="modal-body" id="backupModalBody">
+      <div id="backupStep1">
+        <div class="form-group">
+          <label class="form-label-sm" for="backupEmailInput">Email address</label>
+          <input type="email" id="backupEmailInput" class="form-input" placeholder="backup@example.com" autocomplete="email" spellcheck="false">
+          <p class="card-hint" style="margin-top:0.35rem;">A verification code will be sent to this address.</p>
+        </div>
+      </div>
+      <div id="backupStep2" style="display:none;">
+        <div class="form-group">
+          <label class="form-label-sm">Email address</label>
+          <div class="card-value" id="backupEmailDisplayPending" style="font-size:0.72rem;padding:0.55rem 0.8rem;border:1px solid var(--rule);background:var(--off);"></div>
+        </div>
+        <div class="form-group">
+          <label class="form-label-sm" for="backupCodeInput">Verification code</label>
+          <input type="text" id="backupCodeInput" class="form-input" placeholder="000000" maxlength="6" inputmode="numeric" pattern="[0-9]*" autocomplete="one-time-code">
+          <p class="card-hint" style="margin-top:0.35rem;">Enter the 6-digit code sent to your backup email.</p>
+        </div>
+      </div>
+    </div>
+    <div class="modal-foot" id="backupModalFoot">
+      <button class="btn" data-close="backupEmailModal" type="button">Cancel</button>
+      <button class="btn btn-primary" id="sendBackupCodeBtn" type="button">Send verification</button>
+      <button class="btn btn-success" id="verifyBackupCodeBtn" type="button" style="display:none;">Verify</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="passwordModal">
+  <div class="modal">
+    <div class="modal-head">
+      <span class="modal-title">Change Password</span>
+      <button class="modal-close" data-close="passwordModal" type="button"><svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label-sm" for="currentPasswordInput">Current password</label>
+        <input type="password" id="currentPasswordInput" class="form-input" placeholder="Enter current password" autocomplete="current-password">
+      </div>
+      <div class="form-group">
+        <label class="form-label-sm" for="newPasswordInput">New password</label>
+        <input type="password" id="newPasswordInput" class="form-input" placeholder="Enter new password" autocomplete="new-password">
+      </div>
+      <div class="form-group">
+        <label class="form-label-sm" for="confirmPasswordInput">Confirm new password</label>
+        <input type="password" id="confirmPasswordInput" class="form-input" placeholder="Confirm new password" autocomplete="new-password">
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn" data-close="passwordModal" type="button">Cancel</button>
+      <button class="btn btn-primary" id="savePasswordBtn" type="button">Update password</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="tfaModal">
+  <div class="modal">
+    <div class="modal-head">
+      <span class="modal-title">Set up authenticator</span>
+      <button class="modal-close" data-close="tfaModal" type="button"><svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+    </div>
+    <div class="modal-body" id="tfaModalBody">
+      <div class="card-detail" style="margin-bottom:1rem;">Scan the QR code below with your authenticator app (e.g. Google Authenticator, 1Password, Authy).</div>
+      <div class="qr-box" id="qrContainer">
+        <img id="qrImage" src="" alt="QR Code" width="200" height="200">
+        <div id="qrManualFallback" style="display:none;text-align:center;padding:1rem;">
+          <p style="margin-bottom:0.5rem;color:var(--ink3);">QR code unavailable. Enter the secret manually:</p>
+        </div>
+        <div class="qr-secret" id="qrSecret"></div>
+      </div>
+      <div class="form-group" style="margin-top:1rem;">
+        <label class="form-label-sm" for="tfaCodeInput">Verification code</label>
+        <input type="text" id="tfaCodeInput" class="form-input" placeholder="000000" maxlength="6" inputmode="numeric" pattern="[0-9]*" autocomplete="one-time-code">
+      </div>
+    </div>
+    <div class="modal-foot" id="tfaModalFoot">
+      <button class="btn" data-close="tfaModal" type="button">Cancel</button>
+      <button class="btn btn-primary" id="verifyTfaBtn" type="button">Verify &amp; enable</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="tfaRemoveModal">
+  <div class="modal">
+    <div class="modal-head">
+      <span class="modal-title">Disable two-factor authentication</span>
+      <button class="modal-close" data-close="tfaRemoveModal" type="button"><svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+    </div>
+    <div class="modal-body">
+      <p class="card-detail">Are you sure you want to disable two-factor authentication? Your account will be less secure without it.</p>
+    </div>
+    <div class="modal-foot">
+      <button class="btn" data-close="tfaRemoveModal" type="button">Cancel</button>
+      <button class="btn btn-danger" id="confirmRemoveTfaBtn" type="button">Disable 2FA</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="deleteAccountModal">
+  <div class="modal">
+    <div class="modal-head">
+      <span class="modal-title" style="color:var(--red);">Delete account</span>
+      <button class="modal-close" data-close="deleteAccountModal" type="button"><svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+    </div>
+    <div class="modal-body">
+      <p class="card-detail" style="margin-bottom:1rem;">This will permanently delete your account, all your messages, and all associated data. This cannot be undone.</p>
+      <div class="form-group">
+        <label class="form-label-sm" for="deleteConfirmEmail">Type your email to confirm</label>
+        <input type="email" id="deleteConfirmEmail" class="form-input" placeholder="you@synthrun.site" autocomplete="off">
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn" data-close="deleteAccountModal" type="button">Cancel</button>
+      <button class="btn btn-danger" id="confirmDeleteBtn" type="button">Delete everything</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="reauthModal">
+  <div class="modal">
+    <div class="modal-head">
+      <span class="modal-title">Confirm your identity</span>
+      <button class="modal-close" data-close="reauthModal" type="button"><svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+    </div>
+    <div class="modal-body">
+      <p class="card-detail" style="margin-bottom:1rem;">For security, please re-enter your password to continue.</p>
+      <div class="form-group">
+        <label class="form-label-sm" for="reauthPasswordInput">Password</label>
+        <input type="password" id="reauthPasswordInput" class="form-input" placeholder="Enter your password" autocomplete="current-password">
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn" data-close="reauthModal" type="button">Cancel</button>
+      <button class="btn btn-primary" id="reauthConfirmBtn" type="button">Confirm</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast" role="alert" aria-live="polite"></div>
+
+<script>
+/* ── Text tab strip: faded siblings, full-opacity active ── */
+(function () {
+  const panes = [...document.querySelectorAll('.settings-pane')];
+  // Breadcrumb trail on every section: Settings / <This section>.
+  panes.forEach((p) => {
+    if (p.dataset.pane === 'overview' || p.querySelector('[data-crumbs]')) return;
+    const title = p.querySelector('.section-title');
+    const nav = document.createElement('div');
+    nav.className = 'crumbs';
+    nav.setAttribute('data-crumbs', '');
+    const root = document.createElement('button');
+    root.type = 'button';
+    root.textContent = 'Settings';
+    root.addEventListener('click', () => showPane('overview'));
+    const sep = document.createElement('span');
+    sep.className = 'crumb-sep';
+    sep.textContent = '/';
+    const here = document.createElement('span');
+    here.className = 'crumb-here';
+    here.textContent = title ? title.textContent : p.dataset.pane;
+    nav.append(root, sep, here);
+    p.prepend(nav);
+  });
+  function showPane(name, push) {
+    const target = panes.some((p) => p.dataset.pane === name) ? name : 'overview';
+    panes.forEach((p) => p.classList.toggle('active', p.dataset.pane === target));
+    if (push !== false) {
+      try { history.replaceState(null, '', '#' + target); } catch {}
+    }
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+  document.querySelectorAll('[data-goto]').forEach((c) => c.addEventListener('click', () => showPane(c.dataset.goto)));
+  window.SYNTHRUN_SHOW_SETTINGS_PANE = showPane;
+  const initial = (location.hash || '').replace('#', '');
+  showPane(initial, false);
+})();
+</script>
+
+<script type="module">
+  import { firebaseConfig, AUTH_BASE } from '/firebase-config.js';
+  import { initializeApp, getApp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
+  import {
+    getAuth,
+    onAuthStateChanged,
+    signOut,
+    updatePassword,
+    deleteUser,
+    reauthenticateWithCredential,
+    EmailAuthProvider,
+  } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
+  import {
+    getFirestore,
+    doc,
+    getDoc,
+    setDoc,
+    updateDoc,
+    deleteDoc,
+    collection,
+    query,
+    where,
+    orderBy,
+    limit,
+    getDocs,
+    addDoc,
+    serverTimestamp,
+  } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
+
+  const LOGIN_URL = AUTH_BASE ? '/' + AUTH_BASE + '/login' : '/login/';
+  let app;
+  try { app = getApp(); } catch { app = initializeApp(firebaseConfig); }
+  const auth = getAuth(app);
+  const db = getFirestore(app);
+
+  let currentUser = null;
+  let pendingReauthAction = null;
+
+  function getDeviceName() {
+    const ua = navigator.userAgent;
+    if (ua.includes('Chrome')) return `Chrome on ${ua.includes('Mac') ? 'macOS' : ua.includes('Windows') ? 'Windows' : ua.includes('Linux') ? 'Linux' : 'Unknown'}`;
+    if (ua.includes('Firefox')) return 'Firefox';
+    if (ua.includes('Safari') && !ua.includes('Chrome')) return 'Safari';
+    if (ua.includes('Edg')) return 'Edge';
+    return 'Unknown browser';
+  }
+
+  function getSessionId() {
+    let sid = localStorage.getItem('synthrun-session-id');
+    if (!sid) {
+      sid = crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).slice(2);
+      localStorage.setItem('synthrun-session-id', sid);
+    }
+    return sid;
+  }
+
+  function showToast(msg, isError = false) {
+    const t = document.getElementById('toast');
+    t.removeAttribute('style');
+    t.textContent = msg;
+    t.className = 'toast show' + (isError ? ' error' : '');
+    setTimeout(() => t.className = 'toast', 3400);
+  }
+
+  function openModal(id) {
+    document.getElementById(id).classList.add('open');
+  }
+
+  function closeModal(id) {
+    document.getElementById(id).classList.remove('open');
+  }
+
+  function formatName(email) {
+    const localPart = String(email || '').split('@')[0].replace(/[._-]+/g, ' ').trim();
+    if (!localPart) return 'Synthrun';
+    return localPart.split(/\s+/).filter(Boolean).map(p => p.charAt(0).toUpperCase() + p.slice(1)).join(' ');
+  }
+
+  function getInitials(email) {
+    return email.split('@')[0].slice(0, 2).toUpperCase();
+  }
+
+  // ─── TOTP (Standalone — no Firebase MFA) ─────────────────
+
+  const BASE32 = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+
+  function base32Encode(buf) {
+    const bytes = new Uint8Array(buf);
+    let bits = 0, val = 0, r = '';
+    for (const b of bytes) {
+      val = (val << 8) | b; bits += 8;
+      while (bits >= 5) {
+        r += BASE32[(val >>> (bits - 5)) & 31];
+        bits -= 5;
+        val &= (1 << bits) - 1;
+      }
+    }
+    if (bits > 0) {
+      val <<= (5 - bits);
+      r += BASE32[val & 31];
+    }
+    return r;
+  }
+
+  function base32Decode(s) {
+    const cleaned = s.replace(/[^A-Za-z2-7]/g, '').toUpperCase();
+    const bytes = []; let bits = 0, buf = 0;
+    for (const c of cleaned) {
+      const idx = BASE32.indexOf(c); if (idx === -1) continue;
+      buf = (buf << 5) | idx; bits += 5;
+      if (bits >= 8) {
+        bytes.push((buf >>> (bits - 8)) & 255);
+        bits -= 8;
+        buf &= (1 << bits) - 1;
+      }
+    }
+    return new Uint8Array(bytes);
+  }
+
+  async function totpCode(secret, ts = Date.now()) {
+    const counter = BigInt(Math.floor(ts / 1000 / 30));
+    const cBuf = new ArrayBuffer(8);
+    new DataView(cBuf).setBigUint64(0, counter, false);
+    const key = await crypto.subtle.importKey('raw', base32Decode(secret), { name: 'HMAC', hash: 'SHA-1' }, false, ['sign']);
+    const hmac = new Uint8Array(await crypto.subtle.sign('HMAC', key, cBuf));
+    const off = hmac[hmac.length - 1] & 15;
+    const code = ((hmac[off] & 127) << 24 | hmac[off + 1] << 16 | hmac[off + 2] << 8 | hmac[off + 3]) % 1000000;
+    return String(code).padStart(6, '0');
+  }
+
+  async function verifyTotp(secret, code) {
+    const c = await totpCode(secret);
+    if (c === code) return true;
+    if (await totpCode(secret, Date.now() - 30000) === code) return true;
+    if (await totpCode(secret, Date.now() + 30000) === code) return true;
+    return false;
+  }
+
+  function generateTotpSecret() {
+    const bytes = new Uint8Array(20);
+    crypto.getRandomValues(bytes);
+    return base32Encode(bytes).replace(/=/g, '');
+  }
+
+  // ─── SESSION TRACKING ────────────────────────────────────
+
+  async function trackSession() {
+    if (!currentUser) return;
+    const sid = getSessionId();
+    const deviceName = getDeviceName();
+    const sessionsRef = collection(db, 'user_settings', currentUser.uid, 'sessions');
+    const q = query(sessionsRef, where('sessionId', '==', sid));
+    const snap = await getDocs(q);
+    if (snap.empty) {
+      await addDoc(sessionsRef, {
+        sessionId: sid,
+        deviceName,
+        userAgent: navigator.userAgent,
+        lastActive: serverTimestamp(),
+        createdAt: serverTimestamp(),
+        current: true,
+      });
+    } else {
+      snap.forEach(async (d) => {
+        await updateDoc(doc(db, 'user_settings', currentUser.uid, 'sessions', d.id), {
+          lastActive: serverTimestamp(),
+          deviceName,
+          current: true,
+        });
+      });
+    }
+  }
+
+  async function loadSessions() {
+    const container = document.getElementById('sessionsContainer');
+    if (!currentUser) { container.innerHTML = '<div class="empty-state">Sign in to view sessions.</div>'; return; }
+    try {
+      const sessionsRef = collection(db, 'user_settings', currentUser.uid, 'sessions');
+      const q = query(sessionsRef, where('current', '==', true));
+      const snap = await getDocs(q);
+      const sid = getSessionId();
+      if (snap.empty) {
+        await trackSession();
+      }
+      const allSnap = await getDocs(sessionsRef);
+      if (allSnap.empty) {
+        container.innerHTML = '<div class="empty-state">No sessions found.</div>';
+        return;
+      }
+      let html = '';
+      const sorted = allSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+      sorted.sort((a, b) => {
+        const aTime = a.lastActive?.toMillis?.() || a.createdAt?.toMillis?.() || 0;
+        const bTime = b.lastActive?.toMillis?.() || b.createdAt?.toMillis?.() || 0;
+        return bTime - aTime;
+      });
+      for (const s of sorted) {
+        const isCurrent = s.sessionId === sid;
+        const time = s.lastActive?.toDate?.() || s.createdAt?.toDate?.() || null;
+        const timeStr = time ? time.toLocaleString() : 'Unknown';
+        html += `
+          <div class="session-item">
+            <div class="session-icon"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M9 9h6v6H9z"/><path d="M9 1v3M15 1v3M9 20v3M15 20v3"/></svg></div>
+            <div style="flex:1;">
+              <div class="session-name">${s.deviceName || 'Unknown device'} ${isCurrent ? '<span class="badge badge-green">Current</span>' : ''}</div>
+              <div class="session-meta">${timeStr}</div>
+            </div>
+            ${!isCurrent ? `<button class="btn btn-sm btn-danger session-remove-btn" data-session-id="${s.id}">Remove</button>` : ''}
+          </div>`;
+      }
+      container.innerHTML = html;
+      container.querySelectorAll('.session-remove-btn').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          try {
+            await deleteDoc(doc(db, 'user_settings', currentUser.uid, 'sessions', btn.dataset.sessionId));
+            showToast('Session removed.');
+            loadSessions();
+          } catch { showToast('Failed to remove session.', true); }
+        });
+      });
+    } catch { container.innerHTML = '<div class="empty-state">Could not load sessions.</div>'; }
+  }
+
+  // ─── 2FA (Standalone TOTP) ───────────────────────────────
+
+  async function updateTfaUI(data) {
+    if (!currentUser) return;
+    try {
+      const d = data || (await getDoc(doc(db, 'user_settings', currentUser.uid))).data();
+      const enabled = d && d.totpEnabled;
+      const statusDot = document.querySelector('#tfaStatus .status-dot');
+      const label = document.getElementById('tfaLabel');
+      const checkbox = document.getElementById('tfaCheckbox');
+      if (enabled) {
+        statusDot.className = 'status-dot on';
+        label.textContent = 'Enabled (Authenticator)';
+        checkbox.checked = true;
+      } else {
+        statusDot.className = 'status-dot off';
+        label.textContent = 'Not enabled';
+        checkbox.checked = false;
+      }
+    } catch {
+      document.getElementById('tfaToggle').style.display = 'none';
+      document.querySelector('#tfaStatus .status-dot').className = 'status-dot off';
+      document.getElementById('tfaLabel').textContent = 'Unavailable';
+    }
+  }
+
+  async function setupTfa() {
+    if (!currentUser) return;
+    try {
+      const secret = generateTotpSecret();
+      const otpauth = `otpauth://totp/Synthrun%20Mail:${encodeURIComponent(currentUser.email)}?secret=${secret}&issuer=Synthrun%20Mail&algorithm=SHA1&digits=6&period=30`;
+      document.getElementById('qrImage').src = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(otpauth)}`;
+      document.getElementById('qrImage').onerror = () => {
+        document.getElementById('qrImage').style.display = 'none';
+        document.getElementById('qrManualFallback').style.display = 'block';
+      };
+      document.getElementById('qrManualFallback').style.display = 'none';
+      document.getElementById('qrImage').style.display = '';
+      const secretDisplay = document.getElementById('qrSecret');
+      secretDisplay.textContent = secret;
+      secretDisplay.style.cursor = 'pointer';
+      secretDisplay.title = 'Click to copy';
+      secretDisplay.onclick = () => { navigator.clipboard.writeText(secret).catch(() => {}); showToast('Secret copied!'); };
+      document.getElementById('tfaCodeInput').value = '';
+      window._pendingTotpSecret = secret;
+      openModal('tfaModal');
+    } catch (err) {
+      showToast('Could not start 2FA setup: ' + (err.message || err.code), true);
+    }
+  }
+
+  async function enrollTfa() {
+    const code = document.getElementById('tfaCodeInput').value.trim();
+    if (!code || code.length < 6) { showToast('Enter a valid 6-digit verification code.', true); return; }
+    const secret = window._pendingTotpSecret;
+    if (!secret) { showToast('Session expired. Please restart 2FA setup.', true); return; }
+    try {
+      const valid = await verifyTotp(secret, code);
+      if (!valid) { showToast('Invalid verification code. Try again.', true); return; }
+      closeModal('tfaModal');
+      window._pendingTotpSecret = null;
+      await updateDoc(doc(db, 'user_settings', currentUser.uid), { totpSecret: secret, totpEnabled: true, updatedAt: serverTimestamp() });
+      showToast('Two-factor authentication enabled.');
+      await updateTfaUI();
+    } catch { showToast('2FA setup failed.', true); }
+  }
+
+  async function removeTfa() {
+    if (!currentUser) return;
+    try {
+      await updateDoc(doc(db, 'user_settings', currentUser.uid), { totpSecret: '', totpEnabled: false, updatedAt: serverTimestamp() });
+      showToast('Two-factor authentication disabled.');
+      await updateTfaUI();
+    } catch {
+      document.getElementById('tfaCheckbox').checked = false;
+      showToast('Failed to disable 2FA.', true);
+    }
+  }
+
+  // ─── REAUTH ──────────────────────────────────────────────
+
+  async function reauth(password) {
+    try {
+      const cred = EmailAuthProvider.credential(currentUser.email, password);
+      await reauthenticateWithCredential(currentUser, cred);
+      closeModal('reauthModal');
+      document.getElementById('reauthPasswordInput').value = '';
+
+      const action = pendingReauthAction;
+      pendingReauthAction = null;
+      if (action === 'passwordChange') await executePasswordChange();
+      else if (action === 'tfaEnroll') await setupTfa();
+      else if (action === 'tfaRemove') await removeTfa();
+      else if (action === 'deleteAccount') await executeDeleteAccount();
+      return true;
+    } catch (err) {
+      if (err.code === 'auth/wrong-password' || err.code === 'auth/invalid-credential') {
+        showToast('Incorrect password.', true);
+      } else {
+        showToast('Re-authentication failed.', true);
+      }
+      return false;
+    }
+  }
+
+  // ─── PASSWORD CHANGE ─────────────────────────────────────
+
+  function openPasswordModal() {
+    document.getElementById('currentPasswordInput').value = '';
+    document.getElementById('newPasswordInput').value = '';
+    document.getElementById('confirmPasswordInput').value = '';
+    openModal('passwordModal');
+  }
+
+  async function executePasswordChange() {
+    const currentPw = document.getElementById('currentPasswordInput').value;
+    const newPw = document.getElementById('newPasswordInput').value;
+    const confirmPw = document.getElementById('confirmPasswordInput').value;
+    if (!currentPw || !newPw) { showToast('Fill in all password fields.', true); return; }
+    if (newPw.length < 8) { showToast('New password must be at least 8 characters.', true); return; }
+    if (newPw !== confirmPw) { showToast('New passwords do not match.', true); return; }
+    try {
+      const cred = EmailAuthProvider.credential(currentUser.email, currentPw);
+      await reauthenticateWithCredential(currentUser, cred);
+      await updatePassword(currentUser, newPw);
+      closeModal('passwordModal');
+      showToast('Password updated successfully.');
+    } catch (err) {
+      if (err.code === 'auth/wrong-password' || err.code === 'auth/invalid-credential') {
+        showToast('Current password is incorrect.', true);
+      } else if (err.code === 'auth/requires-recent-login') {
+        pendingReauthAction = 'passwordChange';
+        document.getElementById('reauthPasswordInput').value = '';
+        openModal('reauthModal');
+      } else {
+        showToast('Could not change password: ' + (err.message || err.code), true);
+      }
+    }
+  }
+
+  // ─── BACKUP EMAIL (with verification) ─────────────────────
+
+  async function updateBackupEmailUI(data) {
+    try {
+      const snap = data || await getDoc(doc(db, 'user_settings', currentUser.uid));
+      const d = data || snap.data();
+      const email = d.backupEmail || '';
+      document.getElementById('backupEmailDisplay').textContent = email || 'Not set';
+      document.getElementById('removeBackupEmailBtn').style.display = email ? '' : 'none';
+    } catch { /* ignore */ }
+  }
+
+  async function updateLayoutUI(data) {
+    try {
+      const d = data || (await getDoc(doc(db, 'user_settings', currentUser.uid))).data();
+      if (!d) return;
+      const layout = d.layout || 'synthrun';
+      const density = d.density || 'compact';
+      document.getElementById('layoutDisplay').textContent = layout === 'gmail' ? 'Gmail' : 'Synthrun';
+      document.getElementById('densityDisplay').textContent = density === 'compact' ? 'Compact' : 'Comfortable';
+      document.querySelectorAll('[data-layout-opt]').forEach(b => b.classList.toggle('active', b.dataset.layoutOpt === layout));
+      document.querySelectorAll('[data-density-opt]').forEach(b => b.classList.toggle('active', b.dataset.densityOpt === density));
+      try { cacheSettingsUpdate({ layout, density }); } catch {}
+    } catch { /* ignore */ }
+  }
+
+  async function openBackupEmailModal() {
+    if (!currentUser) return;
+    document.getElementById('backupStep1').style.display = 'block';
+    document.getElementById('backupStep2').style.display = 'none';
+    document.getElementById('sendBackupCodeBtn').style.display = '';
+    document.getElementById('verifyBackupCodeBtn').style.display = 'none';
+    document.getElementById('backupCodeInput').value = '';
+    try {
+      const settings = await getDoc(doc(db, 'user_settings', currentUser.uid));
+      document.getElementById('backupEmailInput').value = settings.data()?.backupEmail || '';
+    } catch { document.getElementById('backupEmailInput').value = ''; }
+    openModal('backupEmailModal');
+  }
+
+  async function sendBackupVerification() {
+    const email = document.getElementById('backupEmailInput').value.trim();
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      showToast('Please enter a valid email address.', true);
+      return;
+    }
+    document.getElementById('sendBackupCodeBtn').disabled = true;
+    document.getElementById('sendBackupCodeBtn').textContent = 'Sending...';
+    try {
+      const token = await currentUser.getIdToken();
+      const resp = await fetch('/send-backup-code', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+        body: JSON.stringify({ backupEmail: email }),
+      });
+      if (!resp.ok) throw new Error();
+      document.getElementById('backupEmailDisplayPending').textContent = email;
+      document.getElementById('backupStep1').style.display = 'none';
+      document.getElementById('backupStep2').style.display = 'block';
+      document.getElementById('sendBackupCodeBtn').style.display = 'none';
+      document.getElementById('verifyBackupCodeBtn').style.display = '';
+      document.getElementById('backupCodeInput').focus();
+      showToast('Verification code sent to ' + email);
+    } catch {
+      showToast('Could not send verification code. Try again.', true);
+    }
+    document.getElementById('sendBackupCodeBtn').disabled = false;
+    document.getElementById('sendBackupCodeBtn').textContent = 'Send verification';
+  }
+
+  async function verifyBackupCode() {
+    const code = document.getElementById('backupCodeInput').value.trim();
+    if (!code || code.length < 6) { showToast('Enter the 6-digit verification code.', true); return; }
+    document.getElementById('verifyBackupCodeBtn').disabled = true;
+    document.getElementById('verifyBackupCodeBtn').textContent = 'Verifying...';
+    try {
+      const token = await currentUser.getIdToken();
+      const resp = await fetch('/verify-backup-code', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+        body: JSON.stringify({ code }),
+      });
+      if (!resp.ok) { showToast('Invalid verification code. Try again.', true); return; }
+      const data = await resp.json();
+      closeModal('backupEmailModal');
+      await updateBackupEmailUI();
+      showToast('Backup email verified and saved.');
+      document.getElementById('backupStep1').style.display = 'block';
+      document.getElementById('backupStep2').style.display = 'none';
+      document.getElementById('sendBackupCodeBtn').style.display = '';
+      document.getElementById('verifyBackupCodeBtn').style.display = 'none';
+      document.getElementById('backupCodeInput').value = '';
+    } catch {
+      showToast('Verification failed. Try again.', true);
+    }
+    document.getElementById('verifyBackupCodeBtn').disabled = false;
+    document.getElementById('verifyBackupCodeBtn').textContent = 'Verify';
+  }
+
+  // ─── DELETE ACCOUNT ──────────────────────────────────────
+
+  async function executeDeleteAccount() {
+    const email = document.getElementById('deleteConfirmEmail').value.trim();
+    if (email !== currentUser.email) {
+      showToast('Email does not match your account.', true);
+      return;
+    }
+    try {
+      const settingsRef = doc(db, 'user_settings', currentUser.uid);
+      const sessionsRef = collection(db, 'user_settings', currentUser.uid, 'sessions');
+      const sessionSnap = await getDocs(sessionsRef);
+      await Promise.all(sessionSnap.docs.map(d => deleteDoc(doc(db, 'user_settings', currentUser.uid, 'sessions', d.id))));
+      await deleteDoc(settingsRef);
+      const msgQuery = query(collection(db, 'mail'), where('recipientEmail', '==', currentUser.email));
+      const msgSnap = await getDocs(msgQuery);
+      await Promise.all(msgSnap.docs.map(d => deleteDoc(doc(db, 'mail', d.id))));
+      await deleteUser(currentUser);
+      showToast('Account deleted.');
+      window.location.href = LOGIN_URL;
+    } catch (err) {
+      if (err.code === 'auth/requires-recent-login') {
+        pendingReauthAction = 'deleteAccount';
+        document.getElementById('reauthPasswordInput').value = '';
+        closeModal('deleteAccountModal');
+        openModal('reauthModal');
+      } else {
+        showToast('Could not delete account: ' + (err.message || err.code), true);
+      }
+    }
+  }
+
+  // ─── THEME ───────────────────────────────────────────────
+
+  const media = window.matchMedia('(prefers-color-scheme: dark)');
+
+  function getCookie(name) {
+    return document.cookie.split('; ').find(r => r.startsWith(name + '='))?.split('=')[1];
+  }
+  function setCookie(name, value) {
+    document.cookie = `${name}=${encodeURIComponent(value)};path=/;max-age=31536000;SameSite=Lax`;
+  }
+
+  function applyTheme(t) {
+    document.documentElement.classList.add('theme-transitioning');
+    setTimeout(() => document.documentElement.classList.remove('theme-transitioning'), 600);
+    if (t === 'system') {
+      document.documentElement.removeAttribute('data-theme');
+      document.body.removeAttribute('data-theme');
+    } else {
+      document.documentElement.setAttribute('data-theme', t);
+      document.body.setAttribute('data-theme', t);
+    }
+  }
+
+  const THEME_ICONS = {
+    system: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="6" width="16" height="12" rx="1"></rect><path d="M9 22h6M12 18v4"></path></svg>',
+    light: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"></path></svg>',
+    dark: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z"></path></svg>',
+  };
+  function renderThemeIcon(t) {
+    const btn = document.getElementById('themeBtn');
+    if (!btn) return;
+    btn.innerHTML = THEME_ICONS[t] || THEME_ICONS.system;
+    btn.title = 'Theme: ' + (t === 'system' ? 'System' : t.charAt(0).toUpperCase() + t.slice(1)) + ' (click to cycle)';
+  }
+  function setTheme(t) {
+    localStorage.setItem('synthrun-theme', t);
+    setCookie('synthrun-theme', t);
+    applyTheme(t);
+    renderThemeIcon(t);
+    const label = t === 'system' ? 'Auto' : t.charAt(0).toUpperCase() + t.slice(1);
+    document.getElementById('themeDisplay').textContent = label;
+    document.querySelectorAll('[data-theme-opt]').forEach(b => b.classList.toggle('active', b.dataset.themeOpt === t));
+  }
+
+  // ─── IDENTITY & EXPORT ───────────────────────────────────
+
+  async function loadIdentity() {
+    if (!currentUser) return;
+    try {
+      const snap = await getDoc(doc(db, 'user_settings', currentUser.uid));
+      const data = snap.exists() ? snap.data() : {};
+      document.getElementById('displayNameInput').value = data.displayName || '';
+      document.getElementById('signatureEnabled').checked = Boolean(data.signature?.enabled);
+      document.getElementById('signatureInput').value = data.signature?.text || '';
+    } catch { /* ignore */ }
+  }
+
+  async function saveIdentity() {
+    if (!currentUser) return;
+    const btn = document.getElementById('saveIdentityBtn');
+    btn.disabled = true;
+    try {
+      const displayName = document.getElementById('displayNameInput').value.trim().slice(0, 80);
+      const signature = {
+        enabled: document.getElementById('signatureEnabled').checked,
+        text: document.getElementById('signatureInput').value.trim().slice(0, 1000),
+      };
+      await setDoc(doc(db, 'user_settings', currentUser.uid), {
+        displayName, signature, updatedAt: serverTimestamp(),
+      }, { merge: true });
+      try {
+        const raw = localStorage.getItem('synthrun-settings');
+        const cached = raw ? JSON.parse(raw) : {};
+        cached.displayName = displayName;
+        cached.signature = signature;
+        localStorage.setItem('synthrun-settings', JSON.stringify(cached));
+      } catch {}
+      document.getElementById('identityStatus').textContent = 'Saved.';
+      showToast('Sending identity saved.');
+    } catch { showToast('Save failed — try again.', true); }
+    btn.disabled = false;
+  }
+
+  async function exportMailbox() {
+    if (!currentUser) return;
+    const est = document.getElementById('exportStatus');
+    est.textContent = 'Preparing export…';
+    try {
+      const snap = await getDocs(query(collection(db, 'mail'), where('recipientEmail', '==', currentUser.email), orderBy('receivedAt', 'desc'), limit(500)));
+      const rows = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+      const blob = new Blob([JSON.stringify({ exportedAt: new Date().toISOString(), account: currentUser.email, messages: rows }, null, 2)], { type: 'application/json' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `synthrun-mail-export-${currentUser.email.split('@')[0]}.json`;
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+      est.textContent = `Exported ${rows.length} messages.`;
+    } catch { est.textContent = 'Export failed.'; }
+  }
+
+  // ─── INIT ────────────────────────────────────────────────
+
+  if (window.__authUnsub) window.__authUnsub();
+  window.__authUnsub = onAuthStateChanged(auth, async (user) => {
+    if (!user || !user.email) {
+      window.location.replace(LOGIN_URL);
+      return;
+    }
+    currentUser = user;
+
+    const name = formatName(user.email);
+    const initials = getInitials(user.email);
+    document.title = `${name} — Synthrun Settings`;
+    document.getElementById('settingsAvatar').textContent = initials;
+    document.getElementById('settingsName').textContent = name;
+    document.getElementById('settingsEmail').textContent = user.email;
+    document.getElementById('settingsJoined').textContent = user.metadata?.creationTime
+      ? new Date(user.metadata.creationTime).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
+      : '—';
+    document.getElementById('userAvatar').textContent = initials;
+    document.getElementById('userEmail').textContent = user.email;
+
+    document.getElementById('skeletonOverlay')?.classList.add('hidden');
+
+    const settingsRef = doc(db, 'user_settings', user.uid);
+    const settingsSnap = await getDoc(settingsRef);
+    let settings;
+    if (!settingsSnap.exists()) {
+      settings = {
+        uid: user.uid, email: user.email, displayName: formatName(user.email),
+        backupEmail: '', totpEnabled: false, totpSecret: '',
+        layout: 'synthrun', density: 'compact',
+      };
+      await setDoc(settingsRef, { ...settings, createdAt: serverTimestamp(), updatedAt: serverTimestamp() });
+    } else {
+      settings = settingsSnap.data();
+    }
+
+    await Promise.all([
+      trackSession(),
+      loadSessions(),
+      updateTfaUI(settings),
+      updateBackupEmailUI(settings),
+      updateLayoutUI(settings),
+      loadIdentity(),
+    ]);
+  });
+
+  // ─── EVENTS ──────────────────────────────────────────────
+
+  document.querySelectorAll('[data-close]').forEach(el => {
+    el.addEventListener('click', () => closeModal(el.dataset.close));
+  });
+
+  document.querySelectorAll('.modal-overlay').forEach(overlay => {
+    overlay.addEventListener('click', (e) => {
+      if (e.target === overlay) overlay.classList.remove('open');
+    });
+  });
+
+  setTheme(localStorage.getItem('synthrun-theme') || decodeURIComponent(getCookie('synthrun-theme') || '') || 'system');
+
+  document.getElementById('themeBtn').addEventListener('click', () => {
+    const c = localStorage.getItem('synthrun-theme') || 'system';
+    setTheme(c === 'system' ? 'light' : c === 'light' ? 'dark' : 'system');
+  });
+  media.addEventListener('change', () => applyTheme(localStorage.getItem('synthrun-theme') || 'system'));
+
+  document.querySelectorAll('[data-theme-opt]').forEach(btn => {
+    btn.addEventListener('click', () => setTheme(btn.dataset.themeOpt));
+  });
+
+  function loadCachedSettings() {
+    try {
+      const raw = localStorage.getItem('synthrun-settings');
+      return raw ? JSON.parse(raw) : {};
+    } catch { return {}; }
+  }
+
+  function applyCachedLayoutUI() {
+    const s = loadCachedSettings();
+    const layout = s.layout || 'synthrun';
+    const density = s.density || 'compact';
+    document.getElementById('layoutDisplay').textContent = layout === 'gmail' ? 'Gmail' : 'Synthrun';
+    document.getElementById('densityDisplay').textContent = density === 'compact' ? 'Compact' : 'Comfortable';
+    document.querySelectorAll('[data-layout-opt]').forEach(b => b.classList.toggle('active', b.dataset.layoutOpt === layout));
+    document.querySelectorAll('[data-density-opt]').forEach(b => b.classList.toggle('active', b.dataset.densityOpt === density));
+  }
+
+  applyCachedLayoutUI();
+
+  function cacheSettingsUpdate(partial) {
+    try {
+      const key = 'synthrun-settings';
+      const existing = JSON.parse(localStorage.getItem(key) || '{}');
+      localStorage.setItem(key, JSON.stringify({ ...existing, ...partial }));
+    } catch { /* ignore */ }
+  }
+
+  document.querySelectorAll('[data-layout-opt]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      if (!currentUser) return;
+      const val = btn.dataset.layoutOpt;
+      cacheSettingsUpdate({ layout: val });
+      applyCachedLayoutUI();
+      try {
+        await updateDoc(doc(db, 'user_settings', currentUser.uid), { layout: val, updatedAt: serverTimestamp() });
+        showToast('Layout saved.');
+      } catch { showToast('Failed to save layout.', true); }
+    });
+  });
+
+  document.querySelectorAll('[data-density-opt]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      if (!currentUser) return;
+      const val = btn.dataset.densityOpt;
+      cacheSettingsUpdate({ density: val });
+      applyCachedLayoutUI();
+      try {
+        await updateDoc(doc(db, 'user_settings', currentUser.uid), { density: val, updatedAt: serverTimestamp() });
+        showToast('Density saved.');
+      } catch { showToast('Failed to save density.', true); }
+    });
+  });
+
+  window.__signOut = async () => {
+    await signOut(auth);
+    window.location.href = LOGIN_URL;
+  };
+  document.getElementById('signOutBtnSettings')?.addEventListener('click', window.__signOut);
+
+  document.getElementById('changePasswordBtn').addEventListener('click', openPasswordModal);
+  document.getElementById('savePasswordBtn').addEventListener('click', executePasswordChange);
+
+  document.getElementById('backupEmailBtn').addEventListener('click', openBackupEmailModal);
+  document.getElementById('sendBackupCodeBtn').addEventListener('click', sendBackupVerification);
+  document.getElementById('verifyBackupCodeBtn').addEventListener('click', verifyBackupCode);
+  document.getElementById('backupEmailInput').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') sendBackupVerification();
+  });
+  document.getElementById('backupCodeInput').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') verifyBackupCode();
+  });
+  document.getElementById('removeBackupEmailBtn').addEventListener('click', async () => {
+    if (!currentUser) return;
+    if (!confirm('Remove your backup email? Password resets will only go to your Synthrun address.')) return;
+    try {
+      const token = await currentUser.getIdToken();
+      const resp = await fetch('/backup-email', {
+        method: 'DELETE',
+        headers: { 'Authorization': 'Bearer ' + token },
+      });
+      if (!resp.ok) throw new Error();
+      await updateBackupEmailUI();
+      showToast('Backup email removed.');
+    } catch { showToast('Failed to remove backup email.', true); }
+  });
+
+  document.getElementById('tfaCheckbox').addEventListener('change', async () => {
+    if (!currentUser) return;
+    const snap = await getDoc(doc(db, 'user_settings', currentUser.uid));
+    const enabled = snap.exists() && snap.data().totpEnabled;
+    if (enabled) {
+      document.getElementById('tfaCheckbox').checked = true;
+      openModal('tfaRemoveModal');
+    } else {
+      await setupTfa();
+    }
+  });
+  document.getElementById('confirmRemoveTfaBtn').addEventListener('click', removeTfa);
+  document.getElementById('verifyTfaBtn').addEventListener('click', enrollTfa);
+
+  document.getElementById('deleteAccountBtn').addEventListener('click', () => {
+    document.getElementById('deleteConfirmEmail').value = '';
+    openModal('deleteAccountModal');
+  });
+  document.getElementById('confirmDeleteBtn').addEventListener('click', executeDeleteAccount);
+
+  document.getElementById('reauthConfirmBtn').addEventListener('click', () => {
+    const pw = document.getElementById('reauthPasswordInput').value;
+    if (!pw) { showToast('Enter your password.', true); return; }
+    reauth(pw);
+  });
+
+  document.getElementById('saveIdentityBtn').addEventListener('click', saveIdentity);
+  document.getElementById('exportBtn').addEventListener('click', exportMailbox);
+</script>
+
+<script type="module">
+import { firebaseConfig, AUTH_BASE } from '/firebase-config.js';
+import { initializeApp, getApp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
+import { getAuth, onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
+import { getFirestore, doc, getDoc, setDoc, updateDoc, deleteDoc, collection, addDoc, getDocs, query, where, serverTimestamp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
+
+let app;
+try { app = getApp(); } catch { app = initializeApp(firebaseConfig); }
+const auth = getAuth(app);
+const db = getFirestore(app);
+const LOGIN_URL = AUTH_BASE ? '/' + AUTH_BASE + '/login' : '/login/';
+
+let currentUser = null;
+
+function formatName(email) {
+  const local = String(email || '').split('@')[0].replace(/[._-]+/g, ' ').trim();
+  if (!local) return 'Synthrun';
+  return local.split(/\s+/).filter(Boolean).map(p => p.charAt(0).toUpperCase() + p.slice(1)).join(' ');
+}
+
+function escapeHtml(v) { return String(v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+function showToast(msg, isError) {
+  let t = document.getElementById('toast');
+  t.removeAttribute('style');
+  t.textContent = msg;
+  t.style.background = isError ? 'var(--red)' : 'var(--ink)';
+  t.style.opacity = '1';
+  clearTimeout(t._t); t._t = setTimeout(() => { t.style.opacity = '0'; }, 3000);
+}
+
+// NOTE: no theme block here — the account module above owns theming.
+// NOTE: no `if (window.__authUnsub)` unsubscribe here — that would kill the
+// account module's auth listener. Both listeners coexist.
+
+window.__authUnsubCustomize = onAuthStateChanged(auth, async (user) => {
+  if (!user || !user.email) { window.location.replace(LOGIN_URL); return; }
+  currentUser = user;
+  document.getElementById('skeletonOverlay')?.classList.add('hidden');
+  const email = user.email;
+  const initials = email.split('@')[0].slice(0, 2).toUpperCase();
+  document.getElementById('userAvatar').textContent = initials;
+  document.getElementById('userEmail').textContent = email;
+  window.__signOut = async () => { await signOut(auth); window.location.href = LOGIN_URL; };
+  await Promise.all([loadAutoReply(), loadLabels(), loadRules()]);
+});
+
+// ─── AUTO-REPLY ──────────────────────────────────────────
+
+async function loadAutoReply() {
+  if (!currentUser) return;
+  try {
+    const snap = await getDoc(doc(db, 'user_settings', currentUser.uid));
+    const ar = snap.exists() ? (snap.data().autoReply || {}) : {};
+    const enabled = !!ar.enabled;
+    document.getElementById('autoReplyToggle').checked = enabled;
+    document.getElementById('autoReplyStatus').textContent = enabled ? 'On' : 'Off';
+    document.getElementById('autoReplyConfig').style.display = enabled ? '' : 'none';
+    document.getElementById('autoReplySubject').value = ar.subject || '';
+    document.getElementById('autoReplyMessage').value = ar.message || '';
+    document.getElementById('autoReplyStartDate').value = ar.startDate || '';
+    document.getElementById('autoReplyEndDate').value = ar.endDate || '';
+    document.getElementById('autoReplyOnlyContacts').checked = ar.onlyContacts ?? false;
+    document.getElementById('autoReplyOncePerSender').checked = ar.oncePerSender ?? true;
+    document.getElementById('autoReplyIncludeOriginal').checked = ar.includeOriginal ?? false;
+    updateCharCount();
+    updatePreview();
+  } catch { /* ignore */ }
+}
+
+function updateCharCount() {
+  const v = document.getElementById('autoReplyMessage').value;
+  document.getElementById('autoReplyCharCount').textContent = v.length;
+}
+
+function updatePreview() {
+  const subject = document.getElementById('autoReplySubject').value.trim();
+  const message = document.getElementById('autoReplyMessage').value.trim();
+  const startDate = document.getElementById('autoReplyStartDate').value;
+  const endDate = document.getElementById('autoReplyEndDate').value;
+  const preview = document.getElementById('autoReplyPreview');
+  const parts = [];
+  if (subject) parts.push(`<div class="preview-subject">Subject: ${escapeHtml(subject)}</div>`);
+  if (message) parts.push(`<div class="preview-body">${escapeHtml(message)}</div>`);
+  if (startDate || endDate) {
+    const range = [];
+    if (startDate) range.push(new Date(startDate + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }));
+    if (endDate) range.push(new Date(endDate + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }));
+    parts.push(`<div class="preview-foot">Auto-reply active${range.length ? ': ' + range.join(' — ') : ''}</div>`);
+  }
+  preview.innerHTML = parts.length ? parts.join('\n') : '<div class="preview-body hint">Fill in the fields above to see a preview.</div>';
+}
+
+document.getElementById('autoReplySubject').addEventListener('input', updatePreview);
+document.getElementById('autoReplyMessage').addEventListener('input', () => { updateCharCount(); updatePreview(); scheduleArPreview(); });
+document.getElementById('autoReplyStartDate').addEventListener('input', updatePreview);
+document.getElementById('autoReplyEndDate').addEventListener('input', updatePreview);
+
+// Write / Preview tabs for the HTML auto-reply editor (same model as compose)
+const arTabCode = document.getElementById('arTabCode');
+const arTabPreview = document.getElementById('arTabPreview');
+const arCodePane = document.getElementById('arCodePane');
+const arPreviewPane = document.getElementById('arPreviewPane');
+let arPreviewTimer = null;
+
+function updateArPreview() {
+  try {
+    const frameDoc = arPreviewPane.contentDocument || arPreviewPane.contentWindow.document;
+    frameDoc.open();
+    // Strip scripts: the sandbox blocks them anyway, and without this the
+    // browser logs "Blocked script execution" against our own URL.
+    frameDoc.write(String(document.getElementById('autoReplyMessage').value || '').replace(/<script[\s\S]*?<\/script>/gi, ''));
+    frameDoc.close();
+  } catch {}
+}
+
+function scheduleArPreview() {
+  if (!arPreviewPane.classList.contains('active')) return;
+  clearTimeout(arPreviewTimer);
+  arPreviewTimer = setTimeout(updateArPreview, 400);
+}
+
+arTabCode.addEventListener('click', () => {
+  arTabCode.classList.add('active');
+  arTabCode.setAttribute('aria-selected', 'true');
+  arTabPreview.classList.remove('active');
+  arTabPreview.setAttribute('aria-selected', 'false');
+  arCodePane.classList.add('active');
+  arPreviewPane.classList.remove('active');
+});
+
+arTabPreview.addEventListener('click', () => {
+  updateArPreview();
+  arTabPreview.classList.add('active');
+  arTabPreview.setAttribute('aria-selected', 'true');
+  arTabCode.classList.remove('active');
+  arTabCode.setAttribute('aria-selected', 'false');
+  arPreviewPane.classList.add('active');
+  arCodePane.classList.remove('active');
+});
+
+function isHtmlMessage(text) {
+  return /<[a-z][\s\S]*>/i.test(String(text || ''));
+}
+
+function stripToText(html) {
+  return String(html || '')
+    .replace(/<\/(p|div|h[1-6]|li|tr|table|section|article|header|footer)>/gi, '\n')
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+document.getElementById('autoReplyToggle').addEventListener('change', () => {
+  const on = document.getElementById('autoReplyToggle').checked;
+  document.getElementById('autoReplyStatus').textContent = on ? 'On' : 'Off';
+  document.getElementById('autoReplyConfig').style.display = on ? '' : 'none';
+  saveAutoReply();
+});
+
+document.getElementById('saveAutoReplyBtn').addEventListener('click', saveAutoReply);
+
+async function saveAutoReply() {
+  if (!currentUser) return;
+  const enabled = document.getElementById('autoReplyToggle').checked;
+  const subject = document.getElementById('autoReplySubject').value.trim();
+  const message = document.getElementById('autoReplyMessage').value.trim();
+  const startDate = document.getElementById('autoReplyStartDate').value;
+  const endDate = document.getElementById('autoReplyEndDate').value;
+  const onlyContacts = document.getElementById('autoReplyOnlyContacts').checked;
+  const oncePerSender = document.getElementById('autoReplyOncePerSender').checked;
+  const includeOriginal = document.getElementById('autoReplyIncludeOriginal').checked;
+  try {
+    await updateDoc(doc(db, 'user_settings', currentUser.uid), {
+      autoReply: { enabled, subject, message, startDate, endDate, onlyContacts, oncePerSender, includeOriginal },
+      updatedAt: serverTimestamp(),
+    });
+    const hint = document.getElementById('autoReplySavedHint');
+    hint.style.display = ''; setTimeout(() => { hint.style.display = 'none'; }, 2500);
+    showToast('Auto-reply saved.');
+  } catch { showToast('Failed to save auto-reply.', true); }
+}
+
+document.getElementById('testAutoReplyBtn').addEventListener('click', async () => {
+  if (!currentUser) return;
+  const subject = document.getElementById('autoReplySubject').value.trim() || 'Auto-reply test';
+  const message = document.getElementById('autoReplyMessage').value.trim();
+  if (!message) { showToast('Write a message first.', true); return; }
+  try {
+    const token = await currentUser.getIdToken();
+    const payload = isHtmlMessage(message)
+      ? { to: currentUser.email, subject: '[TEST] ' + subject, body: stripToText(message), htmlBody: message }
+      : { to: currentUser.email, subject: '[TEST] ' + subject, body: message };
+    const resp = await fetch('/send', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+      body: JSON.stringify(payload),
+    });
+    if (!resp.ok) throw new Error();
+    showToast('Test sent to ' + currentUser.email);
+  } catch { showToast('Failed to send test.', true); }
+});
+
+// ─── LABELS (CRUD) ─────────────────────────────────────
+
+const LABEL_COLORS = ['#4a9c6d','#2b7ecf','#e67e22','#9b59b6','#e74c3c','#1abc9c','#f39c12','#3498db','#95a5a6','#d35400'];
+
+let labelEditState = null;
+
+function initLabelColorPicker() {
+  const container = document.getElementById('labelColorPicker');
+  container.innerHTML = LABEL_COLORS.map((c, i) =>
+    `<div class="label-color-opt${i === 0 ? ' active' : ''}" data-color="${c}" style="background:${c};"></div>`
+  ).join('');
+  container.querySelectorAll('.label-color-opt').forEach(el => {
+    el.addEventListener('click', () => {
+      container.querySelectorAll('.label-color-opt').forEach(o => o.classList.remove('active'));
+      el.classList.add('active');
+    });
+  });
+}
+initLabelColorPicker();
+
+async function loadLabels() {
+  if (!currentUser) return;
+  try {
+    const snap = await getDocs(collection(db, 'user_settings', currentUser.uid, 'labels'));
+    const labels = snap.docs.map(d => ({ id: d.id, name: d.data().name, color: d.data().color }));
+    const sel = document.getElementById('newRuleLabel');
+    sel.innerHTML = '<option value="">Select label…</option>' + labels.map(l => `<option value="${escapeHtml(l.id)}" data-color="${l.color || '#888'}">${escapeHtml(l.name)}</option>`).join('');
+    renderLabelList(labels);
+  } catch { /* ignore */ }
+}
+
+function renderLabelList(labels) {
+  const container = document.getElementById('labelList');
+  if (!labels.length) {
+    container.innerHTML = '<div class="hint" style="padding:0.5rem 0;">No labels yet. Create one above.</div>';
+    return;
+  }
+  container.innerHTML = labels.map(l => {
+    const editing = labelEditState && labelEditState.id === l.id;
+    const hidden = l.hidden === true;
+    if (editing) {
+      return `<div class="rule-row" data-id="${l.id}" style="flex-direction:column;align-items:stretch;gap:6px;">
+        <div style="display:flex;align-items:center;gap:8px;">
+          <div class="label-color-picker" data-edit-picker="${l.id}" style="display:flex;gap:4px;"></div>
+          <div class="rule-value" style="flex:1;"><input type="text" id="labelEditInput" value="${escapeHtml(labelEditState.name)}" maxlength="40" class="form-input" style="padding:4px 8px;font-size:0.75rem;width:100%;"></div>
+          <div class="rule-actions">
+            <button data-save-label="${l.id}" title="Save">✓</button>
+            <button class="del" data-cancel-edit title="Cancel">✕</button>
+          </div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;padding-left:2px;">
+          <input type="text" id="labelEditDesc" class="form-input" placeholder="Description" maxlength="80" style="padding:4px 8px;font-size:0.65rem;flex:1;" value="${escapeHtml(labelEditState.description || '')}">
+          <label class="toggle-sm" style="display:flex;align-items:center;gap:4px;font-size:0.55rem;color:var(--ink3);white-space:nowrap;">
+            <input type="checkbox" id="labelEditVisible" ${!hidden ? 'checked' : ''}>
+            <span class="slider"></span>
+            Show in sidebar
+          </label>
+        </div>
+      </div>`;
+    }
+    return `<div class="rule-row" data-id="${l.id}">
+      <span class="rule-label" ${l.description ? 'title="' + escapeHtml(l.description) + '"' : ''}><span class="dot" style="background:${l.color || '#888'}"></span>${escapeHtml(l.name)}</span>
+      <span style="font-size:0.55rem;color:var(--ink3);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-left:8px;">${l.description ? escapeHtml(l.description) : ''}</span>
+      <span style="font-size:0.5rem;color:var(--ink4);margin-right:4px;width:14px;text-align:center;" title="${hidden ? 'Hidden from sidebar' : 'Visible in sidebar'}">${hidden ? '⊘' : '⊙'}</span>
+      <div class="rule-actions">
+        <button data-edit-label="${l.id}" title="Edit label">✎</button>
+        <button class="del" data-delete-label="${l.id}" title="Delete label">✕</button>
+      </div>
+    </div>`;
+  }).join('');
+  container.querySelectorAll('[data-delete-label]').forEach(btn => {
+    btn.addEventListener('click', () => deleteLabel(btn.dataset.deleteLabel));
+  });
+  container.querySelectorAll('[data-edit-label]').forEach(btn => {
+    btn.addEventListener('click', () => startEditLabel(btn.dataset.editLabel, labels));
+  });
+  container.querySelectorAll('[data-save-label]').forEach(btn => {
+    btn.addEventListener('click', () => saveLabelEdit(btn.dataset.saveLabel));
+  });
+  container.querySelectorAll('[data-cancel-edit]').forEach(btn => {
+    btn.addEventListener('click', () => { labelEditState = null; loadLabels(); });
+  });
+  if (labelEditState) {
+    const picker = container.querySelector('[data-edit-picker]');
+    if (picker) {
+      picker.innerHTML = LABEL_COLORS.map((c, i) =>
+        `<div class="label-color-opt${c === labelEditState.color ? ' active' : ''}" data-color="${c}" style="background:${c};"></div>`
+      ).join('');
+      picker.querySelectorAll('.label-color-opt').forEach(el => {
+        el.addEventListener('click', () => {
+          picker.querySelectorAll('.label-color-opt').forEach(o => o.classList.remove('active'));
+          el.classList.add('active');
+          labelEditState.color = el.dataset.color;
+        });
+      });
+    }
+    const input = document.getElementById('labelEditInput');
+    if (input) {
+      input.focus();
+      input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') saveLabelEdit(labelEditState.id);
+        if (e.key === 'Escape') { labelEditState = null; loadLabels(); }
+      });
+      input.addEventListener('input', () => { labelEditState.name = input.value; });
+    }
+  }
+}
+
+function startEditLabel(id, labels) {
+  const l = labels.find(x => x.id === id);
+  if (!l) return;
+  labelEditState = { id: l.id, name: l.name, color: l.color || LABEL_COLORS[0], description: l.description || '' };
+  loadLabels();
+}
+
+async function saveLabelEdit(id) {
+  if (!currentUser || !labelEditState || labelEditState.id !== id) return;
+  const name = labelEditState.name.trim();
+  if (!name) { showToast('Label name cannot be empty.', true); return; }
+  const color = labelEditState.color || LABEL_COLORS[0];
+  const descInput = document.getElementById('labelEditDesc');
+  const description = descInput ? descInput.value.trim() : (labelEditState.description || '');
+  const visibleInput = document.getElementById('labelEditVisible');
+  const hidden = visibleInput ? !visibleInput.checked : false;
+  try {
+    await updateDoc(doc(db, 'user_settings', currentUser.uid, 'labels', id), { name, color, description, hidden, updatedAt: serverTimestamp() });
+    labelEditState = null;
+    await loadLabels();
+    showToast('Label updated.');
+  } catch { showToast('Failed to update label.', true); }
+}
+
+document.getElementById('createLabelBtn').addEventListener('click', async () => {
+  if (!currentUser) return;
+  const input = document.getElementById('newLabelInput');
+  const name = input.value.trim();
+  if (!name) { showToast('Enter a label name.', true); return; }
+  const activeColor = document.querySelector('#labelColorPicker .label-color-opt.active');
+  const color = activeColor ? activeColor.dataset.color : LABEL_COLORS[0];
+  const description = document.getElementById('newLabelDesc').value.trim();
+  const hidden = !document.getElementById('newLabelVisible').checked;
+  try {
+    await addDoc(collection(db, 'user_settings', currentUser.uid, 'labels'), { name, color, description, hidden, createdAt: serverTimestamp() });
+    input.value = '';
+    document.getElementById('newLabelDesc').value = '';
+    await loadLabels();
+    showToast(`Label "${name}" created.`);
+  } catch { showToast('Failed to create label.', true); }
+});
+
+document.getElementById('newLabelInput').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') document.getElementById('createLabelBtn').click();
+});
+
+async function deleteLabel(id) {
+  if (!currentUser || !id) return;
+  let ruleCount = 0;
+  try {
+    const snap = await getDocs(collection(db, 'user_settings', currentUser.uid, 'autoLabelRules'));
+    ruleCount = snap.docs.filter(d => d.data().labelId === id).length;
+  } catch { /* ignore */ }
+  const labelEl = document.querySelector('[data-delete-label="' + id + '"]');
+  const labelName = labelEl ? (labelEl.closest('.rule-row')?.querySelector('.rule-label')?.textContent?.trim() || 'this label') : 'this label';
+  let msg = 'Delete this label? Messages will keep their current labels.';
+  if (ruleCount > 0) {
+    const plural = ruleCount > 1 ? 's' : '';
+    msg = 'Delete "' + labelName + '"?\n\n' + ruleCount + ' auto-label rule' + plural + ' references this label and will stop working.\n\nMessages will keep their current labels.';
+  }
+  if (!confirm(msg)) return;
+  try {
+    await deleteDoc(doc(db, 'user_settings', currentUser.uid, 'labels', id));
+    labelEditState = null;
+    await loadLabels();
+    showToast('Label deleted.');
+  } catch { showToast('Failed to delete label.', true); }
+}
+
+// ─── AUTO-LABEL RULES ───────────────────────────────────
+
+async function loadRules() {
+  if (!currentUser) return;
+  try {
+    const snap = await getDocs(collection(db, 'user_settings', currentUser.uid, 'autoLabelRules'));
+    const rules = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    renderRules(rules);
+  } catch { renderRules([]); }
+}
+
+async function renderRules(rules) {
+  const container = document.getElementById('ruleList');
+  if (!rules.length) {
+    container.innerHTML = '<div class="hint" style="padding:0.5rem 0;">No rules yet. Create one above.</div>';
+    return;
+  }
+  let labels = [];
+  try {
+    const snap = await getDocs(collection(db, 'user_settings', currentUser.uid, 'labels'));
+    labels = snap.docs.map(d => ({ id: d.id, name: d.data().name, color: d.data().color }));
+  } catch {}
+  const labelMap = {};
+  labels.forEach(l => { labelMap[l.id] = l; });
+  container.innerHTML = rules.map(r => {
+    const lbl = labelMap[r.labelId];
+    const typeLabels = { domain: 'Domain', keyword: 'Keyword', sender: 'Sender', subject: 'Subject', recipient: 'Recipient' };
+    const typeLabel = typeLabels[r.type] || r.type || 'Rule';
+    const matchLabel = r.matchMode === 'exact' ? '=' : '⊃';
+    return `<div class="rule-row" data-id="${r.id}">
+      <div class="rule-enabled"><label class="toggle-sm"><input type="checkbox" ${r.enabled !== false ? 'checked' : ''} data-toggle-rule="${r.id}"><span class="slider"></span></label></div>
+      <span class="rule-type">${typeLabel}</span>
+      <span class="rule-match" style="font-size:0.6rem;color:var(--ink3);min-width:20px;text-align:center;">${matchLabel}</span>
+      <span class="rule-value">${escapeHtml(r.value || '')}</span>
+      <span class="rule-label">${lbl ? '<span class="dot" style="background:' + (lbl.color || '#888') + '"></span>' + escapeHtml(lbl.name) : escapeHtml(r.labelName || 'Unknown')}</span>
+      <div class="rule-actions"><button class="del" data-delete-rule="${r.id}" title="Delete">✕</button></div>
+    </div>`;
+  }).join('');
+  container.querySelectorAll('[data-toggle-rule]').forEach(cb => {
+    cb.addEventListener('change', () => toggleRule(cb.dataset.toggleRule, cb.checked));
+  });
+  container.querySelectorAll('[data-delete-rule]').forEach(btn => {
+    btn.addEventListener('click', () => deleteRule(btn.dataset.deleteRule));
+  });
+}
+
+async function toggleRule(id, enabled) {
+  if (!currentUser) return;
+  try {
+    await updateDoc(doc(db, 'user_settings', currentUser.uid, 'autoLabelRules', id), { enabled, updatedAt: serverTimestamp() });
+  } catch { /* ignore */ }
+}
+
+async function deleteRule(id) {
+  if (!currentUser || !id) return;
+  try {
+    await deleteDoc(doc(db, 'user_settings', currentUser.uid, 'autoLabelRules', id));
+    await loadRules();
+    showToast('Rule deleted.');
+  } catch { showToast('Failed to delete rule.', true); }
+}
+
+document.getElementById('addRuleBtn').addEventListener('click', async () => {
+  if (!currentUser) return;
+  const labelId = document.getElementById('newRuleLabel').value;
+  const type = document.getElementById('newRuleType').value;
+  const matchMode = document.getElementById('newRuleMatch').value;
+  const value = document.getElementById('newRuleValue').value.trim();
+  if (!labelId) { showToast('Select a label.', true); return; }
+  if (!value) { showToast('Enter a value.', true); return; }
+  const labelName = document.querySelector('#newRuleLabel option[value="' + labelId.replace(/"/g, '\\"') + '"]')?.textContent || '';
+  try {
+    await addDoc(collection(db, 'user_settings', currentUser.uid, 'autoLabelRules'), {
+      labelId, labelName: labelName.replace(/^Select label…$/, ''), type, matchMode, value: value.toLowerCase(), enabled: true, createdAt: serverTimestamp(),
+    });
+    document.getElementById('newRuleValue').value = '';
+    await loadRules();
+    showToast('Rule added.');
+  } catch { showToast('Failed to add rule.', true); }
+});
+
+document.getElementById('newRuleValue').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') document.getElementById('addRuleBtn').click();
+});
+</script>
+
+<script src="/spa-nav.js"></script>
+</div>
+</body>
+</html>

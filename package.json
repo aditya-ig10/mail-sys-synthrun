@@ -3,7 +3,8 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "start": "node render-server.js"
+    "start": "node render-server.js",
+    "verify:imports": "node scripts/verify-firebase-imports.mjs"
   },
   "engines": {
     "node": ">=18"
