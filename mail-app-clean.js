@@ -751,7 +751,11 @@ async function loadFolderPage(folder, { render = true } = {}) {
       return getDocs(query(base, ...constraints));
     };
     let snap;
-    let exact = key === 'all';
+    // `exact` means: the server already filtered by folder, so we can trust
+    // the result count for pagination without an extra client-side filter.
+    // For 'all' (inbox) we skip the folder filter but still trust pagination.
+    // Only set to false when the composite index is missing and we fall back.
+    let exact = true;
     try {
       // Exact server-side paging needs composite index
       // mail(recipientEmail, folder, receivedAt desc).
@@ -772,6 +776,7 @@ async function loadFolderPage(folder, { render = true } = {}) {
     }
     let docs = snap.docs;
     if (!exact) {
+      // Fallback: server returned unfiltered results, filter locally.
       docs = docs.filter((d) => d.data().folder === key);
       if (snap.docs.length === 0) folderExhausted[key] = true;
     } else if (snap.docs.length < PAGE_SIZE) {
@@ -960,7 +965,11 @@ async function retryOutboxMessage(id) {
     const attachments = Array.isArray(message.attachments) ? message.attachments : [];
     const idempotencyKey = message.idempotencyKey || (window.crypto?.randomUUID ? window.crypto.randomUUID() : 'k' + Date.now().toString(36));
     const bodyWithLinks = `${message.body || ''}${buildAttachmentText(attachments)}`;
-    const finalHtmlBody = `${message.htmlBody || ''}${buildAttachmentHtml(attachments)}`;
+    const storedHtml = message.htmlBody || '';
+    const attachHtml = buildAttachmentHtml(attachments);
+    const finalHtmlBody = attachHtml
+      ? storedHtml.replace(/(<\/body>[\s\S]*<\/html>)\s*$/i, `${attachHtml}$1`)
+      : storedHtml;
     const debugUser = globalThis.SYNTHRUN_DEBUG_USER || localStorage.getItem('synthrun-debug-user');
     const idToken = debugUser ? null : await currentUser.getIdToken();
     const response = await fetch(SEND_ENDPOINT, {
@@ -1366,6 +1375,10 @@ async function saveDraft() {
     flagged: false,
     important: false,
     isHtml: true,
+    // receivedAt is required for the Firestore query (orderBy receivedAt desc).
+    // Without it the draft is excluded from folder page results entirely.
+    // Also acts as "last edited" timestamp so recent drafts sort to the top.
+    receivedAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   };
 
@@ -2143,8 +2156,38 @@ async function uploadDraftAttachments() {
   return uploads;
 }
 
-function themedEmailWrapper(bodyHtml) {
-  return `<div style="font-family:monospace;font-size:14px;white-space:pre-wrap;max-width:640px;margin:0 auto;padding:24px;">${bodyHtml}</div>`;
+/**
+ * Wraps a bare HTML body fragment in a complete, email-client-safe HTML
+ * document shell. Uses only inline-compatible CSS (no external sheets, no
+ * class selectors — email clients strip those). Safe to call on content that
+ * is already a full document — it detects the `<html` / `<!DOCTYPE` opening
+ * and returns it unchanged.
+ */
+function wrapEmailHtml(bodyHtml) {
+  const trimmed = (bodyHtml || '').trimStart();
+  // Already a full document — don't double-wrap.
+  if (/^<!DOCTYPE\s/i.test(trimmed) || /^<html[\s>]/i.test(trimmed)) {
+    return bodyHtml;
+  }
+  // Plain-text content (no tags at all) gets pre-wrap treatment.
+  const hasHtmlTags = /<[a-z][\s\S]*>/i.test(trimmed);
+  const bodyStyle = hasHtmlTags
+    ? 'margin:0;padding:0;background:#ffffff;'
+    : 'margin:0;padding:0;background:#ffffff;white-space:pre-wrap;';
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<title></title>
+</head>
+<body style="${bodyStyle}">
+<div style="font-family:'DM Mono',ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,'Liberation Mono','Courier New',monospace;font-size:13px;font-weight:300;line-height:1.75;color:#111110;max-width:640px;margin:0 auto;padding:24px 20px;word-break:break-word;overflow-wrap:break-word;">
+${bodyHtml}
+</div>
+</body>
+</html>`;
 }
 
 async function sendMessage() {
@@ -2168,7 +2211,7 @@ async function sendMessage() {
     return;
   }
   let body = stripHtmlToText(rawBody);
-  let htmlBody = rawBody;
+  let htmlBody; // set after signature is appended (below)
 
   clearComposeValidation();
 
@@ -2189,10 +2232,19 @@ async function sendMessage() {
   // appended after validation so it can't satisfy the "has body" check.
   const sendingIdentity = window.SYNTHRUN_SENDING_IDENTITY || {};
   const signatureText = sendingIdentity.signature?.enabled ? String(sendingIdentity.signature.text || '').trim() : '';
+
+  // Build the plain-text body (with optional signature).
+  let bodyText = body;
+  // Build the HTML fragment (with optional signature), then wrap in a full
+  // email document so recipients see the same styled output as the Preview.
+  let rawBodyWithSig = rawBody;
   if (signatureText) {
-    body += `\n\n-- \n${signatureText}`;
-    htmlBody += `<br><div>--</div><div>${escapeHtml(signatureText).replace(/\n/g, '<br>')}</div>`;
+    bodyText += `\n\n-- \n${signatureText}`;
+    rawBodyWithSig += `<br><div>--</div><div>${escapeHtml(signatureText).replace(/\n/g, '<br>')}</div>`;
   }
+  body = bodyText;
+  // wrapEmailHtml() is a no-op if rawBodyWithSig is already a full document.
+  htmlBody = wrapEmailHtml(rawBodyWithSig);
 
   const button = document.getElementById('sendBtn');
   const attachButton = document.getElementById('attachBtn');
@@ -2222,7 +2274,11 @@ async function sendMessage() {
     uploadedAttachments = await uploadDraftAttachments();
     console.log(`[send] to=${to.split(',').filter(Boolean).length} cc=${cc.split(',').filter(Boolean).length} bcc=${bcc.split(',').filter(Boolean).length} subjectLen=${subject.length}`);
     const bodyWithLinks = `${body}${buildAttachmentText(uploadedAttachments)}`;
-    const finalHtmlBody = `${htmlBody}${buildAttachmentHtml(uploadedAttachments)}`;
+    // Inject attachment HTML before </body> so it stays inside the document.
+    const attachHtml = buildAttachmentHtml(uploadedAttachments);
+    const finalHtmlBody = attachHtml
+      ? htmlBody.replace(/(<\/body>[\s\S]*<\/html>)\s*$/i, `${attachHtml}$1`)
+      : htmlBody;
     const debugUser = globalThis.SYNTHRUN_DEBUG_USER || localStorage.getItem('synthrun-debug-user');
     const idToken = debugUser ? null : await currentUser.getIdToken();
 

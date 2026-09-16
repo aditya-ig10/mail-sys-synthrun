@@ -2338,13 +2338,38 @@ setInterval(updateClock, 30000);
     htmlPreviewPane.classList.remove('active');
   }
 
+  function wrapPreviewHtml(bodyHtml) {
+    const trimmed = (bodyHtml || '').trimStart();
+    // Already a full document — show as-is (after stripping scripts).
+    if (/^<!DOCTYPE\s/i.test(trimmed) || /^<html[\s>]/i.test(trimmed)) {
+      return stripPreviewActive(bodyHtml);
+    }
+    const hasHtmlTags = /<[a-z][\s\S]*>/i.test(trimmed);
+    const bodyStyle = hasHtmlTags
+      ? 'margin:0;padding:0;background:#ffffff;'
+      : 'margin:0;padding:0;background:#ffffff;white-space:pre-wrap;';
+    return `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+  * { box-sizing: border-box; }
+</style>
+</head>
+<body style="${bodyStyle}">
+<div style="font-family:'DM Mono',ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,'Liberation Mono','Courier New',monospace;font-size:13px;font-weight:300;line-height:1.75;color:#111110;max-width:640px;margin:0 auto;padding:24px 20px;word-break:break-word;overflow-wrap:break-word;">
+${stripPreviewActive(bodyHtml)}
+</div>
+</body>
+</html>`;
+  }
+
   function updatePreview() {
     try {
       const doc = htmlPreviewPane.contentDocument || htmlPreviewPane.contentWindow.document;
       doc.open();
-      // Strip scripts AND inline handlers: the sandbox blocks them anyway,
-      // and without this the browser logs "Blocked script execution".
-      doc.write(stripPreviewActive(String(htmlBodyTA.value || '')));
+      doc.write(wrapPreviewHtml(String(htmlBodyTA.value || '')));
       doc.close();
     } catch(e) {}
   }
